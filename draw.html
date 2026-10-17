@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>draw</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05060d; overflow: hidden;
+               font-family: system-ui, sans-serif; color: #cfd6e6; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  .ui { position: fixed; top: 12px; left: 12px; display: flex; flex-wrap: wrap; gap: .7rem;
+        align-items: center; padding: .5rem .8rem; background: #ffffff14;
+        backdrop-filter: blur(6px); border-radius: 12px; font-size: .9rem; }
+  .home { color: inherit; text-decoration: none; opacity: .75; transition: opacity .15s; }
+  .home:hover { opacity: 1; }
+  button { font: inherit; color: inherit; background: #ffffff1f; border: 0; border-radius: 8px;
+           padding: .35rem .7rem; cursor: pointer; transition: background .15s; }
+  button:hover { background: #ffffff38; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ui">
+  <a href="../" class="home">← Home</a>
+  <label>Symmetry <input type="range" id="sym" min="1" max="12" value="6"> <output id="symOut">6</output></label>
+  <label><input type="checkbox" id="mirror" checked> Mirror</label>
+  <button id="undo">Undo (Z)</button>
+  <button id="clear">Clear (Space)</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $("c"), ctx = cv.getContext("2d");
+let W, H;              // canvas size in CSS pixels
+let strokes = [];      // every stroke, kept as data so Undo can replay the rest
+let cur = null;        // the stroke being drawn right now (null when not drawing)
+let ptr = { x: 0, y: 0 };   // where the pointer is
+let hue = 200;         // current color, rotated a little for each new stroke
+
+// Each "follower" chases the pointer at its own speed. Different speeds
+// make the trailing ribbons that give the silky look. Try changing these!
+const EASES = [0.30, 0.18, 0.09];
+
+// 1. SIZE: match canvas pixels to the window (and the screen's pixel density)
+function resize() {
+  const d = devicePixelRatio || 1;
+  W = innerWidth; H = innerHeight;
+  cv.width = W * d; cv.height = H * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  redraw();
+}
+
+// 2. SYMMETRY: draw one line segment, plus rotated (and mirrored) copies of it
+function drawSegment(s, [x1, y1, x2, y2]) {
+  const cx = W / 2, cy = H / 2;                    // the center everything spins around
+  ctx.globalCompositeOperation = "lighter";        // overlapping light ADDS up, which makes the glow
+  ctx.strokeStyle = `hsla(${s.hue}, 90%, 60%, 0.45)`;
+  ctx.lineWidth = 1.3;
+  ctx.lineCap = "round";
+
+  const copies = s.sym * (s.mirror ? 2 : 1);
+  for (let i = 0; i < copies; i++) {
+    const angle = (i % s.sym) * (2 * Math.PI / s.sym);  // each copy is turned a bit more
+    const flip = i >= s.sym ? -1 : 1;                   // the second batch is mirrored left-right
+    const move = (x, y) => {
+      x = (x - cx) * flip; y = y - cy;                  // shift so the center is (0, 0), then mirror
+      return [cx + x * Math.cos(angle) - y * Math.sin(angle),   // rotate (same math as the note rotation!)
+              cy + x * Math.sin(angle) + y * Math.cos(angle)];
+    };
+    ctx.beginPath();
+    ctx.moveTo(...move(x1, y1));
+    ctx.lineTo(...move(x2, y2));
+    ctx.stroke();
+  }
+}
+
+// 3. REPLAY: paint the background, then redraw every saved segment (used by Undo and resize)
+function redraw() {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#05060d";
+  ctx.fillRect(0, 0, W, H);
+  for (const s of strokes) for (const seg of s.segs) drawSegment(s, seg);
+}
+
+// 4. ANIMATION LOOP: runs every frame while the pointer is down
+function loop() {
+  if (!cur) return;
+  for (const f of cur.followers) {
+    const nx = f.x + (ptr.x - f.x) * f.ease;       // move a fraction of the way toward the pointer
+    const ny = f.y + (ptr.y - f.y) * f.ease;
+    if (Math.hypot(nx - f.x, ny - f.y) > 0.1) {    // skip tiny, invisible movements
+      const seg = [f.x, f.y, nx, ny];
+      cur.segs.push(seg);                           // remember it for Undo/redraw
+      drawSegment(cur, seg);                        // and draw it now
+    }
+    f.x = nx; f.y = ny;
+  }
+  requestAnimationFrame(loop);
+}
+
+// 5. INPUT: pointer events work for mouse, touch and pen
+cv.addEventListener("pointerdown", e => {
+  cv.setPointerCapture(e.pointerId);
+  ptr = { x: e.clientX, y: e.clientY };
+  hue = (hue + 25) % 360;                           // new color for each stroke
+  cur = { sym: +$("sym").value, mirror: $("mirror").checked, hue, segs: [],
+          followers: EASES.map(ease => ({ x: ptr.x, y: ptr.y, ease })) };
+  strokes.push(cur);
+  loop();
+});
+cv.addEventListener("pointermove", e => { ptr = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener("pointerup", () => cur = null);
+cv.addEventListener("pointercancel", () => cur = null);
+
+// 6. CONTROLS
+$("sym").oninput = () => $("symOut").textContent = $("sym").value;
+const undo = () => { strokes.pop(); redraw(); };
+const clear = () => { strokes = []; redraw(); };
+$("undo").onclick = undo;
+$("clear").onclick = clear;
+addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); clear(); }
+  if (e.key === "z" || e.key === "Z") undo();
+});
+
+addEventListener("resize", resize);
+resize();
+</script>
+</body>
+</html>

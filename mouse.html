@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mouse</title>
+<style>
+  :root { --paper: #f3e6d0; --paper2: #e8d4b4; --ink: #4a3426; --muted: #8a6f58; --btn: #8a5a3b; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+    padding: 1.5rem; text-align: center; color: var(--ink); font-family: Georgia, "Times New Roman", serif;
+    background: radial-gradient(circle at 50% 20%, var(--paper), var(--paper2));
+  }
+  .home { align-self: flex-start; color: var(--muted); text-decoration: none; transition: color .15s; }
+  .home:hover { color: var(--ink); }
+  h1 { font-weight: 400; font-size: clamp(1.8rem, 5vw, 2.6rem); }
+
+.frame { --size: min(88vw, 60vh, 560px); width: var(--size); height: var(--size);
+         padding: .7rem; background: #fffaf0; border-radius: 6px; box-shadow: 0 8px 24px #4a342640; }
+.frame.loading { animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 50.7; } }
+img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 3px;
+      opacity: 1; transition: opacity 5s ease-in-out; }     /* going TO visible: slow fade-in */
+img.fade { opacity: 0; transition: opacity .3s ease; }       /* going TO hidden: quick fade-out */
+  #caption { min-height: 1.5em; color: var(--muted); font-style: italic; }
+
+  button { font: inherit; padding: .8rem 1.8rem; color: #fff8ec; background: var(--btn); border: 0;
+           border-radius: 999px; cursor: pointer; box-shadow: 0 3px 0 #5e3a24;
+           transition: filter .15s, transform .1s, box-shadow .1s; }
+  button:hover { filter: brightness(1.12); }
+  button:active { transform: translateY(2px); box-shadow: 0 1px 0 #5e3a24; }
+  button:focus-visible { outline: 3px solid #d98b1f; outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { img { transition: none; } }
+</style>
+</head>
+<body>
+  <a class="home" href="index.html">← Home</a>
+  <h1>mice</h1>
+
+  <div class="frame loading"><img id="pic" class="fade" alt=""></div>
+  <p id="caption" aria-live="polite"></p>
+  <button id="again">mouse</button>
+
+<script>
+  // ADD MORE PICTURES HERE: put the image file in the "mice" folder, then add a line to this list.
+  const MICE = [
+    { src: "mice/mouse1.png",
+      alt: "A mouse in a pink cardigan reaching up to an old rotary telephone",
+      caption: "Calling home" },
+    // { src: "mice/mouse2.png", alt: "Describe the picture here", caption: "A short title" },
+  ];
+
+  const pic = document.getElementById("pic");
+  const caption = document.getElementById("caption");
+  const frame = document.querySelector(".frame");
+  let last = -1;
+
+  function show() {
+    let i;
+    do { i = Math.floor(Math.random() * MICE.length); }   // pick a random position in the list
+    while (MICE.length > 1 && i === last);                // ...but never the same picture twice in a row
+    last = i;
+    const m = MICE[i];
+    pic.classList.add("fade");
+    setTimeout(() => {                                    // wait for the fade-out, then swap
+      caption.textContent = m.caption || "";
+      pic.alt = m.alt || "";
+      if (pic.getAttribute("src") === m.src) pic.classList.remove("fade");   // same file: no load event will fire
+      else pic.src = m.src;
+    }, 300);
+  }
+
+pic.addEventListener("load", () => { pic.classList.remove("fade"); frame.classList.remove("loading"); });
+pic.addEventListener("error", () => {
+  pic.classList.remove("fade"); frame.classList.remove("loading");
+  caption.textContent = "Couldn't find that picture. Check the file name in the list.";
+});
+  document.getElementById("again").addEventListener("click", show);
+  show();
+</script>
+</body>
+</html>

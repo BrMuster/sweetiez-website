@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>post</title>
+<style>
+:root{--board:#c9a77c;--frame:#6b4a2b;--ink:#2a2118;--font:"Segoe UI",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+body{min-height:100vh;display:flex;flex-direction:column;gap:.6rem;background:#f3eee8;color:var(--ink);font-family:var(--font);padding:1rem;padding-top:calc(1rem + env(safe-area-inset-top,0px));padding-bottom:calc(1rem + env(safe-area-inset-bottom,0px))}
+.bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;max-width:900px;width:100%;margin:0 auto}
+.bar small{color:#6d6256;flex-basis:100%}
+input[type=text],select{font:inherit;padding:.5rem .7rem;border:1px solid #cfc5ba;border-radius:10px;background:#fff;color:var(--ink)}
+input[type=text]{flex:1 1 220px}
+button,.btn{font:inherit;padding:.5rem .9rem;border:0;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer}
+.btn input{display:none}
+.ghost{background:#fff;color:var(--ink);border:1px solid #cfc5ba}
+button[aria-pressed=true]{background:#0f7b8a;color:#fff}
+:focus-visible{outline:3px solid #0f7b8a;outline-offset:2px}
+.sw,.tog{cursor:pointer}
+.sw input,.tog input{position:absolute;opacity:0}
+.sw span{display:block;width:26px;height:26px;border-radius:50%;border:2px solid #0003}
+.sw input:checked+span{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+.sw input:focus-visible+span,.tog input:focus-visible+span{outline:3px solid #0f7b8a;outline-offset:2px}
+.tog span{display:block;padding:.5rem .8rem;border-radius:10px;background:#fff;border:1px solid #cfc5ba}
+.tog input:checked+span{background:var(--ink);color:#fff}
+.sz{display:flex;align-items:center;gap:.3rem}
+.sz input{width:4.8rem;font:inherit;padding:.5rem;border:1px solid #cfc5ba;border-radius:10px;background:#fff;color:var(--ink)}
+.home{display:block;width:100%;max-width:900px;margin:0 auto;color:#6d6256;text-decoration:none;transition:color .15s}
+.home:hover{color:var(--ink)}
+.sep{width:1px;height:24px;background:#cfc5ba}
+
+.board{position:relative;flex:1;min-height:60vh;max-width:900px;width:100%;margin:0 auto;background:var(--board);border:12px solid var(--frame);border-radius:6px;overflow:hidden}
+.board.white{--board:#f8f9fa;--frame:#8a949c}
+#draw{position:absolute;inset:0;width:100%;height:100%;z-index:100000;pointer-events:none}
+.drawing #draw{pointer-events:auto;cursor:crosshair;touch-action:none}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:#4a3a28;pointer-events:none}
+
+.note{position:absolute;display:flex;flex-direction:column;padding:1.1rem 1rem .8rem;background:var(--c);box-shadow:2px 4px 8px #0004;transform:rotate(var(--tilt));overflow:hidden;overflow-wrap:anywhere;cursor:grab;touch-action:none;user-select:none}
+.note.sel{outline:2px dashed #0f7b8a;outline-offset:3px}
+.note.dragging{cursor:grabbing;box-shadow:6px 10px 18px #0005}
+.note::before{content:"";position:absolute;top:6px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#b3322b;box-shadow:0 1px 2px #0006}
+.note p{flex:0 0 auto;margin-top:.3rem}
+.note p:empty{display:none}
+.note img{flex:1 1 0;min-height:0;width:100%;object-fit:cover;margin-top:.4rem}
+.note button{position:absolute;padding:0;width:24px;height:24px;display:grid;place-items:center;line-height:1;border-radius:50%;background:#0002;color:#0008;font:16px/1 sans-serif}
+.note button:hover{background:#0004;color:#000}
+.del{top:2px;right:2px}.rot{left:3px;bottom:3px;cursor:alias}.rs{right:3px;bottom:3px;cursor:nwse-resize}
+</style>
+</head>
+<body>
+
+<a class="home" href="../">← Home</a>
+
+<form class="bar" id="form">
+  <input type="text" id="text" placeholder="Pin something to the board…" maxlength="140" required aria-label="Note text">
+  <button>Pin it</button>
+  <label class="btn ghost">Pin a photo<input type="file" id="boardPhoto" accept="image/*"></label>
+</form>
+
+<section class="bar" id="style" aria-label="Note style">
+  <label class="sw"><input type="radio" name="color" value="#fff3a3" checked><span style="background:#fff3a3"></span></label>
+  <label class="sw"><input type="radio" name="color" value="#ffc9d6"><span style="background:#ffc9d6"></span></label>
+  <label class="sw"><input type="radio" name="color" value="#bfe6ff"><span style="background:#bfe6ff"></span></label>
+  <label class="sw"><input type="radio" name="color" value="#c9f0c0"><span style="background:#c9f0c0"></span></label>
+  <select id="font" aria-label="Font">
+    <option value="'Bradley Hand','Segoe Print','Comic Sans MS',cursive">Handwriting</option>
+    <option value="'Marker Felt','Comic Sans MS',sans-serif">Marker</option>
+    <option value="Georgia,serif">Serif</option>
+    <option value="system-ui,sans-serif">Clean</option>
+    <option value="ui-monospace,Consolas,monospace">Typewriter</option>
+  </select>
+  <label class="sz">Size <input type="number" id="size" min="8" max="256" step="1" value="14" aria-label="Text size in points"> pt</label>
+  <label class="tog"><input type="checkbox" id="bold"><span><b>B</b></span></label>
+  <label class="tog"><input type="checkbox" id="italic"><span><i>I</i></span></label>
+  <label class="btn ghost">Photo on note<input type="file" id="notePhoto" accept="image/*"></label>
+  <small id="hint">Click a note to select it. Style changes apply to it and to new notes. Corners: ↻ rotate, ⇲ resize.</small>
+</section>
+
+<section class="bar" aria-label="Board tools">
+  <button class="ghost" id="drawBtn" aria-pressed="false">Draw</button>
+  <select id="tool" aria-label="Marker style">
+    <option value="marker">Marker</option><option value="fine">Fine pen</option>
+    <option value="highlighter">Highlighter</option><option value="silk">Silk brush</option><option value="eraser">Eraser</option>
+  </select>
+  <label class="sw"><input type="radio" name="ink" value="#1b1b1b" checked><span style="background:#1b1b1b"></span></label>
+  <label class="sw"><input type="radio" name="ink" value="#1f5fd1"><span style="background:#1f5fd1"></span></label>
+  <label class="sw"><input type="radio" name="ink" value="#d33a2c"><span style="background:#d33a2c"></span></label>
+  <label class="sw"><input type="radio" name="ink" value="#1f9d55"><span style="background:#1f9d55"></span></label>
+  <select id="sym" aria-label="Silk brush symmetry">
+    <option value="1">Silk ×1</option><option value="2">×2</option><option value="3">×3</option><option value="4">×4</option>
+    <option value="6" selected>×6</option><option value="8">×8</option><option value="12">×12</option>
+  </select>
+  <label class="tog"><input type="checkbox" id="mirror" checked><span>Mirror</span></label>
+  <span class="sep"></span>
+  <button class="ghost" id="undo">Undo</button>
+  <button class="ghost" id="clear">Clear drawing</button>
+  <button class="ghost" id="bg">Whiteboard</button>
+</section>
+
+<main class="board" id="board"><div id="notes"></div><canvas id="draw"></canvas></main>
+
+<script>
+const $ = id => document.getElementById(id);
+const board = $("board"), layer = $("notes"), cv = $("draw"), ctx = cv.getContext("2d");
+const KEY = "our-board-notes";
+let S = { items: [], strokes: [], white: false }, selId = null, topZ = 1, drawing = false;
+
+// Load (older versions saved just an array of notes)
+try { const d = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(d)) S.items = d; else if (d) S = { ...S, ...d }; } catch (e) {}
+const HINT = $("hint").textContent;
+const say = t => { $("hint").textContent = t; setTimeout(() => $("hint").textContent = HINT, 4000); };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { say("Browser storage is full or unavailable, so changes may not be kept."); } };
+
+const rand = m => Math.random() * Math.max(0, m);
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+const FONT0 = $("font").value;
+
+if (!S.ptSizes) { S.items.forEach(n => { if (n.size) n.size = Math.round(n.size * .75); }); S.ptSizes = true; }  // old sizes were px
+const clampSize = v => clamp(Math.round(+v) || 14, 8, 256);
+for (const n of S.items) {            // fill in anything older notes don't have yet
+  n.tilt = Number(n.tilt) || 0; n.w ??= 170; n.h ??= 150; n.font ??= FONT0; n.size ??= 14;
+  n.z ??= ++topZ; topZ = Math.max(topZ, n.z);
+  if (n.x === undefined) { n.x = rand(board.clientWidth - n.w); n.y = rand(board.clientHeight - n.h); }
+}
+
+// ---- Style controls ----
+const ctl = () => ({ color: document.querySelector("input[name=color]:checked").value, font: $("font").value,
+  size: clampSize($("size").value), bold: $("bold").checked, italic: $("italic").checked });
+const sel = () => S.items.find(n => n.id === selId);
+
+function select(id) {
+  selId = id;
+  document.querySelectorAll(".note").forEach(e => e.classList.toggle("sel", +e.dataset.id === id));
+  const n = sel(); if (!n) return;
+  $("font").value = n.font; $("size").value = n.size; $("bold").checked = !!n.bold; $("italic").checked = !!n.italic;
+  const r = document.querySelector(`input[name=color][value="${n.color}"]`); if (r) r.checked = true;
+}
+$("style").addEventListener("input", e => {
+  if (e.target.type === "file") return;
+  if (e.target.id === "size" && !(+e.target.value >= 8 && +e.target.value <= 256)) return;  // wait while typing
+  const n = sel(); if (!n) return;
+  const c = ctl(); if (n.photo) delete c.color;
+  Object.assign(n, c); save(); render();
+});
+
+$("size").addEventListener("change", e => {
+  e.target.value = clampSize(e.target.value);
+  const n = sel(); if (n) { n.size = +e.target.value; save(); render(); }
+});
+
+// ---- Pointer helper used by drag / rotate / resize / draw ----
+function track(el, e, move, done) {
+  el.setPointerCapture(e.pointerId); el.classList.add("dragging");
+  const up = () => {
+    el.classList.remove("dragging");
+    ["pointermove", "pointerup", "pointercancel"].forEach((t, i) => el.removeEventListener(t, i ? up : move));
+    done && done(); save();
+  };
+  el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+}
+const mkBtn = (c, t, l) => { const b = document.createElement("button"); b.type = "button"; b.className = c; b.textContent = t; b.setAttribute("aria-label", l); return b; };
+
+// ---- Notes ----
+function render() {
+  layer.innerHTML = S.items.length ? "" : '<p class="empty">Nothing pinned yet. Add the first note above.</p>';
+  for (const n of S.items) {
+    const el = document.createElement("div");
+    el.className = "note" + (n.id === selId ? " sel" : ""); el.dataset.id = n.id;
+    el.style.cssText = `--c:${n.color};--tilt:${n.tilt}deg;width:${n.w}px;height:${n.h}px;z-index:${n.z};` +
+      `left:${clamp(n.x, 0, board.clientWidth - n.w)}px;top:${clamp(n.y, 0, board.clientHeight - n.h)}px;` +
+      `font:${n.italic ? "italic " : ""}${n.bold ? "700 " : ""}${n.size}pt/1.3 ${n.font}`;
+    if (n.img) {
+      const im = new Image(); im.src = n.img; im.alt = ""; im.draggable = false; im.title = "Double-click to remove photo";
+      im.ondblclick = () => { delete n.img; save(); render(); };
+      el.append(im);
+    }
+    const p = document.createElement("p"); p.textContent = n.text; el.append(p);
+    el.append(mkBtn("del", "×", "Remove note"), mkBtn("rot", "↻", "Rotate note"), mkBtn("rs", "⇲", "Resize note"));
+    el.querySelector(".del").onclick = () => { S.items = S.items.filter(x => x !== n); save(); render(); };
+
+    el.addEventListener("pointerdown", e => {
+      const b = e.target.closest("button"), k = b && b.className;
+      if (k === "del") return;
+      select(n.id); n.z = ++topZ; el.style.zIndex = n.z;
+      const x0 = e.clientX, y0 = e.clientY, o = { ...n };
+
+      if (k === "rot") {                                    // rotate around the note's center
+        const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const ang = ev => Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI, a0 = ang(e);
+        track(el, e, ev => { n.tilt = o.tilt + ang(ev) - a0; el.style.setProperty("--tilt", n.tilt + "deg"); });
+      } else if (k === "rs") {                              // resize along the note's own axes
+        const t = o.tilt * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
+        track(el, e, ev => {
+          const dx = ev.clientX - x0, dy = ev.clientY - y0;
+          n.w = Math.max(90, o.w + dx * c + dy * s); n.h = Math.max(70, o.h - dx * s + dy * c);
+          el.style.width = n.w + "px"; el.style.height = n.h + "px";
+        });
+      } else {                                              // move
+        track(el, e, ev => {
+          n.x = clamp(o.x + ev.clientX - x0, 0, board.clientWidth - n.w);
+          n.y = clamp(o.y + ev.clientY - y0, 0, board.clientHeight - n.h);
+          el.style.left = n.x + "px"; el.style.top = n.y + "px";
+        });
+      }
+    });
+    layer.append(el);
+  }
+}
+
+function add(o) {
+  const n = { id: Date.now(), tilt: Math.random() * 6 - 3, z: ++topZ, ...o };
+  n.x = rand(board.clientWidth - n.w); n.y = rand(board.clientHeight - n.h);
+  S.items.push(n); save(); render(); select(null);
+}
+// Blocked word: removed as it's typed or pasted (loops so "ppoopoop" can't sneak through)
+const BLOCKED = /poop/gi;
+const scrub = v => { while (/poop/i.test(v)) v = v.replace(BLOCKED, ""); return v; };
+$("text").addEventListener("input", e => {
+  const el = e.target, before = el.value, clean = scrub(before);
+  if (clean === before) return;
+  const pos = Math.max(0, el.selectionStart - (before.length - clean.length));
+  el.value = clean; el.setSelectionRange(pos, pos);
+});
+
+$("form").addEventListener("submit", e => {
+  e.preventDefault(); const t = scrub($("text").value).trim(); if (!t) return;
+  add({ ...ctl(), text: t, w: 170, h: 150 }); $("text").value = "";
+});
+board.addEventListener("pointerdown", e => { if (e.target === board) select(null); });
+
+// ---- Photos (shrunk first so browser storage doesn't fill up) ----
+const shrink = f => new Promise(res => {
+  const fr = new FileReader();
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 480 / Math.max(im.width, im.height)), c = document.createElement("canvas");
+      c.width = im.width * k; c.height = im.height * k;
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL("image/jpeg", .8));
+    };
+    im.src = fr.result;
+  };
+  fr.readAsDataURL(f);
+});
+$("boardPhoto").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = await shrink(f);
+  add({ img, text: "", color: "#ffffff", photo: true, w: 200, h: 200, font: FONT0, size: 14, bold: false, italic: false });
+  e.target.value = "";
+};
+$("notePhoto").onchange = async e => {
+  const f = e.target.files[0], n = sel(); e.target.value = "";
+  if (!f) return;
+  if (!n) { say("Click a note first, then add the photo to it."); return; }
+  n.img = await shrink(f); n.h = Math.max(n.h, 230); save(); render();
+};
+
+// ---- Drawing (strokes are stored as fractions of the board size) ----
+const EASES = [0.30, 0.18, 0.09];   // how fast each Silk ribbon chases the pointer
+const TOOLS = { silk: {}, marker: { w: 5, a: 1 }, fine: { w: 2, a: 1 }, highlighter: { w: 18, a: .35 }, eraser: { w: 26, erase: true } };
+function sizeCanvas() {
+  const d = devicePixelRatio || 1;
+  cv.width = board.clientWidth * d; cv.height = board.clientHeight * d; ctx.setTransform(d, 0, 0, d, 0, 0); redraw();
+}
+// Silk brush: draw one segment, plus rotated (and mirrored) copies around the board's center
+function silkSeg(s, [x1, y1, x2, y2]) {
+  const W = board.clientWidth, H = board.clientHeight, cx = W / 2, cy = H / 2;
+  ctx.save(); ctx.strokeStyle = s.color; ctx.globalAlpha = .5; ctx.lineWidth = 1.3; ctx.lineCap = "round";
+  for (let i = 0; i < s.sym * (s.mirror ? 2 : 1); i++) {
+    const a = (i % s.sym) * 2 * Math.PI / s.sym, flip = i >= s.sym ? -1 : 1;
+    const mv = (x, y) => { x = (x * W - cx) * flip; y = y * H - cy;
+      return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)]; };
+    ctx.beginPath(); ctx.moveTo(...mv(x1, y1)); ctx.lineTo(...mv(x2, y2)); ctx.stroke();
+  }
+  ctx.restore();
+}
+function redraw() {
+  const W = board.clientWidth, H = board.clientHeight; ctx.clearRect(0, 0, W, H);
+  for (const s of S.strokes) {
+    if (s.tool === "silk") { s.segs.forEach(g => silkSeg(s, g)); continue; }
+    const t = TOOLS[s.tool]; ctx.save();
+    ctx.globalCompositeOperation = t.erase ? "destination-out" : "source-over";
+    ctx.globalAlpha = t.a || 1; ctx.strokeStyle = s.color; ctx.lineWidth = t.w; ctx.lineCap = ctx.lineJoin = "round";
+    ctx.beginPath();
+    s.pts.forEach(([x, y], i) => i ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H));
+    if (s.pts.length === 1) ctx.lineTo(s.pts[0][0] * W + .01, s.pts[0][1] * H);
+    ctx.stroke(); ctx.restore();
+  }
+}
+cv.addEventListener("pointerdown", e => {
+  const r = cv.getBoundingClientRect(), f = v => Math.round(v * 1e4) / 1e4;
+  const pt = ev => [f((ev.clientX - r.left) / r.width), f((ev.clientY - r.top) / r.height)];
+  const tool = $("tool").value, color = document.querySelector("input[name=ink]:checked").value;
+  if (tool === "silk") {
+    const s = { tool, color, sym: +$("sym").value, mirror: $("mirror").checked, segs: [] };
+    let ptr = pt(e), alive = true;
+    const fl = EASES.map(k => ({ x: ptr[0], y: ptr[1], k }));
+    S.strokes.push(s);
+    track(cv, e, ev => { ptr = pt(ev); }, () => { alive = false; });
+    (function loop() {
+      if (!alive) return;
+      for (const f of fl) {
+        const nx = f.x + (ptr[0] - f.x) * f.k, ny = f.y + (ptr[1] - f.y) * f.k;
+        if (Math.hypot(nx - f.x, ny - f.y) > 1e-4) {
+          const g = [f.x, f.y, nx, ny].map(v => Math.round(v * 1e4) / 1e4);
+          s.segs.push(g); silkSeg(s, g);
+        }
+        f.x = nx; f.y = ny;
+      }
+      requestAnimationFrame(loop);
+    })();
+    return;
+  }
+  const s = { tool, color, pts: [pt(e)] };
+  S.strokes.push(s); redraw();
+  track(cv, e, ev => { s.pts.push(pt(ev)); redraw(); });
+});
+$("drawBtn").onclick = e => {
+  drawing = !drawing; board.classList.toggle("drawing", drawing); e.target.setAttribute("aria-pressed", drawing);
+};
+$("undo").onclick = () => { S.strokes.pop(); save(); redraw(); };
+let sure = 0;
+$("clear").onclick = e => {
+  if (!sure) { e.target.textContent = "Click again to clear"; sure = setTimeout(() => { sure = 0; e.target.textContent = "Clear drawing"; }, 3000); return; }
+  clearTimeout(sure); sure = 0; e.target.textContent = "Clear drawing"; S.strokes = []; save(); redraw();
+};
+const applyBg = () => { board.classList.toggle("white", S.white); $("bg").textContent = S.white ? "Cork board" : "Whiteboard"; };
+$("bg").onclick = () => { S.white = !S.white; save(); applyBg(); };
+
+window.addEventListener("resize", () => { render(); sizeCanvas(); });
+applyBg(); render(); sizeCanvas();
+</script>
+</body>
+</html>

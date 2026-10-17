@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Links</title>
+<style>
+  /* Colors live here. The dark version switches on automatically if the visitor's device is in dark mode */
+  :root {
+    --bg: #f4f1ec; --card: #ffffff; --ink: #1f2933; --muted: #6b7680;
+    --line: #e0dbd3; --accent: #0f7b8a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14191f; --card: #1d252d; --ink: #e8edf1; --muted: #93a0ab; --line: #2b3640; --accent: #4fc3d3; }
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, sans-serif; padding: 1.5rem; }
+  main { max-width: 760px; margin: 0 auto; }
+
+  .home { color: var(--muted); text-decoration: none; transition: color .15s; }
+  .home:hover { color: var(--ink); }
+
+  h1 { margin: 1.5rem 0 .3rem; font-size: clamp(1.8rem, 5vw, 2.4rem); letter-spacing: -.02em; }
+  .intro { color: var(--muted); }
+
+  h2 { margin: 2.2rem 0 .8rem; font-size: .8rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+  /* A row of cards that wraps by itself: as many 220px+ columns as will fit */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .8rem; }
+
+  .link { display: block; padding: .9rem 1rem; background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; color: inherit; text-decoration: none;
+          transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .link:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 6px 16px #0001; }
+  .link:active { transform: translateY(0); }
+  .link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .link b { display: block; font-weight: 600; }
+  .link b::after { content: " ↗"; color: var(--accent); }     /* little arrow showing it leaves your site */
+  .link span { color: var(--muted); font-size: .9rem; }
+
+  @media (prefers-reduced-motion: reduce) { .link { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <a class="home" href="index.html">← Home</a>
+
+  <h1>Links</h1>
+  <p class="intro">A few places worth visiting.</p>
+
+  <!--
+    TO ADD A LINK: copy one whole <a> ... </a> block, paste it inside a <div class="grid">,
+    then change the address (href), the name (<b>) and the description (<span>).
+    TO ADD A SECTION: copy an <h2> and its <div class="grid"> block.
+    These are examples: replace them with your own favorites.
+  -->
+
+  <h2>Learn</h2>
+  <div class="grid">
+    <a class="link" href="https://developer.mozilla.org" target="_blank" rel="noopener noreferrer">
+      <b>MDN Web Docs</b><span>The reference for HTML, CSS and JavaScript</span></a>
+    <a class="link" href="https://web.dev/learn" target="_blank" rel="noopener noreferrer">
+      <b>web.dev Learn</b><span>Free courses on CSS and web design</span></a>
+  </div>
+
+  <h2>Tools</h2>
+  <div class="grid">
+    <a class="link" href="https://www.netlify.com" target="_blank" rel="noopener noreferrer">
+      <b>Netlify</b><span>Where this site is hosted</span></a>
+    <a class="link" href="https://porkbun.com" target="_blank" rel="noopener noreferrer">
+      <b>Porkbun</b><span>Where the domain lives</span></a>
+    <a class="link" href="https://github.com" target="_blank" rel="noopener noreferrer">
+      <b>GitHub</b><span>Store and share your code</span></a>
+  </div>
+
+  <h2>Just for fun</h2>
+  <div class="grid">
+    <a class="link" href="https://weavesilk.com" target="_blank" rel="noopener noreferrer">
+      <b>Silk</b><span>The drawing toy that inspired the Draw page</span></a>
+  </div>
+</main>
+</body>
+</html>

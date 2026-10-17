@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steams</title>
+<style>
+  
+  :root {
+    --bg: #1b2838;        /* main background */
+    --side: #171d25;      /* darker sidebar */
+    --panel: #16202d;     /* cards */
+    --line: #2a3a4d;
+    --text: #c6d4df;
+    --muted: #8f98a0;
+    --accent: #1a9fff;    /* blue for links, bars, active tab */
+    --play: linear-gradient(#5ca51e, #3e7d14);
+    --radius: 3px;        /* tiny radius: sharp corners are part of the look */
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    display: grid; grid-template-rows: auto 1fr;       /* top bar, then everything else */
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 "Motiva Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+
+  /* 2. TOP BAR: uppercase text, with the active tab underlined */
+  .top { display: flex; gap: 1.6rem; padding: .8rem 1.2rem 0; background: var(--side); }
+  .top a { padding-bottom: .6rem; font-size: 1.15rem; text-transform: uppercase; color: var(--text);
+           text-decoration: none; border-bottom: 3px solid transparent; transition: color .15s; }
+  .top a:hover { color: #fff; }
+  .top a.on { color: var(--accent); border-color: var(--accent); }
+
+  /* 3. TWO-COLUMN LAYOUT: fixed sidebar + flexible main area (CSS grid) */
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 0; }
+  .side, .main { overflow: auto; }                     /* each side scrolls on its own */
+  .side { background: var(--side); padding: .8rem .5rem; }
+  .side input { width: 100%; padding: .5rem .7rem; margin-bottom: .8rem; color: var(--text);
+                background: #0e141b; border: 1px solid var(--line); border-radius: var(--radius); }
+
+  /* 4. COLLAPSIBLE GROUPS: <details> gives you the open/close  */
+  summary { padding: .35rem .5rem; font-size: .8rem; letter-spacing: .06em; color: var(--muted);
+            text-transform: uppercase; cursor: pointer; }
+  .games { list-style: none; padding: 0; }
+  .games button { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .38rem .6rem;
+                  text-align: left; border-radius: var(--radius); transition: background .12s; }
+  .games button:hover { background: #ffffff0f; }
+  .games .sel button { background: #3d4a5c; color: #fff; }
+  .games i { width: 18px; height: 18px; border-radius: 3px; background: var(--c); flex: none; }
+  .games .dim span { font-weight: 200; color: var(--muted); }
+
+  /* 5.  BANNER: a gradient */
+  .hero { display: grid; place-items: center; height: 280px; text-align: center;
+          background: radial-gradient(circle at 50% 40%, #3b3f8f, #232663 60%, #181a45),
+                      repeating-linear-gradient(60deg, #ffffff08 0 30px, transparent 30px 60px);
+          background-blend-mode: overlay; }
+  .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 500; text-shadow: 0 2px 12px #000a; color: #fff; }
+
+  /* 6. ACTION BAR: big green button + small label/value stat blocks */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 1.6rem; padding: 1rem 1.5rem; }
+  .play { padding: .85rem 2.2rem; font-size: 1.3rem; color: #fff; text-transform: uppercase;
+          background: var(--play); border-radius: var(--radius); transition: filter .15s, transform .1s; }
+  .play { display: inline-block; text-decoration: none; }   /* so a link can look like a button */
+  .play:hover { filter: brightness(1.15); }
+  .play.off, .play.off:hover { filter: grayscale(1) brightness(.6); cursor: not-allowed; }  /* games with no page */
+  .play:active { transform: scale(.97); }
+  .stat small { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .stat b { font-weight: 500; }
+
+  .tabs { display: flex; gap: 2rem; margin: 0 1.5rem; padding: .7rem 1rem; background: #ffffff08; color: var(--muted); }
+
+  /* 7. CONTENT CARDS */
+  .cols { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; }
+  .card { margin-bottom: 1.2rem; padding: 1rem 1.2rem; background: var(--panel); border-radius: var(--radius); }
+  .card h2, .cols h3 { margin-bottom: .6rem; font-size: .85rem; font-weight: 500; letter-spacing: .08em;
+                       text-transform: uppercase; color: var(--muted); }
+  .ask { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; }
+  .ask button { padding: .5rem 1rem; color: var(--accent); background: #1a9fff2e; border-radius: var(--radius); transition: background .15s; }
+  .ask button:hover { background: #1a9fff55; color: #fff; }
+
+  /* 8. PROGRESS BAR: one div inside another, the inner width is the percentage */
+  .progress { height: 8px; margin: .5rem 0 1rem; background: #000a; }
+  .progress div { width: 30%; height: 100%; background: var(--accent); }
+  .tiles { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+  .tile { display: grid; place-items: center; width: 48px; height: 48px; font-size: 1.5rem; color: #fff;
+          background: #000; border: 1px solid var(--c); box-shadow: 0 0 10px var(--c); border-radius: var(--radius); }
+  .tile.locked { --c: transparent; color: #999; background: #444; filter: grayscale(1) brightness(.7); }
+
+  /* 10. EDIT MODE:  */
+  /* .editbtn { margin-left: auto; align-self: center; margin-bottom: .5rem; padding: .35rem .8rem;
+             background: #ffffff14; border-radius: var(--radius); transition: background .15s; }
+  .editbtn:hover { background: #ffffff2b; }
+  .editbtn[aria-pressed=true] { background: var(--accent); color: #fff; } */
+  /* body.editing .ed { outline: 1px dashed #1a9fffaa; outline-offset: 3px; cursor: text; }
+  body.editing .ed:focus { outline: 2px solid var(--accent); } */
+
+  /* 9. SMALL SCREENS: stack everything */
+  @media (max-width: 800px) {
+    body { height: auto; }
+    .layout { grid-template-columns: 1fr; }
+    .side { max-height: 40vh; }
+    .cols { grid-template-columns: 1fr; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <a href="#">Store</a><a href="#" class="on">Library</a><a href="#">Community</a>
+  <!-- <button id="edit" class="editbtn" aria-pressed="false">✎ Edit text</button> -->
+</nav>
+
+<div class="layout">
+  <aside class="side">
+    <input type="search" placeholder="Search" aria-label="Search games">
+    <details open>
+      <summary>Recent (7)</summary>
+      <ul class="games">
+        <li class="sel" data-page="notes.html"><button><i style="--c:#ffd43b"></i><span>Post</span></button></li>
+        <li data-page="draw.html"><button><i style="--c:#9775fa"></i><span>Draw</span></button></li>
+        <!-- <li data-page="links.html"><button><i style="--c:#4dabf7"></i><span>Link</span></button></li> -->
+        <li data-page="mouse.html"><button><i style="--c:#e0a030"></i><span>mouse</span></button></li>
+        <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Portion Plotter</span></button></li>
+        <li data-page="sand.html"><button><i style="--c:#ff5a5a"></i><span>Falling Pixels</span></button></li>
+        <li class="dim" data-page="earlysuppers.html"><button><i style="--c:#d6336c"></i><span>Early Suppers</span></button></li>
+        <li class="dim" data-page="slothy.html"><button><i style="--c:#4dabf7"></i><span>Slothy and Friends</span></button></li>
+      </ul>
+    </details>
+    <details open>
+      <summary>August (3)</summary>
+      <ul class="games">
+        <li class="dim"><button><i style="--c:#69db7c"></i><span>Fields and Fauna</span></button></li>
+        <li class="dim"><button><i style="--c:#ffa94d"></i><span>Loom</span></button></li>
+        <li class="dim"><button><i style="--c:#b197fc"></i><span>Harvest Sun</span></button></li>
+      </ul>
+    </details>
+  </aside>
+
+  <main class="main">
+    <section class="hero"><h1 id="title">Our Board</h1></section>
+
+    <div class="bar">
+      <a class="play" id="playBtn" href="board/"><span>▶ Play</span></a>
+      <div class="stat"><small>Last played</small><b>Today</b></div>
+      <div class="stat"><small>Play time</small><b id="pt">913.3 hours</b></div>
+      <div class="stat"><small>Achievements</small><b id="ach">96/317</b></div>
+    </div>
+
+    <div class="tabs"><span>Store Page</span><span>Community Hub</span><span>Guides</span><span>Support</span></div>
+
+    <div class="cols">
+      <div>
+        <div class="card ask">
+          <span>Would you recommend this game to other players?</span>
+          <button><span>Yes</span></button><button><span>No</span></button><button><span>Maybe later</span></button>
+        </div>
+        <div class="card"><h2>Post-game summary</h2>None</div>
+        <div class="card"><h2>Activity</h2><span style="color:var(--muted)">Say something about this game to your friends…</span></div>
+      </div>
+
+      <aside>
+        <h3>Achievements</h3>
+        <div class="card">
+            You've unlocked <span id="achText">96/317 (30%)</span>
+          <div class="progress"><div id="bar"></div></div>
+          <div class="tiles">
+            <span class="tile" style="--c:#f5d90a">∞</span><span class="tile" style="--c:#b44bff">★</span>
+            <span class="tile" style="--c:#1a9fff">⚡</span><span class="tile" style="--c:#3ddc84">⚡</span>
+          </div>
+          <small style="color:var(--muted)">Locked achievements</small>
+          <div class="tiles" style="margin-top:.5rem">
+            <span class="tile locked">✦</span><span class="tile locked">✦</span><span class="tile locked">✦</span><span class="tile locked">✦</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Click a game in the sidebar: highlight it, show its name, and point the Play link at its page
+  const play = document.getElementById("playBtn");
+  const rnd = (a, b) => Math.floor(a + Math.random() * (b - a + 1));   // random whole number from a to b
+
+function randomStats() {
+  const total = rnd(20, 400), got = rnd(0, total), pct = Math.round(100 * got / total);
+  document.getElementById("pt").textContent = (Math.random() * 1500 + 0.5).toFixed(1) + " hours";
+  document.getElementById("ach").textContent = got + "/" + total;
+  document.getElementById("achText").textContent = got + "/" + total + " (" + pct + "%)";
+  document.getElementById("bar").style.width = pct + "%";     // the blue progress bar
+}
+  function pick(li, randomize = true) {
+    const isNew = !li.classList.contains("sel");     // is this a different game than the current one?
+     if (isNew && randomize) randomStats(); 
+    document.querySelector(".games li.sel")?.classList.remove("sel");
+    li.classList.add("sel");
+    document.getElementById("title").textContent = li.querySelector("span").textContent;
+    const page = li.dataset.page;                     // e.g. data-page="board/" in the HTML
+    if (page) { play.href = page; play.classList.remove("off"); play.removeAttribute("aria-disabled"); }
+    else      { play.removeAttribute("href"); play.classList.add("off"); play.setAttribute("aria-disabled", "true"); }
+  }
+  pick(document.querySelector(".games li.sel"), false);
+  document.querySelectorAll(".games li").forEach(li => li.addEventListener("click", () => pick(li)));
+
+  play.addEventListener("click", e => { if (document.body.classList.contains("editing")) e.preventDefault(); });
+
+  // ---- EDIT MODE ----
+  // The key idea: the contenteditable attribute turns any element into a text box.
+  const eds = [...document.querySelectorAll(
+    ".play span, .stat small, .stat b, .tabs span, .card h2, .ask > span, .ask button span, .cols h3")];
+  eds.forEach(el => el.classList.add("ed"));
+
+  // Remember edits in this browser (localStorage), and put them back on load
+  const KEY = "home-text";
+  const saveText = () => { try { localStorage.setItem(KEY, JSON.stringify(eds.map(e => e.textContent))); } catch (e) {} };
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
+    eds.forEach((el, i) => { if (saved[i] != null) el.textContent = saved[i]; });
+  } catch (e) {}
+
+  document.getElementById("edit").addEventListener("click", e => {
+    const on = document.body.classList.toggle("editing");
+    eds.forEach(el => on ? el.setAttribute("contenteditable", "true") : el.removeAttribute("contenteditable"));
+    e.currentTarget.setAttribute("aria-pressed", on);
+  });
+  document.addEventListener("input", e => { if (e.target.classList?.contains("ed")) saveText(); });
+  document.addEventListener("keydown", e => {            // Enter finishes editing instead of adding a new line
+    if (e.key === "Enter" && e.target.classList?.contains("ed")) { e.preventDefault(); e.target.blur(); }
+  });
+  document.addEventListener("focusout", e => {           // strip any pasted formatting
+    if (e.target.classList?.contains("ed")) { e.target.textContent = e.target.textContent; saveText(); }
+  });
+</script>
+</body>
+</html>

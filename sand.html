@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#111217">
+<title>Falling Pixels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------ the look
+   Same idea as THEME in sand_interactive.py: every colour lives here.
+   Dark is the main look (it's your original palette); light is for phones set to light mode. */
+:root {
+  --bg: #eceef3;  --card: #ffffff;  --outline: #d3d7e2;  --button: #e3e6ee;
+  --button-hover: #d6dbe7;  --accent: #2f6fe0;  --accent-dim: #cddcf8;
+  --text: #1a1c24;  --text-dim: #646b7e;  --danger: #d9434f;  --track: #cfd4df;
+  --shadow: rgba(20, 24, 36, .18);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111217;  --card: #1b1d25;  --outline: #303442;  --button: #282b37;
+    --button-hover: #3a3f52;  --accent: #6ea8ff;  --accent-dim: #2a426e;
+    --text: #e8eaf2;  --text-dim: #8c92a5;  --danger: #ff6969;  --track: #343846;
+    --shadow: #0b0c10;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111217;  --card: #1b1d25;  --outline: #303442;  --button: #282b37;
+  --button-hover: #3a3f52;  --accent: #6ea8ff;  --accent-dim: #2a426e;
+  --text: #e8eaf2;  --text-dim: #8c92a5;  --danger: #ff6969;  --track: #343846;
+  --shadow: #0b0c10;
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ page frame
+   The phone draws the page under its status/nav bars; these paddings keep us clear of them. */
+:root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; background: var(--bg); }
+body {
+  margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font-family: "Rubik", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;              /* no pull-to-refresh while pouring */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
+button { font: inherit; color: inherit; }
+
+/* three stacked rows: top bar / sand / tools */
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 10px 12px 12px; }
+
+/* ---- top bar ---- */
+.top { display: flex; align-items: center; gap: 10px; }
+.top h1 { font-size: 19px; font-weight: 600; margin: 0 auto 0 2px; letter-spacing: -0.01em; }
+.segmented {
+  display: grid; grid-template-columns: 1fr 1fr; background: var(--button);
+  border: 1px solid var(--outline); border-radius: 10px; padding: 3px; position: relative;
+}
+.segmented button {
+  border: 0; background: none; padding: 7px 14px; font-size: 14px; color: var(--text-dim);
+  border-radius: 7px; position: relative; z-index: 1; transition: color .2s;
+}
+.segmented button[aria-pressed="true"] { color: var(--text); }
+.segmented .thumb {                       /* the highlight slides between the two options */
+  position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px);
+  background: var(--accent-dim); border-radius: 7px; transition: transform .25s cubic-bezier(.3,.7,.2,1);
+}
+.segmented[data-value="1"] .thumb { transform: translateX(100%); }
+
+.icon-btn {
+  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px;
+  background: var(--button); border: 1px solid var(--outline);
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.icon-btn:active { transform: scale(.92); background: var(--button-hover); }
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* ---- the sand view ---- */
+.stage { position: relative; min-height: 0; display: grid; place-items: center; }
+canvas#sim {
+  display: block; border-radius: 14px; outline: 1px solid var(--outline);
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  touch-action: none;                      /* fingers draw sand instead of scrolling/zooming */
+}
+.pill {
+  position: absolute; top: 10px; left: 10px; max-width: calc(100% - 20px);
+  padding: 5px 13px; border-radius: 999px; font-size: 13px;
+  background: color-mix(in srgb, var(--card) 88%, transparent); border: 1px solid var(--outline);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.toast {
+  position: absolute; left: 50%; bottom: 18px; transform: translate(-50%, 8px); opacity: 0;
+  padding: 9px 18px; border-radius: 12px; font-size: 15px; white-space: nowrap;
+  background: var(--card); border: 1px solid var(--accent); pointer-events: none;
+  transition: opacity .3s, transform .3s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---- tool grid: 11 tools + settings = 2 rows of 6 ---- */
+/* min-height reserves room for the 2 rows BEFORE the script adds the buttons,
+   so the sand grid is sized to the space that's really left over */
+.tools { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; min-height: 123px; }
+.tool {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; height: 58px; padding: 0; border-radius: 11px;
+  background: var(--button); border: 1px solid var(--outline); color: var(--text-dim);
+  box-shadow: 0 3px 0 var(--shadow);
+  transition: background .18s, border-color .18s, color .18s, transform .08s, box-shadow .08s;
+}
+.tool svg { width: 24px; height: 24px; }
+.tool span { font-size: 11.5px; }
+.tool .key { position: absolute; top: 3px; right: 6px; font-size: 10px; color: var(--text-dim); display: none; }
+/* pressed: the button sinks into its shadow (same as the 2px "press_t" sink in pygame) */
+.tool:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shadow); }
+.tool[aria-pressed="true"] { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.tool[aria-pressed="true"] span { color: var(--text); }
+.tool.settings { color: var(--text); }
+
+/* Hover only exists with a real mouse - phones skip these rules entirely */
+@media (hover: hover) {
+  .tool:hover { background: var(--button-hover); color: var(--text); }
+  .tool[aria-pressed="true"]:hover { background: var(--accent-dim); }
+  .icon-btn:hover, .btn:hover { background: var(--button-hover); border-color: color-mix(in srgb, var(--accent) 60%, var(--outline)); }
+  .tool .key { display: block; }
+}
+
+/* ---- bottom sheets (settings, scenes) ---- */
+.scrim {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none;
+  transition: opacity .25s; z-index: 10;
+}
+.scrim.open { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; max-height: 78%;
+  display: flex; flex-direction: column; background: var(--card);
+  border-top: 1px solid var(--outline); border-radius: 20px 20px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(105%); transition: transform .32s cubic-bezier(.3,.7,.2,1);
+  max-width: 560px; margin: 0 auto;
+}
+.sheet.open { transform: translateY(0); }
+.sheet-head { display: flex; align-items: center; padding: 8px 18px 6px; position: relative; }
+.sheet-head::before {                     /* grab handle */
+  content: ""; position: absolute; top: 7px; left: 50%; width: 38px; height: 4px; margin-left: -19px;
+  border-radius: 2px; background: var(--outline);
+}
+.sheet-head h2 { margin: 14px 0 4px; font-size: 20px; font-weight: 600; flex: 1; }
+.sheet-body { overflow-y: auto; padding: 4px 18px 20px; overscroll-behavior: contain; }
+
+.section-title {
+  display: flex; align-items: center; gap: 10px; margin: 16px 0 8px;
+  font-size: 13px; font-weight: 500; color: var(--text-dim);
+}
+.section-title::after { content: ""; flex: 1; height: 1px; background: var(--outline); }
+
+.btn {
+  border: 1px solid var(--outline); background: var(--button); border-radius: 10px;
+  padding: 11px 12px; font-size: 15px; transition: background .15s, border-color .15s, transform .08s;
+}
+.btn:active { transform: scale(.97); background: var(--button-hover); }
+.btn.primary { background: var(--accent-dim); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+
+/* ---- sliders: filled track + knob that grows while you hold it ---- */
+.slider { margin: 4px 0 10px; }
+.slider .label { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 2px; }
+.slider .label b { font-weight: 500; color: var(--accent); font-variant-numeric: tabular-nums; }
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 0;
+  background: transparent; --p: 50%;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--p), var(--track) var(--p));
+}
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--track); }
+input[type=range]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; border: 0;
+  background: radial-gradient(circle, var(--accent) 0 32%, #f2f4fa 36%);
+  box-shadow: 0 2px 0 var(--shadow); transition: transform .15s;
+}
+input[type=range]::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; border: 0;
+  background: radial-gradient(circle, var(--accent) 0 32%, #f2f4fa 36%); box-shadow: 0 2px 0 var(--shadow);
+}
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); }
+input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ---- colour swatches ---- */
+.swatch { margin: 4px 0 12px; }
+.swatch .label { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 7px; }
+.swatch .label code { font-family: inherit; font-size: 13px; color: var(--text-dim); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--outline); padding: 0;
+  transition: transform .12s, box-shadow .12s;
+}
+.chip:active { transform: scale(.9); }
+.chip[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--accent); }
+.chip.custom { position: relative; overflow: hidden;
+  background: conic-gradient(#f55, #fd5, #5e7, #5de, #66f, #e5f, #f55); }
+.chip.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+/* ---- scene browser ---- */
+.scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile { position: relative; border: 0; padding: 0; background: none; text-align: left; }
+.tile img, .tile .noimg {
+  width: 100%; aspect-ratio: var(--ar, 3/4); object-fit: cover; display: block;
+  border-radius: 10px; outline: 1px solid var(--outline); background: var(--bg);
+}
+.tile:active img { outline: 2px solid var(--accent); }
+.tile .name { font-size: 14px; margin-top: 6px; }
+.tile .when { font-size: 12px; color: var(--text-dim); }
+.tile .del {
+  position: absolute; top: 6px; right: 6px; height: 28px; min-width: 28px; padding: 0 8px;
+  border-radius: 14px; border: 1px solid var(--outline); font-size: 13px;
+  background: color-mix(in srgb, var(--card) 85%, transparent); transition: background .15s, color .15s;
+}
+.tile .del.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+.empty { color: var(--text-dim); font-size: 15px; line-height: 1.5; padding: 18px 0 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="icon-btn" href="index.html" aria-label="Home" style="color:inherit">
+      <svg viewBox="-12 -12 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 -8 L-4 0 L4 8"/></svg>
+    </a>
+    <h1>Falling Pixels</h1>
+    <div class="segmented" id="material" data-value="0" role="group" aria-label="Material">
+      <div class="thumb"></div>
+      <button aria-pressed="true" data-v="0">Sand</button>
+      <button aria-pressed="false" data-v="1">Water</button>
+    </div>
+    <button class="icon-btn" id="clearBtn" aria-label="Clear sand (keeps objects)">
+      <svg viewBox="-12 -12 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M-8 -3 A8.5 8.5 0 1 1 -6 6"/><path d="M-8 -9 V-3 H-2"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="sim"></canvas>
+    <div class="pill" id="pill">Pour</div>
+    <div class="toast" id="toast"></div>
+  </main>
+
+  <nav class="tools" id="tools" aria-label="Tools"></nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<section class="sheet" id="settings" aria-label="Settings">
+  <div class="sheet-head"><h2>Settings</h2><button class="btn primary" data-close>Done</button></div>
+  <div class="sheet-body" id="settingsBody"></div>
+</section>
+
+<section class="sheet" id="scenes" aria-label="Saved scenes">
+  <div class="sheet-head"><h2>Load a scene</h2><button class="btn" data-close>Close</button></div>
+  <div class="sheet-body"><div id="sceneList"></div></div>
+</section>
+
+<script>
+"use strict";
+/* =====================================================================================
+   PART 1 - THE PHYSICS  (a line-by-line port of sand.py)
+   Python lists of lists became flat typed arrays: grid[y][x] is now grid[y * W + x].
+   Colours are packed into one 32-bit number (0xAABBGGRR) so they can be copied straight
+   into the screen's pixel buffer later.
+   ===================================================================================== */
+const EMPTY = 0, STATIC = 1, IN_AIR = 2, STACKING = 3, SOLID = 4, DRAIN = 5, EMITTER = 6, CONVEYOR = 7, STILL_WATER = 8;
+const SAND = 0, WATER = 1;
+const WATER_PATIENCE = 120;
+const isObject = k => k >= SOLID && k <= CONVEYOR;                 // OBJECTS in sand.py
+const isFirm = k => k === STATIC || k === SOLID || k === EMITTER || k === CONVEYOR || k === STILL_WATER;
+
+const pack = (r, g, b) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+const unpack = c => [c & 255, (c >>> 8) & 255, (c >>> 16) & 255];
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const DEFAULT_SAND = pack(230, 200, 120);
+
+function shaded(rgb, shade) {                                         // random brighter / darker
+  const k = rand(1 - shade, 1 + shade);
+  return pack(Math.min(255, rgb[0] * k | 0), Math.min(255, rgb[1] * k | 0), Math.min(255, rgb[2] * k | 0));
+}
+
+class Grain {
+  constructor(x, y, vx, vy, color = DEFAULT_SAND, kind = SAND) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.status = IN_AIR;
+    this.color = color; this.kind = kind; this.idle = 0;
+  }
+}
+
+class Sand {
+  constructor(w, h) {
+    this.w = w; this.h = h;
+    this.grid = new Uint8Array(w * h);
+    this.colors = new Uint32Array(w * h);         // 0 = no colour
+    this.grains = [];
+    this.newlyStatic = [];                        // cell indices that just settled
+    this.newlyWoken = [];                         // cell indices that started moving again
+    this.drains = new Set();
+    this.emitters = new Map();                    // cell -> {kind, color (packed) or null = live colour}
+    this.conveyors = new Map();                   // cell -> +1 / -1
+    this.gravity = 0.8; this.drag = 0.999; this.wind = 0; this.bounce = 0;
+  }
+
+  // ---------- small helpers ----------
+  occupied(x, y) { const k = this.grid[y * this.w + x]; return k !== EMPTY && k !== IN_AIR; }
+  put(x, y, v) {
+    const i = y * this.w + x;
+    if (v === EMPTY && isFirm(this.grid[i])) return;
+    this.grid[i] = v;
+  }
+  lift(g) {
+    const i = (g.y | 0) * this.w + (g.x | 0);
+    if (this.grid[i] === g.status) this.grid[i] = EMPTY;
+  }
+  sweepY(x, y0, y1) {
+    const step = y1 > y0 ? 1 : -1; let y = y0;
+    while (y !== y1) {
+      const nxt = y + step;
+      if (nxt < 0 || nxt > this.h - 1 || this.occupied(x, nxt)) break;
+      y = nxt;
+    }
+    return y;
+  }
+  sweepX(y, x0, x1) {
+    const step = x1 > x0 ? 1 : -1; let x = x0;
+    while (x !== x1) {
+      const nxt = x + step;
+      if (nxt < 0 || nxt > this.w - 1 || this.occupied(nxt, y)) break;
+      x = nxt;
+    }
+    return x;
+  }
+
+  // ---------- adding / removing things ----------
+  pour(x, y, n, rgb, spread, shade, kind) {
+    x = clamp(x | 0, 0, this.w - 1); y = clamp(y | 0, 0, this.h - 1);
+    while (y > 0 && this.occupied(x, y)) y--;
+    if (this.occupied(x, y)) return;
+    const i = y * this.w + x;
+    for (let k = 0; k < n; k++) {
+      this.grains.push(new Grain(x, y, rand(-spread, spread), rand(-spread, spread), shaded(rgb, shade), kind));
+      if (this.grid[i] === EMPTY) this.grid[i] = IN_AIR;
+    }
+  }
+
+  runEmitters(flow, liveColors, shade) {
+    const W = this.w;
+    for (const [i, e] of this.emitters) {
+      const x = i % W, y = (i / W) | 0;
+      if (this.emitters.has(i + W) || y + 1 >= this.h) continue;      // not on the underside
+      if (this.grid[i + W] !== EMPTY || Math.random() > flow) continue;
+      const rgb = e.color ? unpack(e.color) : liveColors[e.kind];
+      this.grains.push(new Grain(x + 0.5, y + 1.5, rand(-0.15, 0.15), 0, shaded(rgb, shade), e.kind));
+      this.grid[i + W] = IN_AIR;
+    }
+  }
+
+  addSolid(cells, kind = SOLID, prop = null) {                        // cells: [[x, y], ...]
+    const W = this.w, placed = [];
+    for (const [x, y] of cells) {
+      if (x >= 0 && x < W && y >= 0 && y < this.h) {
+        const i = y * W + x;
+        if (!isObject(this.grid[i])) { this.grid[i] = kind; this.colors[i] = 0; placed.push(i); }
+      }
+    }
+    if (placed.length) {
+      const inside = new Set(placed);
+      this.grains = this.grains.filter(g => !inside.has((g.y | 0) * W + (g.x | 0)));
+      const xs = placed.map(i => i % W), ys = placed.map(i => (i / W) | 0);
+      const minX = Math.min(...xs), maxX = Math.max(...xs), maxY = Math.max(...ys);
+      if (kind === DRAIN) {
+        for (const i of placed) this.drains.add(i);
+        this.wakeRegion(minX - 1, maxX + 1, maxY + 1);
+      } else if (kind === EMITTER) {
+        for (const i of placed) this.emitters.set(i, prop);
+      } else if (kind === CONVEYOR) {
+        for (const i of placed) this.conveyors.set(i, prop);
+        this.wakeRegion(minX, maxX, maxY);
+      }
+    }
+    return placed;
+  }
+
+  removeSolid(cells) {
+    const W = this.w, removed = [];
+    for (const [x, y] of cells) {
+      if (x >= 0 && x < W && y >= 0 && y < this.h) {
+        const i = y * W + x;
+        if (isObject(this.grid[i])) {
+          this.grid[i] = EMPTY;
+          this.drains.delete(i); this.emitters.delete(i); this.conveyors.delete(i);
+          removed.push(i);
+        }
+      }
+    }
+    if (removed.length) this.wakeAll();
+    return removed;
+  }
+
+  touchesDrain(x, y) {
+    const g = this.grid, W = this.w, H = this.h;
+    const n = [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1], [x - 1, y], [x + 1, y], [x, y - 1]];
+    for (const [nx, ny] of n) if (nx >= 0 && nx < W && ny >= 0 && ny < H && g[ny * W + nx] === DRAIN) return true;
+    return false;
+  }
+
+  wakeAll() { this.wakeRegion(0, this.w - 1, this.h - 1); }
+
+  wakeRegion(x0, x1, yMax) {
+    const W = this.w;
+    x0 = Math.max(x0, 0); x1 = Math.min(x1, W - 1); yMax = Math.min(yMax, this.h - 1);
+    for (let y = yMax; y >= 0; y--) {                               // bottom row first
+      for (let x = x0; x <= x1; x++) {
+        const i = y * W + x, k = this.grid[i];
+        if (k === STATIC || k === STILL_WATER) {
+          const g = new Grain(x + 0.5, y + 0.5, 0, 0, this.colors[i] || DEFAULT_SAND, k === STILL_WATER ? WATER : SAND);
+          g.status = STACKING; this.grid[i] = STACKING;
+          this.grains.push(g); this.newlyWoken.push(i);
+        }
+      }
+    }
+  }
+
+  solidObject(x, y) {                                               // flood fill: the one thing you touched
+    const W = this.w, H = this.h;
+    if (!(x >= 0 && x < W && y >= 0 && y < H) || !isObject(this.grid[y * W + x])) return null;
+    const kind = this.grid[y * W + x], start = y * W + x;
+    const found = new Set([start]), todo = [start];
+    while (todo.length) {
+      const c = todo.pop(), cx = c % W, cy = (c / W) | 0;
+      for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
+        const n = ny * W + nx;
+        if (nx >= 0 && nx < W && ny >= 0 && ny < H && !found.has(n) && this.grid[n] === kind) { found.add(n); todo.push(n); }
+      }
+    }
+    return found;
+  }
+
+  moveSolid(cells, dx, dy) {                                        // cells: Set of indices
+    const W = this.w, H = this.h, moved = new Set();
+    for (const i of cells) {
+      const x = i % W + dx, y = ((i / W) | 0) + dy;
+      if (x < 0 || x >= W || y < 0 || y >= H) return null;
+      const n = y * W + x;
+      if (isObject(this.grid[n]) && !cells.has(n)) return null;
+      moved.add(n);
+    }
+    const kind = this.grid[cells.values().next().value];
+    for (const i of cells) this.grid[i] = EMPTY;                      // 1. lift it out
+    let minX = Infinity, maxX = -Infinity, maxY = -Infinity;          // 2. wake sand around both spots
+    for (const i of [...cells, ...moved]) {
+      const x = i % W, y = (i / W) | 0;
+      if (x < minX) minX = x; if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+    this.wakeRegion(minX - 3, maxX + 3, maxY + 1);
+    for (const n of moved) { this.grid[n] = kind; this.colors[n] = 0; }   // 3. set it down
+    const shift = dy * W + dx;                                        // 4. carry its memory along
+    let hadDrain = false;
+    for (const i of cells) if (this.drains.delete(i)) hadDrain = true;
+    if (hadDrain) for (const n of moved) this.drains.add(n);
+    for (const props of [this.emitters, this.conveyors]) {
+      const carry = [];
+      for (const i of cells) if (props.has(i)) { carry.push([i + shift, props.get(i)]); props.delete(i); }
+      for (const [n, v] of carry) props.set(n, v);
+    }
+    const keep = [];                                                   // 5. shove grains inside it upward
+    for (const g of this.grains) {
+      const gx = g.x | 0; let gy = g.y | 0;
+      if (moved.has(gy * W + gx)) {
+        while (gy >= 0 && this.occupied(gx, gy)) gy--;
+        if (gy < 0) continue;
+        g.y = gy + 0.5; g.vy = 0; g.status = STACKING;
+        this.grid[gy * W + gx] = STACKING;
+      }
+      keep.push(g);
+    }
+    this.grains = keep;
+    return moved;
+  }
+
+  clearSand() {
+    this.grains = []; this.newlyStatic.length = 0; this.newlyWoken.length = 0;
+    for (let i = 0; i < this.grid.length; i++) {
+      if (!isObject(this.grid[i])) { this.grid[i] = EMPTY; this.colors[i] = 0; }
+    }
+  }
+
+  // ---------- the physics ----------
+  status(g) {
+    if (g.kind === WATER) return this.waterStatus(g);
+    const W = this.w, x = g.x | 0, y = g.y | 0, grid = this.grid;
+    if (y >= this.h - 1) return STATIC;
+    const below = grid[(y + 1) * W + x];
+    if (below === EMPTY || below === IN_AIR) return IN_AIR;
+    g.vy = 0;
+    if (below === CONVEYOR || below === STILL_WATER) return STACKING;
+    const r = (y + 1) * W;
+    if (x > 0 && x < W - 1) {
+      if (isFirm(below) && isFirm(grid[r + x - 1]) && isFirm(grid[r + x + 1])) return STATIC;
+    } else if (x <= 0) {
+      if (isFirm(below) && isFirm(grid[r + x + 1])) return STATIC;
+    } else {
+      if (isFirm(below) && isFirm(grid[r + x - 1])) return STATIC;
+    }
+    return STACKING;
+  }
+
+  waterStatus(g) {
+    const W = this.w, x = g.x | 0, y = g.y | 0, grid = this.grid;
+    const floor = y >= this.h - 1;
+    if (!floor) { const b = grid[(y + 1) * W + x]; if (b === EMPTY || b === IN_AIR) return IN_AIR; }
+    g.vy = 0;
+    if (g.idle > WATER_PATIENCE) return STATIC;
+    const below = floor ? null : grid[(y + 1) * W + x];
+    if (below !== null && (!isFirm(below) || below === CONVEYOR)) return STACKING;
+    for (const nx of [x - 1, x + 1]) {
+      if (nx >= 0 && nx < W) {
+        if (!isFirm(grid[y * W + nx])) return STACKING;
+        if (!floor && !isFirm(grid[(y + 1) * W + nx])) return STACKING;
+      }
+    }
+    return STATIC;
+  }
+
+  slide(g) {
+    const x = g.x | 0, y = g.y | 0;
+    if (y >= this.h - 1) return null;
+    const landing = {};
+    for (const dx of [-1, 1]) {
+      const nx = x + dx;
+      if (nx < 0 || nx > this.w - 1 || this.occupied(nx, y + 1)) landing[dx] = y;
+      else {
+        let r = y + 1;
+        while (r <= this.h - 1 && !this.occupied(nx, r)) r++;
+        landing[dx] = r - 1;
+      }
+    }
+    const L = landing[-1], R = landing[1];
+    if (L === y && R === y) return null;
+    if (L > R || (L === R && g.vx < 0)) return [-1, L];
+    return [1, R];
+  }
+
+  flowSideways(g) {
+    const x = g.x | 0, y = g.y | 0;
+    const first = g.vx >= 0 ? 1 : -1;
+    for (const d of [first, -first]) {
+      let nx = x + d, best = null;
+      for (let k = 0; k < 4; k++) {
+        if (!(nx >= 0 && nx < this.w) || this.occupied(nx, y)) break;
+        best = nx;
+        if (y + 1 < this.h && !this.occupied(nx, y + 1)) break;
+        nx += d;
+      }
+      if (best !== null) { this.lift(g); g.x = best + 0.5; g.vx = d * 0.5; return true; }
+    }
+    return false;
+  }
+
+  sink(g) {                                                          // sand swaps with water below it
+    const W = this.w, x = g.x | 0, y = g.y | 0, below = (y + 1) * W + x;
+    this.lift(g);
+    const water = new Grain(x + 0.5, y + 0.5, g.vx, 0, this.colors[below], WATER);
+    water.status = STACKING;
+    this.grid[y * W + x] = STACKING;
+    this.grid[below] = EMPTY; this.colors[below] = 0;
+    this.newlyWoken.push(below);
+    this.grains.push(water);
+    g.y += 1;
+  }
+
+  step() {
+    const W = this.w, H = this.h, grid = this.grid, alive = [];
+    const grains = this.grains;
+    for (let n = 0; n < grains.length; n++) {        // length re-checked each loop: sink() can add grains
+      const g = grains[n];
+      if (g.status === IN_AIR) {
+        const xi = g.x | 0, yi = g.y | 0;
+        this.lift(g);
+        let bounced = false;
+
+        let nx = g.x + g.vx;                                         // sideways
+        if (nx < 0) { nx = -nx; g.vx = -g.vx; }
+        else if (nx > W - 1) { nx = 2 * (W - 1) - nx; g.vx = -g.vx; }
+        nx = clamp(nx, 0, W - 1);
+        const tx = nx | 0, rx = this.sweepX(yi, xi, tx);
+        if (rx !== tx) { nx = rx + 0.5; g.vx *= -Math.max(0.3, this.bounce); }
+        g.x = nx;
+
+        const ny = g.y + g.vy;                                       // vertical
+        const ty = clamp(Math.trunc(ny), 0, H - 1);
+        const ry = this.sweepY(g.x | 0, yi, ty);
+        if (ry !== ty || ny >= H - 1) {
+          g.y = ry + 0.5;
+          if (g.vy < 0) g.vy = 0;
+          else if (this.bounce > 0 && g.vy > 2) {
+            g.vy = -g.vy * this.bounce;
+            g.vx += rand(-1, 1) * -g.vy * 0.6;
+            bounced = true;
+          }
+        } else g.y = clamp(ny, 0, H - 0.001);
+
+        const fx = g.x | 0; let fy = g.y | 0;                        // cell taken already? hop up
+        while (fy > 0 && this.occupied(fx, fy)) fy--;
+        if (fy !== (g.y | 0)) g.y = fy + 0.5;
+
+        g.vy += this.gravity;
+        g.vx = g.vx * this.drag + this.wind;
+        g.idle = 0;
+        g.status = bounced ? IN_AIR : this.status(g);
+
+      } else if (g.status === STACKING) {
+        const x = g.x | 0, y = g.y | 0;
+        const below = y + 1 < H ? grid[(y + 1) * W + x] : -1;
+        if (below === CONVEYOR) {
+          const d = this.conveyors.get((y + 1) * W + x) ?? 1;
+          if (x + d >= 0 && x + d < W && !this.occupied(x + d, y)) { this.lift(g); g.x = x + d + 0.5; g.vx = d * 0.5; }
+        } else if (g.kind === SAND && below === STILL_WATER) {
+          this.sink(g);
+        } else {
+          const move = this.slide(g);
+          if (move) { this.lift(g); g.x = clamp(g.x + move[0], 0, W - 1); g.y = move[1]; g.idle = 0; }
+          else if (g.kind === WATER) { this.flowSideways(g); g.idle++; }
+        }
+        g.status = this.status(g);
+      }
+
+      const xi = g.x | 0, yi = g.y | 0, i = yi * W + xi;
+      if (this.drains.size && this.touchesDrain(xi, yi)) {         // touched the trash: gone
+        if (grid[i] === IN_AIR || grid[i] === STACKING) grid[i] = EMPTY;
+        continue;
+      }
+      if (g.status === STATIC) {
+        grid[i] = g.kind === WATER ? STILL_WATER : STATIC;
+        this.colors[i] = g.color;
+        this.newlyStatic.push(i);
+      } else {
+        this.put(xi, yi, g.status);
+        alive.push(g);
+      }
+    }
+    this.grains = alive;
+  }
+}
+
+// ---------- shape outlines (offsets from the touch point) ----------
+const shapeCache = new Map();
+function shapeCells(name, r) {
+  const key = name + r;
+  if (shapeCache.has(key)) return shapeCache.get(key);
+  const cells = [];
+  if (name === "sphere") {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) cells.push([dx, dy]);
+  } else if (name === "cone") {
+    for (let dy = -r; dy <= r; dy++) { const half = Math.floor((dy + r) / 2); for (let dx = -half; dx <= half; dx++) cells.push([dx, dy]); }
+  } else if (name === "box") {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) cells.push([dx, dy]);
+  } else if (name === "emitter") {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -r; dx <= r; dx++) cells.push([dx, dy]);
+  } else if (name === "trash") {
+    for (let dy = -2; dy <= 1; dy++) for (let dx = -r; dx <= r; dx++) cells.push([dx, dy]);
+  } else if (name === "bowl") {
+    for (let dy = 0; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const d2 = dx * dx + dy * dy;
+      if ((r - 2) ** 2 <= d2 && d2 <= r * r) cells.push([dx, dy - Math.floor(r / 2)]);
+    }
+  }
+  shapeCache.set(key, cells);
+  return cells;
+}
+function beltCells(x0, x1, y) {
+  const out = [];
+  for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (const dy of [-1, 0, 1]) out.push([x, y + dy]);
+  return out;
+}
+function lineCells(x0, y0, x1, y1) {                                 // Bresenham, 2 cells thick
+  const seen = new Set(), out = [];
+  const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy, x = x0, y = y0;
+  for (;;) {
+    for (const ox of [0, 1]) for (const oy of [0, 1]) {
+      const k = (x + ox) + "," + (y + oy);
+      if (!seen.has(k)) { seen.add(k); out.push([x + ox, y + oy]); }
+    }
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx) { err += dx; y += sy; }
+  }
+  return out;
+}
+
+/* =====================================================================================
+   PART 2 - THE APP  (the phone version of sand_interactive.py)
+   ===================================================================================== */
+const THEME = {                                                      // colours used inside the sand view
+  shape: [150, 160, 182], trash: [150, 55, 68], belt: [128, 136, 156], beltDark: [70, 76, 92],
+  water: [64, 140, 235], accent: [110, 168, 255], danger: [255, 105, 105],
+};
+const lerpColor = (a, b, t) => a.map((v, i) => (v + (b[i] - v) * t) | 0);
+function hsvToRgb(h, s, v) {
+  const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  const [r, g, b] = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][((i % 6) + 6) % 6];
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+function rgbToHsv([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = ((h / 6) % 1 + 1) % 1;
+  return [h, mx ? d / mx : 0, mx];
+}
+const toHex = c => "#" + c.map(v => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+const fromHex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+
+// ---- tools (same list and keys as the desktop version) ----
+const TOOLS = ["pour", "sphere", "cone", "box", "bowl", "ramp", "belt", "emitter", "trash", "move", "erase"];
+const TOOL_KEYS = "1234567890-";
+const SHAPES = ["sphere", "cone", "box", "bowl", "emitter", "trash"];
+const KIND = { emitter: EMITTER, trash: DRAIN };
+
+// ---- the "front panel": add a control by adding one line, just like SECTIONS in Python ----
+// 6 items = a slider, 4 items = a colour swatch (label, default, preset chips)
+const PRESETS = [[230, 200, 120], [245, 245, 245], [40, 40, 48], [255, 90, 90], [255, 160, 60],
+                 [255, 220, 80], [110, 220, 120], [80, 210, 230], [110, 140, 255], [190, 120, 255]];
+const BG_PRESETS = [[10, 10, 14], [24, 28, 42], [34, 24, 44], [16, 36, 32], [44, 30, 24], [236, 232, 222]];
+const SECTIONS = [
+  ["Pour",    [["rate", "Grains per frame", 1, 500, 4, true],
+               ["spread", "Spread", 0, 4, 1.5, false]]],
+  ["Color",   [["sand", "Sand", [255, 90, 90], PRESETS],
+               ["bg", "Background", [10, 10, 14], BG_PRESETS],
+               ["hue", "Rainbow (0 = solid)", 0, 10, 1, false],
+               ["shade", "Brightness variation", 0, 0.5, 0.1, false]]],
+  ["Physics", [["gravity", "Gravity", 0.1, 4, 0.8, false],
+               ["wind", "Wind (− = left)", -0.3, 0.3, 0, false],
+               ["bounce", "Bounce", 0, 0.9, 0, false]]],
+  ["Objects", [["size", "Size", 3, 30, 8, true],
+               ["flow", "Emitter flow", 0, 1, 0.3, false]]],
+];
+const sliders = {}, swatches = {};
+let material = SAND;
+
+// ---- grid size: picked once from the screen shape, so the sand fills your phone ----
+const stage = document.getElementById("stage");
+const canvas = document.getElementById("sim");
+const sr = stage.getBoundingClientRect();
+let W, H;
+if (sr.height >= sr.width) { W = 240; H = clamp(Math.round(W * sr.height / Math.max(sr.width, 1)), 200, 520); }
+else { H = 240; W = clamp(Math.round(H * sr.width / Math.max(sr.height, 1)), 200, 520); }
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const image = ctx.createImageData(W, H);
+const pixels = new Uint32Array(image.data.buffer);                   // write packed colours straight in
+
+function fitCanvas() {                                               // biggest size that keeps the shape
+  const r = stage.getBoundingClientRect();
+  const s = Math.min(r.width / W, r.height / H);
+  canvas.style.width = Math.floor(W * s) + "px";
+  canvas.style.height = Math.floor(H * s) + "px";
+}
+new ResizeObserver(fitCanvas).observe(stage);
+fitCanvas();
+
+// ---- world state ----
+let sand = new Sand(W, H);
+let staticBuf = new Uint32Array(W * H);    // the "baked" layer: settled sand + objects, 0 = see-through
+let hueDrift = 0, beltPhase = 0, frameNo = 0, tool = "pour";
+const pointer = { id: null, down: false, hover: false, cx: 0, cy: 0 };
+let holding = false, dragStart = null, moving = null, moveAnchor = null, aiming = false;
+
+function objectColor(i) {
+  const kind = sand.grid[i], x = i % W;
+  if (kind === EMITTER) {
+    const e = sand.emitters.get(i) || { kind: SAND, color: null };
+    const base = e.kind === WATER ? THEME.water : e.color ? unpack(e.color) : hsvToRgb((x * 0.025) % 1, 0.55, 0.95);
+    return pack(...lerpColor(base, THEME.shape, 0.3));
+  }
+  if (kind === CONVEYOR) {
+    const d = sand.conveyors.get(i) ?? 1;
+    const stripe = (((Math.floor((x - d * beltPhase) / 3)) % 2) + 2) % 2 === 0;
+    return pack(...(stripe ? THEME.belt : THEME.beltDark));
+  }
+  return pack(...(kind === DRAIN ? THEME.trash : THEME.shape));
+}
+function redrawStatic() {
+  for (let i = 0; i < W * H; i++) {
+    const k = sand.grid[i];
+    staticBuf[i] = (k === STATIC || k === STILL_WATER) ? sand.colors[i] : isObject(k) ? objectColor(i) : 0;
+  }
+}
+function paintCells(cells) { for (const i of cells) staticBuf[i] = objectColor(i); }
+const at = (cx, cy, shape, size) => shapeCells(shape, size).map(([dx, dy]) => [cx + dx, cy + dy]);
+
+/* ---------------------------------------------------------------- building the UI */
+const ICON = {
+  pour:    '<g fill="currentColor" stroke="none"><circle cx="-6" cy="-7" r="3"/><circle cx="5" cy="-3" r="3"/><circle cx="-1" cy="6" r="3"/></g>',
+  sphere:  '<circle r="9"/>',
+  cone:    '<polygon points="0,-10 -9,8 9,8"/>',
+  box:     '<rect x="-8" y="-8" width="16" height="16"/>',
+  bowl:    '<polyline points="' + Array.from({ length: 32 }, (_, a) => `${(10 * Math.cos(a / 10)).toFixed(1)},${(-4 + 10 * Math.sin(a / 10)).toFixed(1)}`).join(" ") + '"/>',
+  ramp:    '<line x1="-10" y1="-6" x2="10" y2="6" stroke-width="3"/>',
+  belt:    '<rect x="-10" y="1" width="20" height="8" rx="4"/><path d="M-7 -6 H7 M7 -6 L3 -10 M7 -6 L3 -2"/>',
+  emitter: '<rect x="-9" y="-10" width="18" height="6" rx="2" fill="currentColor"/><g fill="currentColor" stroke="none"><circle cx="-5" cy="1" r="2"/><circle cx="0" cy="4" r="2"/><circle cx="5" cy="1" r="2"/><circle cx="-3" cy="9" r="2"/><circle cx="3" cy="8" r="2"/></g>',
+  trash:   '<path d="M-9 -6 H9 M-3 -9 H3"/><polygon points="-7,-3 7,-3 5,9 -5,9"/>',
+  move:    '<path d="M-9 0 H9 M0 -9 V9 M-9 0 L-5 -4 M-9 0 L-5 4 M9 0 L5 -4 M9 0 L5 4 M0 -9 L-4 -5 M0 -9 L4 -5 M0 9 L-4 5 M0 9 L4 5"/>',
+  erase:   '<path d="M-7 -7 L7 7 M-7 7 L7 -7" stroke-width="3"/>',
+  settings:'<circle r="3.2"/><path d="M0 -10 V-6.5 M0 6.5 V10 M-10 0 H-6.5 M6.5 0 H10 M-7 -7 L-4.6 -4.6 M4.6 4.6 L7 7 M-7 7 L-4.6 4.6 M4.6 -4.6 L7 -7"/>',
+};
+const svg = body => `<svg viewBox="-12 -12 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const title = s => s[0].toUpperCase() + s.slice(1);
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+
+// grab these first: the sliders below update the label while they're being built
+const pillEl = document.getElementById("pill"), toastEl = document.getElementById("toast");
+const toolsEl = document.getElementById("tools");
+const toolButtons = {};
+TOOLS.forEach((name, i) => {
+  const b = document.createElement("button");
+  b.className = "tool"; b.setAttribute("aria-pressed", name === tool);
+  b.innerHTML = `${svg(ICON[name])}<span>${title(name)}</span><span class="key">${TOOL_KEYS[i]}</span>`;
+  b.addEventListener("click", () => selectTool(name));
+  toolsEl.appendChild(b); toolButtons[name] = b;
+});
+const gear = document.createElement("button");
+gear.className = "tool settings";
+gear.innerHTML = `${svg(ICON.settings)}<span>Settings</span>`;
+gear.addEventListener("click", () => openSheet("settings"));
+toolsEl.appendChild(gear);
+
+function selectTool(name) {
+  if (tool === name) return;
+  tool = name; buzz(6);
+  for (const [n, b] of Object.entries(toolButtons)) b.setAttribute("aria-pressed", n === tool);
+  dragStart = moving = null; aiming = false;
+  updatePill();
+}
+
+// material switch (Sand | Water)
+const matEl = document.getElementById("material");
+function setMaterial(v) {
+  material = v; matEl.dataset.value = v;
+  matEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.v === v));
+  updatePill();
+}
+matEl.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { setMaterial(+b.dataset.v); buzz(6); }));
+
+// settings sheet, built from SECTIONS
+const body = document.getElementById("settingsBody");
+function fmt(s) { return s.integer ? String(s.value) : s.value.toFixed(2); }
+for (const [name, specs] of SECTIONS) {
+  body.insertAdjacentHTML("beforeend", `<div class="section-title">${name}</div>`);
+  for (const spec of specs) {
+    if (spec.length === 6) {
+      const [key, label, lo, hi, val, integer] = spec;
+      const wrap = document.createElement("div"); wrap.className = "slider";
+      wrap.innerHTML = `<div class="label"><span>${label}</span><b></b></div>
+        <input type="range" min="${lo}" max="${hi}" step="${integer ? 1 : 0.01}" aria-label="${label}">`;
+      const input = wrap.querySelector("input"), out = wrap.querySelector("b");
+      const s = sliders[key] = { value: val, integer, lo, hi, input,
+        set(v) { this.value = clamp(integer ? Math.round(v) : +v, lo, hi); input.value = this.value;
+                 out.textContent = fmt(this); input.style.setProperty("--p", ((this.value - lo) / (hi - lo)) * 100 + "%");
+                 if (key === "size") updatePill(); } };
+      input.addEventListener("input", () => s.set(input.value));
+      s.set(val);
+      body.appendChild(wrap);
+    } else {
+      const [key, label, color, presets] = spec;
+      const wrap = document.createElement("div"); wrap.className = "swatch";
+      wrap.innerHTML = `<div class="label"><span>${label}</span><code></code></div><div class="chips"></div>`;
+      const chips = wrap.querySelector(".chips"), code = wrap.querySelector("code");
+      const chipEls = presets.map(p => {
+        const c = document.createElement("button");
+        c.className = "chip"; c.style.background = toHex(p); c.setAttribute("aria-label", toHex(p));
+        c.addEventListener("click", () => { sw.set(p); buzz(5); });
+        chips.appendChild(c); return [c, p];
+      });
+      const custom = document.createElement("label");
+      custom.className = "chip custom"; custom.setAttribute("aria-label", "Custom colour");
+      custom.innerHTML = `<input type="color">`;
+      const picker = custom.querySelector("input");
+      picker.addEventListener("input", () => sw.set(fromHex(picker.value)));
+      chips.appendChild(custom);
+      const sw = swatches[key] = { color, set(c) {
+        this.color = c.slice(); code.textContent = toHex(c); picker.value = toHex(c).toLowerCase();
+        let matched = false;
+        for (const [el, p] of chipEls) { const on = p.every((v, i) => v === c[i]); el.setAttribute("aria-pressed", on); matched ||= on; }
+        custom.setAttribute("aria-pressed", !matched);
+        custom.style.background = matched ? "" : toHex(c);
+      } };
+      sw.set(color);
+      body.appendChild(wrap);
+    }
+  }
+}
+body.insertAdjacentHTML("beforeend", `<div class="section-title">Scenes</div>
+  <div class="btn-row"><button class="btn primary" id="saveBtn">Save scene</button><button class="btn" id="loadBtn">Load scene</button></div>
+  <div class="btn-row"><button class="btn" id="clearSandBtn">Clear sand</button><button class="btn danger" id="clearAllBtn">Clear everything</button></div>`);
+
+// ---- sheets ----
+const scrim = document.getElementById("scrim");
+let openSheetId = null;
+function openSheet(id) {
+  if (openSheetId) document.getElementById(openSheetId).classList.remove("open");
+  openSheetId = id;
+  document.getElementById(id).classList.add("open"); scrim.classList.add("open");
+  if (id === "scenes") renderSceneList();
+}
+function closeSheet() {
+  if (!openSheetId) return;
+  document.getElementById(openSheetId).classList.remove("open"); scrim.classList.remove("open");
+  openSheetId = null;
+}
+scrim.addEventListener("click", closeSheet);
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeSheet));
+
+// ---- actions ----
+function clearSand() { sand.clearSand(); redrawStatic(); showToast("Sand cleared"); }
+function clearAll() { sand = new Sand(W, H); staticBuf.fill(0); moving = dragStart = null; showToast("Cleared everything"); }
+document.getElementById("clearBtn").addEventListener("click", () => { clearSand(); buzz(10); });
+document.getElementById("clearSandBtn").addEventListener("click", () => { clearSand(); closeSheet(); });
+document.getElementById("clearAllBtn").addEventListener("click", () => { clearAll(); closeSheet(); });
+document.getElementById("saveBtn").addEventListener("click", () => { closeSheet(); saveScene(); });
+document.getElementById("loadBtn").addEventListener("click", () => openSheet("scenes"));
+
+// ---- tool label + toast ----
+function updatePill() {
+  let label = title(tool);
+  if (tool === "pour" || tool === "emitter") label += material === WATER ? "  ·  water" : "  ·  sand";
+  if (SHAPES.includes(tool) || tool === "erase") label += `  ·  size ${sliders.size ? sliders.size.value : ""}`;
+  if (tool === "belt") label += "  ·  drag the way it should carry";
+  if (tool === "ramp") label += "  ·  drag to draw";
+  if (SHAPES.includes(tool)) label += "  ·  lift to place";
+  pillEl.textContent = label;
+}
+let toastTimer = 0;
+function showToast(text) {
+  toastEl.textContent = text; toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+}
+updatePill();
+
+/* ---------------------------------------------------------------- touch / mouse
+   Pointer events cover fingers, mouse and stylus with one set of handlers.
+   Shapes get placed when you LIFT your finger, so you can see the ghost and aim first. */
+function toCell(e) {
+  const r = canvas.getBoundingClientRect();
+  pointer.cx = Math.floor((e.clientX - r.left) / r.width * W);
+  pointer.cy = Math.floor((e.clientY - r.top) / r.height * H);
+}
+function emitterProp() {
+  if (material === WATER) return { kind: WATER, color: pack(...THEME.water) };
+  return { kind: SAND, color: sliders.hue.value === 0 ? pack(...swatches.sand.color) : null };
+}
+canvas.addEventListener("pointerdown", e => {
+  if (pointer.id !== null) return;                                 // ignore a second finger
+  pointer.id = e.pointerId; pointer.down = true;
+  canvas.setPointerCapture(e.pointerId);
+  toCell(e);
+  const { cx, cy } = pointer;
+  if (tool === "pour" || tool === "erase") holding = true;
+  else if (tool === "ramp" || tool === "belt") dragStart = [cx, cy];
+  else if (tool === "move") { moving = sand.solidObject(cx, cy); moveAnchor = [cx, cy]; if (moving) buzz(8); }
+  else aiming = true;                                              // a shape: place it on release
+});
+canvas.addEventListener("pointermove", e => { toCell(e); pointer.hover = e.pointerType === "mouse"; });
+canvas.addEventListener("pointerleave", () => { pointer.hover = false; });
+function release(e, cancelled) {
+  if (e.pointerId !== pointer.id) return;
+  toCell(e);
+  const cx = clamp(pointer.cx, 0, W - 1), cy = clamp(pointer.cy, 0, H - 1);
+  if (!cancelled && aiming) {
+    const kind = KIND[tool] ?? SOLID;
+    paintCells(sand.addSolid(at(cx, cy, tool, sliders.size.value), kind, tool === "emitter" ? emitterProp() : null));
+    buzz(12);
+  }
+  if (!cancelled && dragStart) {
+    if (tool === "belt") {
+      const dir = cx < dragStart[0] ? -1 : 1;
+      paintCells(sand.addSolid(beltCells(dragStart[0], cx, dragStart[1]), CONVEYOR, dir));
+    } else paintCells(sand.addSolid(lineCells(dragStart[0], dragStart[1], cx, cy)));
+    buzz(12);
+  }
+  pointer.id = null; pointer.down = false;
+  holding = aiming = false; dragStart = moving = null;
+}
+canvas.addEventListener("pointerup", e => release(e, false));
+canvas.addEventListener("pointercancel", e => release(e, true));
+
+// keyboard shortcuts still work if you open it on a computer
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if (k === "escape") closeSheet();
+  else if (k === "r") clearSand();
+  else if (k === "x") clearAll();
+  else if (k === "w") setMaterial(1 - material);
+  else if (k === "s") saveScene();
+  else if (k === "l") openSheetId === "scenes" ? closeSheet() : openSheet("scenes");
+  else if (TOOL_KEYS.includes(e.key)) selectTool(TOOLS[TOOL_KEYS.indexOf(e.key)]);
+});
+
+/* ---------------------------------------------------------------- main loop
+   requestAnimationFrame runs at the screen's refresh rate (often 90 or 120 Hz on Android),
+   so we only step the physics ~60 times a second, matching clock.tick(60) in pygame. */
+let lastStep = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (now - lastStep < 15.5) return;
+  lastStep = now;
+
+  sand.gravity = sliders.gravity.value; sand.wind = sliders.wind.value; sand.bounce = sliders.bounce.value;
+  let sandColor;
+  if (sliders.hue.value === 0) { hueDrift = 0; sandColor = swatches.sand.color; }
+  else {
+    hueDrift = (hueDrift + sliders.hue.value / 600) % 1;
+    const [h, s, v] = rgbToHsv(swatches.sand.color);
+    sandColor = hsvToRgb((h + hueDrift) % 1, Math.max(s, 0.5), Math.max(v, 0.5));
+  }
+  const liveColors = { [SAND]: sandColor, [WATER]: THEME.water };
+  const cx = pointer.cx, cy = pointer.cy;
+
+  if (moving) {                                                    // Move tool: plough toward the finger
+    const tx = clamp(cx, 0, W - 1), ty = clamp(cy, 0, H - 1);
+    const dx = clamp(tx - moveAnchor[0], -3, 3), dy = clamp(ty - moveAnchor[1], -3, 3);
+    for (const [sx, sy] of [[dx, dy], [dx, 0], [0, dy]]) {
+      if (!sx && !sy) continue;
+      const moved = sand.moveSolid(moving, sx, sy);
+      if (moved) {
+        for (const i of moving) if (!moved.has(i)) staticBuf[i] = 0;
+        paintCells(moved);
+        moving = moved; moveAnchor = [moveAnchor[0] + sx, moveAnchor[1] + sy];
+        break;
+      }
+    }
+  }
+
+  if (holding && tool === "pour") {
+    sand.pour(cx, cy, sliders.rate.value, liveColors[material], sliders.spread.value,
+              material === WATER ? 0.06 : sliders.shade.value, material);
+  } else if (holding && tool === "erase") {
+    if (sand.removeSolid(at(cx, cy, "sphere", Math.max(2, sliders.size.value >> 1))).length) redrawStatic();
+  }
+
+  sand.runEmitters(sliders.flow.value, liveColors, sliders.shade.value);
+  sand.step();
+
+  for (const i of sand.newlyWoken) if (!isObject(sand.grid[i])) staticBuf[i] = 0;
+  sand.newlyWoken.length = 0;
+  for (const i of sand.newlyStatic) staticBuf[i] = sand.colors[i];
+  sand.newlyStatic.length = 0;
+
+  frameNo++;
+  if (sand.conveyors.size && frameNo % 3 === 0) { beltPhase++; paintCells(sand.conveyors.keys()); }
+
+  render();
+}
+
+function render() {
+  const bg = pack(...swatches.bg.color);
+  for (let i = 0; i < pixels.length; i++) pixels[i] = staticBuf[i] || bg;   // settled layer over background
+  for (const g of sand.grains) pixels[(g.y | 0) * W + (g.x | 0)] = g.color; // moving grains on top
+
+  // translucent ghost of what you're about to place
+  const cx = pointer.cx, cy = pointer.cy, show = pointer.down || pointer.hover;
+  let preview = null;
+  if (moving) preview = [...moving].map(i => [i % W, (i / W) | 0]);
+  else if (show) {
+    const size = sliders.size.value;
+    if (SHAPES.includes(tool)) preview = at(cx, cy, tool, size);
+    else if (tool === "erase") preview = at(cx, cy, "sphere", Math.max(2, size >> 1));
+    else if (tool === "ramp") preview = dragStart ? lineCells(dragStart[0], dragStart[1], cx, cy) : [[cx, cy]];
+    else if (tool === "belt") preview = dragStart ? beltCells(dragStart[0], cx, dragStart[1]) : beltCells(cx, cx, cy);
+  }
+  if (preview) {
+    const tint = tool === "erase" ? THEME.danger : THEME.accent, a = 105 / 255;
+    for (const [x, y] of preview) {
+      if (x < 0 || x >= W || y < 0 || y >= H) continue;
+      const i = y * W + x, c = unpack(pixels[i]);
+      pixels[i] = pack(...c.map((v, k) => (v + (tint[k] - v) * a) | 0));
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+requestAnimationFrame(loop);
+
+/* =====================================================================================
+   PART 3 - SAVE / LOAD
+   Same file format idea as save_scene(): 4 bytes a cell (what it is + its colour),
+   zlib-compressed and base64'd. Scenes are stored privately for you in this artifact's
+   database (falls back to the phone's local storage if that isn't available).
+   ===================================================================================== */
+const SAVE_CODE = { [STATIC]: 1, [STILL_WATER]: 2, [SOLID]: 4, [DRAIN]: 5, [EMITTER]: 6, [CONVEYOR]: 7 };
+const LOAD_CODE = Object.fromEntries(Object.entries(SAVE_CODE).map(([k, v]) => [v, +k]));
+const CHUNK = 180000;                                                // characters per stored piece
+
+function toB64(u8) {
+  let s = "";
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromB64(s) { const b = atob(s), u8 = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i); return u8; }
+async function zip(u8, dir) {
+  const S = dir === "in" ? window.CompressionStream : window.DecompressionStream;
+  const stream = new Blob([u8]).stream().pipeThrough(new S("deflate"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// two interchangeable places to keep scenes: same four functions, different storage
+const localStore = {
+  async list() { try { return JSON.parse(localStorage.getItem("fp:index") || "[]"); } catch (e) { return []; } },
+  async save(meta, chunks) {
+    chunks.forEach((c, i) => localStorage.setItem(`fp:${meta.id}:${i}`, c));
+    const all = await this.list(); all.push(meta);
+    localStorage.setItem("fp:index", JSON.stringify(all));
+  },
+  async chunks(meta) { return Array.from({ length: meta.chunks }, (_, i) => localStorage.getItem(`fp:${meta.id}:${i}`)); },
+  async remove(meta) {
+    for (let i = 0; i < meta.chunks; i++) localStorage.removeItem(`fp:${meta.id}:${i}`);
+    localStorage.setItem("fp:index", JSON.stringify((await this.list()).filter(m => m.id !== meta.id)));
+  },
+};
+function dbStore(col) {
+  return {
+    async list() { const s = await col.where("type", "==", "scene").get(); return s.docs.map(d => ({ ...d.data(), id: d.id })); },
+    async save(meta, chunks) {
+      for (let i = 0; i < chunks.length; i++) await col.doc(`${meta.id}_c${i}`).set({ type: "chunk", data: chunks[i] });
+      await col.doc(meta.id).set(meta);
+    },
+    async chunks(meta) {
+      return Promise.all(Array.from({ length: meta.chunks }, (_, i) => col.doc(`${meta.id}_c${i}`).get().then(s => s.data().data)));
+    },
+    async remove(meta) {
+      await col.doc(meta.id).delete();
+      for (let i = 0; i < meta.chunks; i++) await col.doc(`${meta.id}_c${i}`).delete();
+    },
+  };
+}
+const storeReady = (async () => {
+  try {
+    if (!window.claude || !window.claude.use) return localStore;
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db || !user) return localStore;
+    const id = await user.id();
+    return id ? dbStore(db.collection("data/users/" + id)) : localStore;
+  } catch (e) { return localStore; }
+})();
+
+let saving = false;
+async function saveScene() {
+  if (saving) return;
+  saving = true;
+  try {
+    const store = await storeReady;
+    const cells = new Uint8Array(W * H * 4);
+    for (let i = 0; i < W * H; i++) {
+      const code = SAVE_CODE[sand.grid[i]];
+      if (code) {
+        cells[i * 4] = code;
+        if (code <= 2) { const c = sand.colors[i]; cells[i * 4 + 1] = c & 255; cells[i * 4 + 2] = (c >>> 8) & 255; cells[i * 4 + 3] = (c >>> 16) & 255; }
+      }
+    }
+    const z = !!window.CompressionStream;
+    const b64 = toB64(z ? await zip(cells, "in") : cells);
+    const chunks = [];
+    for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
+
+    const thumbW = 180, thumbH = Math.round(thumbW * H / W);          // little picture for the browser
+    const t = document.createElement("canvas"); t.width = thumbW; t.height = thumbH;
+    t.getContext("2d").drawImage(canvas, 0, 0, thumbW, thumbH);
+
+    const existing = await store.list();
+    const num = Math.max(0, ...existing.map(m => m.num || 0)) + 1;
+    const meta = {
+      type: "scene", id: "scene_" + Date.now(), num, created: Date.now(), w: W, h: H, z, chunks: chunks.length,
+      thumb: t.toDataURL("image/jpeg", 0.75),
+      emitters: [...sand.emitters].map(([i, e]) => [i % W, (i / W) | 0, e.kind, e.color ? unpack(e.color) : null]),
+      conveyors: [...sand.conveyors].map(([i, d]) => [i % W, (i / W) | 0, d]),
+      sliders: Object.fromEntries(Object.entries(sliders).map(([k, s]) => [k, s.value])),
+      colors: Object.fromEntries(Object.entries(swatches).map(([k, s]) => [k, s.color])),
+      toggles: { material },
+    };
+    await store.save(meta, chunks);
+    showToast(`Saved as Scene ${String(num).padStart(3, "0")}`);
+  } catch (e) {
+    showToast("Couldn't save: storage is full or unavailable");
+  } finally { saving = false; }
+}
+
+async function loadScene(meta) {
+  try {
+    const store = await storeReady;
+    let raw = fromB64((await store.chunks(meta)).join(""));
+    if (meta.z) raw = await zip(raw, "out");
+    // scenes saved on a different-shaped screen are pasted bottom-centre, edges trimmed
+    const ox = Math.floor((W - meta.w) / 2), oy = H - meta.h;
+    const fresh = new Sand(W, H);
+    for (let s = 0; s < meta.w * meta.h; s++) {
+      const code = raw[s * 4]; if (!code) continue;
+      const x = (s % meta.w) + ox, y = ((s / meta.w) | 0) + oy;
+      if (x < 0 || x >= W || y < 0 || y >= H) continue;
+      const i = y * W + x, kind = LOAD_CODE[code];
+      fresh.grid[i] = kind;
+      if (code <= 2) fresh.colors[i] = pack(raw[s * 4 + 1], raw[s * 4 + 2], raw[s * 4 + 3]);
+      else if (kind === DRAIN) fresh.drains.add(i);
+    }
+    const inside = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
+    for (const [x, y, k, c] of meta.emitters || []) if (inside(x + ox, y + oy)) fresh.emitters.set((y + oy) * W + x + ox, { kind: k, color: c ? pack(...c) : null });
+    for (const [x, y, d] of meta.conveyors || []) if (inside(x + ox, y + oy)) fresh.conveyors.set((y + oy) * W + x + ox, d);
+    for (const [k, v] of Object.entries(meta.sliders || {})) if (sliders[k]) sliders[k].set(v);
+    for (const [k, v] of Object.entries(meta.colors || {})) if (swatches[k]) swatches[k].set(v);
+    if (meta.toggles) setMaterial(meta.toggles.material || 0);
+    sand = fresh; moving = dragStart = null;
+    redrawStatic();
+    showToast(`Loaded Scene ${String(meta.num).padStart(3, "0")}`);
+  } catch (e) {
+    showToast("Couldn't read that scene");
+  }
+}
+
+async function renderSceneList() {
+  const list = document.getElementById("sceneList");
+  list.innerHTML = `<p class="empty">Loading…</p>`;
+  let scenes = [];
+  try { scenes = (await (await storeReady).list()).sort((a, b) => b.created - a.created); }
+  catch (e) { list.innerHTML = `<p class="empty">Couldn't reach your saved scenes. Check your connection and open this again.</p>`; return; }
+  if (!scenes.length) { list.innerHTML = `<p class="empty">No saved scenes yet. Build something, then tap Save scene in Settings.</p>`; return; }
+  list.innerHTML = "";
+  const grid = document.createElement("div"); grid.className = "scene-grid";
+  for (const m of scenes) {
+    const tile = document.createElement("div"); tile.className = "tile";
+    tile.style.setProperty("--ar", `${m.w}/${m.h}`);
+    const when = new Date(m.created).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    tile.innerHTML = `<button class="tile" style="width:100%">${m.thumb ? `<img alt="" src="${m.thumb}">` : `<div class="noimg"></div>`}
+      <div class="name">Scene ${String(m.num).padStart(3, "0")}</div><div class="when">${when}</div></button>
+      <button class="del" aria-label="Delete scene">✕</button>`;
+    tile.querySelector("button.tile").addEventListener("click", () => { closeSheet(); loadScene(m); });
+    const del = tile.querySelector(".del");
+    del.addEventListener("click", async () => {                      // tap once to arm, again to delete
+      if (!del.classList.contains("armed")) {
+        del.classList.add("armed"); del.textContent = "Delete";
+        setTimeout(() => { del.classList.remove("armed"); del.textContent = "✕"; }, 2500);
+        return;
+      }
+      try { await (await storeReady).remove(m); tile.remove(); showToast("Scene deleted"); }
+      catch (e) { showToast("Couldn't delete that scene"); }
+    });
+    grid.appendChild(tile);
+  }
+  list.appendChild(grid);
+}
+</script>
+</body>
+</html>
