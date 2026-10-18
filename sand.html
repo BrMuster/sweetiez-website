@@ -137,6 +137,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .pair { display: flex; gap: 8px; }
 .row .btn { min-height: 34px; }
 .seg.compact button { padding: 0 11px; }
+.dimlabel { color: var(--text-dim); font-size: 13px; white-space: nowrap; }
 .mini {
   min-height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12px; letter-spacing: 0; text-transform: none;
   background: var(--button); border: 1px solid var(--outline); color: var(--text-dim); cursor: pointer;
@@ -211,6 +212,12 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
         <button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="3">3×</button><button data-s="4">4×</button>
       </div>
     </div>
+    <div class="pen" id="sceneryTools" hidden>
+      <span class="dimlabel">Scenery size</span>
+      <div class="seg compact" id="sceneryScaleSeg" role="group" aria-label="Scenery size">
+        <button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="3">3×</button><button data-s="4">4×</button><button data-s="5">5×</button><button data-s="6">6×</button>
+      </div>
+    </div>
     <div class="pen" id="penTools" hidden><input type="color" id="penColor" value="#ffffff" aria-label="Pen color"><button class="btn" id="penUndo">Undo</button></div>
     <div class="slider" id="sizeBox"><div class="lab"><span>Size</span><output id="sizeOut"></output></div><input type="range" id="sizeRange" aria-label="Size"></div>
     <button class="btn" id="bSnap" hidden aria-label="Ramp snapping">Snap: off</button>
@@ -258,21 +265,21 @@ class Grain {
 // ---- creatures: tiny pixel animals made of the same pixels as the sand ----
 // rows: the sprite ("." = see-through, letters are colours: see PIXEL_COLORS). Sand treats the coloured pixels as solid.
 // every: ticks between steps (smaller = faster).  step: the tallest ledge it climbs at 1x.  walk / rest: how long, in ticks (30 a second).
-// likes: foods that make it grow.  body: the colour letters a custom colour replaces, each with how bright it is.
+// likes: foods that make it grow.  water: "love" swims and splashes, "hate" avoids pools and runs from a soaking, "neutral" doesn't mind.  body: the colour letters a custom colour replaces, each with how bright it is.
 const MAX_CREATURES = 30, MAX_FOODS = 40, MAX_SCALE = 4, VISION = 80;
 const CREATURE_TYPES = {
   slime: { rows: ["..gggg..", ".gGGGGg.", "gGkGGkGg", "gGGGGGGg", "gGGGGGGg", ".gggggg."], every: 8, step: 2, walk: [40, 140], rest: [30, 120],
-    likes: ["berry", "apple"], body: { g: 0.6, G: 1 } },
+    likes: ["berry", "apple"], water: "love", body: { g: 0.6, G: 1 } },
   bunny: { rows: [".w...w.", ".w...w.", ".wwwww.", "wwwwwww", "wkwwwkw", "wwwpwww", ".wwwww.", ".w...w."], every: 3, step: 4, walk: [6, 15], rest: [25, 90],
-    likes: ["carrot", "apple"], body: { w: 1 } },
+    likes: ["carrot", "apple"], water: "hate", body: { w: 1 } },
   chick: { rows: ["..yyy..", ".yyyyy.", ".ykyky.", ".yyoyy.", "yyyyyyy", ".yyyyy.", "..o.o.."], every: 5, step: 3, walk: [30, 100], rest: [15, 60], peck: true,
-    likes: ["seed", "berry"], body: { y: 1 } },
+    likes: ["seed", "berry"], water: "hate", body: { y: 1 } },
   bird: { rows: ["..bbb..", ".bbbbb.", ".bkbkb.", ".bbobb.", "bbbbbbb", "..o.o.."], flyRows: ["b.bbb.b", "bbbbbbb", ".bkbkb.", ".bbobb.", "..bbb..", "..o.o.."],
-    fly: true, every: 2, step: 3, walk: [20, 60], rest: [30, 100], likes: ["seed", "berry"], body: { b: 1 } },
+    fly: true, every: 2, step: 3, walk: [20, 60], rest: [30, 100], likes: ["seed", "berry"], water: "neutral", body: { b: 1 } },
   cat: { rows: ["oo....oo", "oooooooo", "okooooko", "oooppooo", "oOooooOo", ".oooooo.", ".oOooOo.", ".oo..oo."], every: 6, step: 6, walk: [30, 90], rest: [60, 220],
-    likes: ["fish"], body: { o: 1, O: 0.65 } },
+    likes: ["fish"], water: "hate", body: { o: 1, O: 0.65 } },
   dog: { rows: [".nnnnnnn.", "NnnnnnnnN", "NnknnnknN", "nnttkttnn", ".nnnpnnn.", ".nnnnnnn.", ".nn...nn.", ".nn...nn."], every: 3, step: 5, walk: [60, 200], rest: [20, 70],
-    likes: ["bone"], body: { n: 1, N: 0.65 } },
+    likes: ["bone"], water: "love", body: { n: 1, N: 0.65 } },
 };
 const FOOD_TYPES = {
   apple: { rows: [".g..", "rrrr", "rrrr", ".rr."] },
@@ -635,7 +642,8 @@ class Sand {
   }
   newCreature(type, x, y, scale, tint, dir) {
     return { type, x, y, scale, tint, dir: dir || (Math.random() < 0.5 ? -1 : 1), mode: "rest", timer: 10 + Math.floor(Math.random() * 30),
-      vy: 0, bury: 0, frame: 0, shake: 0, age: 0, prog: 0, target: null, seekWait: 0, seekTicks: 0, hearts: 0, climb: 0, detour: 0 };
+      vy: 0, bury: 0, frame: 0, shake: 0, age: 0, prog: 0, target: null, seekWait: 0, seekTicks: 0, hearts: 0, climb: 0, detour: 0,
+      wet: 0, panic: 0, swim: false, submerged: false, onWater: false, thirst: 400 + Math.floor(Math.random() * 1200), drinking: 0, waterX: null, waterTicks: 0 };
   }
   addCreature(type, cx, cy, scale = 1, tint = null) {
     if (this.creatures.length >= MAX_CREATURES) return null;
@@ -747,11 +755,12 @@ class Sand {
     let loaded = false;                                  // 2. sand piled on its head for a while: shake it off
     for (let dx = 0; dx < g.w && !loaded; dx++) {
       if (g.tops[dx] < 0 || c.y + g.tops[dx] === 0) continue;
-      const k = this.grid[(c.y + g.tops[dx] - 1) * w + c.x + dx];
-      if (k === STATIC || k === STILL_WATER) loaded = true;
+      if (this.grid[(c.y + g.tops[dx] - 1) * w + c.x + dx] === STATIC) loaded = true;   // sand only: water on top is handled below (it floats up)
     }
     c.bury = loaded ? c.bury + 1 : 0;
     if (c.bury > 14) { this.wakeRegion(c.x, c.x + g.w - 1, c.y - 1); c.bury = 0; c.shake = 10; }
+    this.waterReactions(c, t, g);                        // 2b. how it feels about water
+    if (c.submerged && c.age % 2 === 0) this.floatUp(c, g);   // 2c. buoyancy: it bobs up to the surface
     if (this.foods.length && this.tryEat(c, t, g)) { this.setBody(c); return; }   // 3. eat what it is touching
     if (!fell && speed > 0) {
       if (c.target && !this.foods.includes(c.target)) c.target = null;
@@ -759,6 +768,8 @@ class Sand {
       if (c.mode === "fly") this.birdFly(c, t, g);
       else if (c.target && t.fly) { c.mode = "fly"; c.climb = 0; c.timer = 60; this.birdFly(c, t, g); }
       else if (c.target) this.seek(c, t, g);
+      else if (c.panic > 0) this.flee(c, t);             // soaked: run away from the water
+      else if (this.thirstyStep(c, t, g)) { /* busy getting a drink */ }
       else {                                             // 5. wander: walk for a while, rest for a while
         if (c.mode === "seek") { c.mode = "rest"; c.timer = creatureRand(t.rest); }
         c.timer -= speed;
@@ -777,6 +788,7 @@ class Sand {
     this.setBody(c);
   }
   walkOne(c, t, dir) {                                   // one step sideways, climbing a ledge if it can; false if blocked
+    if (t.water === "hate" && !c.onWater && this.waterUnder(t, c.scale, c.x + dir, c.y)) return false;   // it won't step into a pool
     const lift = t.step * c.scale;
     for (let up = 0; up <= lift; up++) {
       if (this.bodyFree(t, c.scale, c.x + dir, c.y - up)) { this.shedSand(c); c.x += dir; c.y -= up; c.frame ^= 1; return true; }
@@ -866,6 +878,114 @@ class Sand {
       }
     }
     return false;
+  }
+  // ---------- water: some creatures love it, some hate it, and all of them get thirsty ----------
+  waterUnder(def, scale, x, y) {                         // is there water directly under a body standing with its top-left at (x, y)?
+    const g = geomOf(def, scale), row = y + g.h;
+    if (row >= this.h) return false;
+    for (let dx = 0; dx < g.w; dx++) {
+      const cx = x + dx;
+      if (cx >= 0 && cx < this.w && this.grid[row * this.w + cx] === STILL_WATER) return true;
+    }
+    return false;
+  }
+  waterCellsNear(c, g) {                                 // water cells touching the lower part of its body or just under its feet
+    const w = this.w, out = [];
+    const y0 = Math.max(c.y + g.h - 3, 0), y1 = Math.min(c.y + g.h + 1, this.h - 1);
+    for (let y = y0; y <= y1; y++) for (let x = Math.max(c.x - 1, 0); x <= Math.min(c.x + g.w, w - 1); x++) {
+      if (this.grid[y * w + x] === STILL_WATER) out.push(y * w + x);
+    }
+    return out;
+  }
+  waterReactions(c, t, g) {                              // splashed, soaked or swimming: each kind of creature has its own opinion
+    const w = this.w;
+    let above = false, beside = false;
+    for (let dx = 0; dx < g.w && !above; dx++) {         // water resting on its head
+      if (g.tops[dx] < 0) continue;
+      const y = c.y + g.tops[dx] - 1;
+      if (y >= 1 && (this.grid[y * w + c.x + dx] === STILL_WATER || this.grid[(y - 1) * w + c.x + dx] === STILL_WATER)) above = true;
+    }
+    let sideDir = 0;
+    for (let dy = g.h >> 1; dy < g.h && !sideDir; dy++) {   // water up against its lower body
+      const y = c.y + dy;
+      if (c.x - 1 >= 0 && this.grid[y * w + c.x - 1] === STILL_WATER) sideDir = 1;      // water on the left: head right
+      else if (c.x + g.w < w && this.grid[y * w + c.x + g.w] === STILL_WATER) sideDir = -1;
+    }
+    beside = sideDir !== 0;
+    c.submerged = above;                                 // water over its head: it will float up
+    c.onWater = this.waterUnder(t, c.scale, c.x, c.y);
+    c.swim = c.onWater && t.water === "love";
+    if (t.water === "hate") {
+      if ((above || beside) && c.wet === 0) {            // startled: shake it off and run
+        c.wet = 1; c.shake = 12; c.panic = 40; c.mode = "walk";
+        c.dir = sideDir || (Math.random() < 0.5 ? -1 : 1);
+      } else if (!(above || beside)) c.wet = 0;
+      if (c.onWater && c.panic <= 0 && c.age % 90 === 0) { c.panic = 30; c.dir = Math.random() < 0.5 ? -1 : 1; }   // standing in a pool: get out
+    } else if (t.water === "love") {                     // splashing about makes it happy: hearts as soon as it gets wet, then every so often
+      if (above || beside || c.onWater) { if (c.wet === 0 || c.age % 40 === 0) c.hearts = 10; c.wet = 1; } else c.wet = 0;
+    }
+  }
+  floatUp(c, g) {                                        // swap places with the water above, so a submerged creature rises to the surface
+    if (c.y <= 0) return;
+    const w = this.w, ny = c.y - 1, oldCells = new Set(), newCells = [];
+    for (const [dx, dy] of g.mask) { oldCells.add((c.y + dy) * w + c.x + dx); newCells.push((ny + dy) * w + c.x + dx); }
+    const water = [];
+    for (const i of newCells) {
+      if (oldCells.has(i)) continue;
+      const k = this.grid[i];
+      if (k === STILL_WATER) water.push(i);
+      else if (k !== EMPTY && k !== IN_AIR) return;      // something solid above: it stays put
+    }
+    const newSet = new Set(newCells), vacated = [...oldCells].filter(i => !newSet.has(i));
+    water.forEach((wi, n) => { this.grid[vacated[n]] = STILL_WATER; this.colors[vacated[n]] = this.colors[wi]; this.colors[wi] = 0; });   // the water moves in underneath it
+    c.y = ny;
+  }
+  flee(c, t) {                                           // run away (two steps a tick) until the panic wears off
+    c.panic--;
+    c.mode = "walk";
+    for (let i = 0; i < 2; i++) if (!this.walkOne(c, t, c.dir)) { c.dir = -c.dir; break; }
+  }
+  findWater(c, t, g) {                                   // the x of the nearest water it can see at about its own level
+    const w = this.w, cx = c.x + (g.w >> 1);
+    let best = null, bestD = Infinity;
+    for (let y = Math.max(c.y - 6, 0); y <= Math.min(c.y + g.h + 8, this.h - 1); y++) {
+      for (let x = Math.max(c.x - VISION, 0); x <= Math.min(c.x + g.w + VISION, w - 1); x++) {
+        if (this.grid[y * w + x] === STILL_WATER && Math.abs(x - cx) < bestD) { bestD = Math.abs(x - cx); best = x; }
+      }
+    }
+    return best;
+  }
+  thirstyStep(c, t, g) {                                 // now and then: go to the water's edge and drink. true if it used this tick
+    if (c.drinking > 0) {
+      c.drinking--;
+      if (c.drinking % 6 === 0) this.sip(c, g);
+      if (c.drinking === 0) { c.hearts = 10; c.thirst = creatureRand([900, 2400]); c.mode = "rest"; c.timer = 30; }
+      return true;
+    }
+    c.thirst -= this.creatureSpeed;
+    if (c.thirst > 0 && c.waterX === null) return false;
+    if (c.waterX === null) {                             // thirsty: look around
+      c.waterX = this.findWater(c, t, g);
+      if (c.waterX === null) { c.thirst = 900; return false; }
+      c.waterTicks = 0;
+    }
+    if (this.waterCellsNear(c, g).length) { c.drinking = 24; c.waterX = null; c.mode = "rest"; return true; }
+    c.mode = "seek"; c.waterTicks++;
+    c.dir = c.waterX < c.x + (g.w >> 1) ? -1 : 1;
+    let n = this.advance(c, t);
+    while (n-- > 0) {
+      if (!this.walkOne(c, t, c.dir)) { c.waterX = null; c.thirst = 600; c.mode = "rest"; c.timer = 20; return true; }   // can't get there
+    }
+    if (c.waterTicks > 500) { c.waterX = null; c.thirst = 900; c.mode = "rest"; c.timer = 20; }
+    return true;
+  }
+  sip(c, g) {                                            // one mouthful: a water cell at the surface disappears
+    const cells = this.waterCellsNear(c, g);
+    if (!cells.length) return;
+    const i = cells.reduce((a, b) => (b < a ? b : a));   // the highest one (smallest row)
+    const x = i % this.w, y = (i - x) / this.w;
+    this.grid[i] = EMPTY; this.colors[i] = 0;
+    this.wakeRegion(x - 1, x + 1, y);                    // the water around it flows in to fill the gap
   }
   repositionCreaturesAfterFlip() {
     for (const c of [...this.creatures]) {
@@ -1216,6 +1336,7 @@ fitCanvas();
 const DOCK = ["pour", "shapes", "scenery", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
 const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "fence", "house"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
+let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
 const lastPick = { shapes: "sphere", scenery: "oak", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
 const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
@@ -1292,11 +1413,12 @@ function setTool(t) {
   if (group) { lastPick[group] = t; refreshMenuIcon(group); }
   closeMenus();
   $("bSnap").hidden = t !== "ramp";                      // the snap button only matters while drawing ramps
-  const isCreature = !!CREATURE_TYPES[t];
+  const isCreature = !!CREATURE_TYPES[t], isScenery = !!DECOR_TYPES[t];
   $("penTools").hidden = t !== "pen";                    // the pen's colour and Undo replace the Sand / Water switch
   $("creatureTools").hidden = !isCreature;               // so do a creature's colour and size
-  $("matSeg").hidden = t === "pen" || isCreature;
-  $("sizeBox").hidden = isCreature;
+  $("sceneryTools").hidden = !isScenery;                 // scenery gets its own size picker
+  $("matSeg").hidden = t === "pen" || isCreature || isScenery;
+  $("sizeBox").hidden = isCreature || isScenery;
   updateLabel();
 }
 function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
@@ -1353,7 +1475,7 @@ function updateLabel() {
     const fans = Object.keys(CREATURE_TYPES).filter(n => CREATURE_TYPES[n].likes.includes(tool));
     s += ` · tap to drop · ${fans.join(", ")} love it`;
   }
-  if (DECOR_TYPES[tool]) s += ` · ${decorScale()}× (use the Size slider)`;
+  if (DECOR_TYPES[tool]) s += ` · ${decorScale()}× · tap to place`;
   if (tool === "belt") s += " · drag the way it carries";
   if (tool === "ramp") {
     if (dragStart) {                                     // live readout while dragging
@@ -1400,7 +1522,7 @@ $("sheet").innerHTML = `
   <h2>Physics</h2>${sliderHtml("gravity")}${sliderHtml("wind")}${sliderHtml("bounce")}
   <h2>Objects</h2>${sliderHtml("flow")}
   <h2>Creatures</h2>${sliderHtml("creatureSpeed")}
-  <p class="note">Pick a creature, then set its size and colour in the row above the tools. Tap one again to restyle it. Drop food and they will find it; food they like makes them grow.</p>
+  <p class="note">Pick a creature, then set its size and colour in the row above the tools. Tap one again to restyle it. Drop food and they will find it; food they like makes them grow. Slimes and dogs love water, cats, bunnies and chicks avoid it, and everyone gets thirsty now and then.</p>
   <h2>Grain size</h2>
   <div class="seg wide" id="grainSeg" role="group" aria-label="Grain size">
     ${Object.keys(GRAINS).map(g => `<button data-grain="${g}" class="${g === grainName ? "on" : ""}">${g[0].toUpperCase() + g.slice(1)}</button>`).join("")}
@@ -1453,6 +1575,11 @@ $("bgColor").addEventListener("input", e => { bgHex = e.target.value; board.styl
 board.style.backgroundColor = bgHex;
 
 // ---- reset: every setting back to how the page started (not your scene, drawing, background picture or grain size) ----
+function syncSceneryUi() {
+  $("sceneryScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === sceneryScale));
+  updateLabel();
+}
+$("sceneryScaleSeg").addEventListener("click", e => { const v = +e.target.dataset.s; if (v) { sceneryScale = v; syncSceneryUi(); } });
 function syncCreatureUi() {                              // the creature colour / size controls show what is chosen
   $("creatureNatural").classList.toggle("on", creatureTint === null);
   $("creatureScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === creatureScale));
@@ -1476,6 +1603,7 @@ function resetAll() {
   snapMode = 0; $("bSnap").textContent = "Snap: off"; $("bSnap").classList.remove("on");
   eraseShape = "sphere"; refreshEraseIcon();
   creatureScale = 1; creatureTint = null; syncCreatureUi();
+  sceneryScale = 1; syncSceneryUi();
   updateLabel();
   toast("All settings reset to default");
 }
@@ -1914,7 +2042,9 @@ const HEART = [".r.r.", "rrrrr", ".rrr.", "..r.."];      // shown above a creatu
 function drawCreature(c) {
   const t = CREATURE_TYPES[c.type], k = c.scale, w = t.rows[0].length, h = t.rows.length;
   const rows = c.mode === "fly" && c.frame && t.flyRows ? t.flyRows : t.rows;   // wings up, wings down
-  const bob = (c.mode === "walk" || c.mode === "seek") && c.frame && !t.fly ? -1 : 0;   // a little hop in time with its steps
+  let bob = (c.mode === "walk" || c.mode === "seek") && c.frame && !t.fly ? -1 : 0;   // a little hop in time with its steps
+  if (c.drinking > 0) bob = (c.age >> 1) & 1;            // dips its head to drink
+  else if (c.swim) bob = (c.age >> 2) & 1 ? -1 : 0;      // bobs about in the water
   const shake = c.shake > 0 ? (c.shake & 1 ? 1 : -1) : 0;   // wiggles when it is shaking sand off
   for (let ry = 0; ry < h; ry++) for (let rx = 0; rx < w; rx++) {
     const ch = rows[ry][c.dir < 0 ? w - 1 - rx : rx];
@@ -1954,7 +2084,7 @@ const DECOR_TYPES = {
     "..RRRRRRRRRRRRRRRR..", ".RRRRRRRRRRRRRRRRRR.", "rrrrrrrrrrrrrrrrrrrr", ".WWWWWWWWWWWWWWWWWW.", ".WGGWWDDDDWWWWGGWWW.", ".WGGWWDDDDWWWWGGWWW.",
     ".WWWWWDDDDWWWWWWWWW.", ".wwwwwDDDDwwwwwwwww.", ".wwwwwDDKDwwwwwwwww.", "UUUUUUUUUUUUUUUUUUUU"] },
 };
-const decorScale = () => Math.max(1, Math.min(4, Math.round(ctl.size / 8)));   // the Size slider: 8 = 1x, 16 = 2x, 24 = 3x, 32 = 4x
+const decorScale = () => sceneryScale;
 function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for every pixel, standing on bottomY and centred on cx
   const rows = DECOR_TYPES[type].rows, w = rows[0].length, h = rows.length, out = [];
   const x0 = cx - ((w * scale) >> 1), y0 = bottomY - h * scale + 1;
