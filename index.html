@@ -80,6 +80,15 @@
   .ask button { padding: .5rem 1rem; color: var(--accent); background: #1a9fff2e; border-radius: var(--radius); transition: background .15s; }
   .ask button:hover { background: #1a9fff55; color: #fff; }
 
+  /* UPDATE LOG: one post per update, newest first, like a Steam game's news feed */
+  .post { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+  .post:last-of-type { border-bottom: 0; }
+  .post small { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .post h4 { margin: .15rem 0 .4rem; font-size: 1.05rem; font-weight: 500; color: #fff; }
+  .post ul { padding-left: 1.2rem; }
+  .post li { margin-bottom: .2rem; }
+  .none { margin-bottom: .8rem; color: var(--muted); }
+
   /* 8. PROGRESS BAR: one div inside another, the inner width is the percentage */
   .progress { height: 8px; margin: .5rem 0 1rem; background: #000a; }
   .progress div { width: 30%; height: 100%; background: var(--accent); }
@@ -157,7 +166,7 @@
           <button><span>Yes</span></button><button><span>No</span></button><button><span>Maybe later</span></button>
         </div>
         <div class="card"><h2>Post-game summary</h2>None</div>
-        <div class="card"><h2>Activity</h2><span style="color:var(--muted)">Say something about this game to your friends…</span></div>
+        <div class="card"><h2>Activity</h2><div id="activity"></div><span style="color:var(--muted)">Say something about this game to your friends…</span></div>
       </div>
 
       <aside>
@@ -191,6 +200,57 @@ function randomStats() {
   document.getElementById("achText").textContent = got + "/" + total + " (" + pct + "%)";
   document.getElementById("bar").style.width = pct + "%";     // the blue progress bar
 }
+  // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
+  const UPDATES = {
+    "sand.html": [
+      { date: "October 18, 2026", title: "Timestamps, Line pour, Shift-pour and a Stop button", notes: [
+        "Text tool: new Timestamp button fills in the current date and time (with seconds). Tap again to cycle date and time, time only, date only. Text can now be up to 40 characters.",
+        "New Line pour tool: drag a line and it becomes a spout that pours along its whole length. It lives in the Emitter button's pop-up, next to the plain Emitter.",
+        "Pour: hold Shift and drag to draw a line, and the material pours along it when you let go.",
+        "Scenery, theme objects and barrier text now have a Destructible on/off switch, so fire, acid and lasers can be kept away from them. Recolor applies it to scenery you tap.",
+        "New red Stop button in the header (or press Esc) freezes the simulation instantly if it gets laggy. Tap Run to continue." ] },
+      { date: "October 18, 2026", title: "Showcase demo and laser fixes", notes: [
+        "A Showcase demo that sets up sand, a belt, a fan, lasers, text and fire running by themselves.",
+        "Lasers now respect protected shapes.",
+        "The delete box also removes lasers, fans and text shooters." ] },
+      { date: "October 18, 2026", title: "Fire, acid, lasers and fans", notes: [
+        "New Fire tool and Acid material. Fire burns scenery and acid eats sand, walls and creatures.",
+        "New Laser tool (hold, turret or dots mode) with adjustable width and colour.",
+        "New Fan tool that blows sand, flames and water, plus an Adjust tool to edit emitters, fans and lasers live.",
+        "Emitters can be rotated and pushed. Text can now pour or shoot out as letters.",
+        "Gravity can point in any direction.",
+        "Shapes can be coloured, and have a Destructible option. Speed control (1x to 8x and pause). A clear-all gesture on the left edge." ] },
+      { date: "October 17, 2026", title: "Halloween pack, text and hollow shapes", notes: [
+        "Theme pop-up: pumpkin, scarecrow, cross, Scream mask, ghost, tombstone, dead tree, grave fence, witch hat and bat. Ghosts haunt pumpkins.",
+        "New Text tool that writes pixel text as a barrier or as paint.",
+        "Sphere, cone and box can be hollow.",
+        "Status bar showing sand, water and the total grains you have ever poured." ] },
+      { date: "October 17, 2026", title: "Creatures, food and scenery", notes: [
+        "Creatures: slime, bunny, chick, bird, cat and dog. They eat, grow, get thirsty, and react to water and sand.",
+        "Food: apple, berry, carrot, seed, fish and bone.",
+        "Scenery: oak, pine, bush, flowers, fence, house, well, barn and windmill, with a size picker.",
+        "Creature speed slider, Reset all button, and double-click any slider to reset it." ] },
+      { date: "October 17, 2026", title: "Drawing tools and a side panel", notes: [
+        "Pen tool for smooth decorative drawing, and a Wall tool for freehand solid walls.",
+        "Camera button saves a picture of your sandbox. You can also choose a background picture.",
+        "Shapes pop-up, Shift + right-drag to delete a box, and a Controls side panel on computers.",
+        "Grain size setting (Fine, Normal, Chunky)." ] },
+      { date: "October 17, 2026", title: "Select, eraser shapes and ramp snapping", notes: [
+        "Select, copy, delete and paste for any part of your sandbox.",
+        "Eraser shapes (tap Erase again) and ramp snapping." ] }
+    ]
+  };
+  function renderUpdates(page) {
+    const box = document.getElementById("activity"), posts = UPDATES[page];
+    box.replaceChildren();
+    if (!posts) { const p = document.createElement("p"); p.className = "none"; p.textContent = "No updates yet."; box.append(p); return; }
+    for (const u of posts) {
+      const post = document.createElement("div"), date = document.createElement("small"), title = document.createElement("h4"), list = document.createElement("ul");
+      post.className = "post"; date.textContent = u.date; title.textContent = u.title;
+      for (const n of u.notes) { const li = document.createElement("li"); li.textContent = n; list.append(li); }
+      post.append(date, title, list); box.append(post);
+    }
+  }
   function pick(li, randomize = true) {
     const isNew = !li.classList.contains("sel");     // is this a different game than the current one?
      if (isNew && randomize) randomStats(); 
@@ -198,6 +258,7 @@ function randomStats() {
     li.classList.add("sel");
     document.getElementById("title").textContent = li.querySelector("span").textContent;
     const page = li.dataset.page;                     // e.g. data-page="board/" in the HTML
+    renderUpdates(page);
     if (page) { play.href = page; play.classList.remove("off"); play.removeAttribute("aria-disabled"); }
     else      { play.removeAttribute("href"); play.classList.add("off"); play.setAttribute("aria-disabled", "true"); }
   }
