@@ -194,7 +194,8 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
   <a class="btn" href="index.html" aria-label="Home" style="padding:0 12px">&#8249;</a>
   <h1>Falling Pixels</h1>
   <div class="pill" id="label">Pour · sand</div>
-  <button class="btn" id="speedBtn" aria-label="Simulation speed" title="Simulation speed: tap to speed up (] and [ on a keyboard, Space pauses)" style="padding:0 12px;min-width:48px">1×</button>
+  <button class="btn" id="stopBtn" aria-label="Stop the simulation" title="Stop everything instantly if it gets laggy (tap again to run; Esc on a keyboard)" style="padding:0 12px;min-width:48px;color:#ff6b6b;border-color:#ff6b6b">&#9632; Stop</button>
+  <button class="btn" id="speedBtn"aria-label="Simulation speed" title="Simulation speed: tap to speed up (] and [ on a keyboard, Space pauses)" style="padding:0 12px;min-width:48px">1×</button>
   <button class="btn" id="shotBtn" aria-label="Save a picture of the sandbox" title="Save a picture of the sandbox" style="padding:0 12px">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
   </button>
@@ -236,6 +237,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
       </div>
     </div>
     <div class="pen" id="sceneryTools" hidden>
+      <button class="btn decorDestruct" title="Whether fire, acid and lasers can destroy scenery and theme objects">Destructible: on</button>
       <span class="dimlabel">Scenery size</span>
       <div class="seg compact" id="sceneryScaleSeg" role="group" aria-label="Scenery size">
         <button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="3">3×</button><button data-s="4">4×</button><button data-s="5">5×</button><button data-s="6">6×</button>
@@ -258,8 +260,10 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <div class="slider" id="dPowerBox"><div class="lab"><span id="dPowerLab">Push</span><output id="dPowerOut"></output></div><input type="range" id="dPower" min="0" max="8" step="0.5" value="0" aria-label="Power"></div>
   </div>
   <div class="quick wrap" id="textRow" hidden>
-    <input type="text" id="textInput" maxlength="24" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
+    <input type="text" id="textInput" maxlength="40" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
     <input type="color" id="textColor" value="#ffd84a" aria-label="Text colour">
+    <button class="btn decorDestruct" title="Whether fire, acid and lasers can destroy barrier text">Destructible: on</button>
+    <button class="btn" id="textStamp" title="Fill in the current date and time (tap again to cycle: date and time, time, date)">Timestamp</button>
     <div class="seg compact" id="textModeSeg" role="group" aria-label="Barrier or paint">
       <button data-m="solid" class="on" title="Sand piles on it">Barrier</button><button data-m="paint" title="Decoration only: sand ignores it">Paint</button><button data-m="emitter" title="The letters are an emitter: they pour sand, water, acid or fire">Pours</button><button data-m="shoots" title="An emitter that shoots your text out, letters and all">Shoots</button>
     </div>
@@ -290,7 +294,8 @@ const FLAME = 3;                                         // an emitter kind (and
 const SPIN_STEP = Math.PI / 180 / 120;                   // one degree per second, as radians per physics step (there are 120 a second)
 const DEFAULT_LASER = [255, 36, 70];
 const ALPHA_PROT_PLAIN = 252, ALPHA_DEST_PLAIN = 253, ALPHA_DEST_PAINT = 251;   // shape colours carry a flag in their alpha: can fire and acid destroy this shape?
-const SHAPE_ALPHA = 254;                                 // a painted shape's colour has this alpha, so fire can tell it from flammable scenery (alpha 255)
+const ALPHA_DECOR_PROT = 250;                            // scenery / theme objects / barrier text marked "Destructible: off" (plain scenery keeps alpha 255)
+const SHAPE_ALPHA = 254;                                // a painted shape's colour has this alpha, so fire can tell it from flammable scenery (alpha 255)
 const N4 = [[0, 1], [-1, 0], [1, 0], [0, -1]];            // the four cells touching a cell: below, left, right, above
 const N8 = [...N4, [-1, 1], [1, 1], [-1, -1], [1, -1]];   // ...and the four corners as well
 const CREATURE = 9, FOOD = 10;                           // a creature's body, and a piece of food (see CREATURE_TYPES, FOOD_TYPES)
@@ -716,11 +721,11 @@ class Sand {
   }
 
   // ---------- painted scenery: solid cells that keep their own colour ----------
-  addDecor(pixels) {                                     // pixels: [x, y, packed colour]; sand piles on it like any solid
+  addDecor(pixels, prot = false) {                       // pixels: [x, y, packed colour]; sand piles on it like any solid. prot: fire, acid and lasers can't destroy it
     const w = this.w, colorAt = new Map();
     for (const [x, y, c] of pixels) if (x >= 0 && x < w && y >= 0 && y < this.h) colorAt.set(y * w + x, c);
     const placed = this.addSolid(pixels.map(p => [p[0], p[1]]), SOLID);
-    for (const i of placed) this.colors[i] = colorAt.get(i);
+    for (const i of placed) this.colors[i] = prot ? (((ALPHA_DECOR_PROT << 24) | (colorAt.get(i) & 0xffffff)) >>> 0) : colorAt.get(i);
     return placed;
   }
 
@@ -1297,7 +1302,7 @@ class Sand {
     const c = this.colors[i];
     if (!c) return true;
     const a = c >>> 24;
-    return a !== ALPHA_PROT_PLAIN && a !== SHAPE_ALPHA;
+    return a !== ALPHA_PROT_PLAIN && a !== SHAPE_ALPHA && a !== ALPHA_DECOR_PROT;
   }
   fireCanBurn(i) {                                       // coloured scenery burns, and so does a shape marked destructible
     const c = this.colors[i];
@@ -1347,8 +1352,19 @@ class Sand {
     for (const i of cells) {
       if (this.grid[i] !== SOLID) continue;
       const c = this.colors[i];
-      if (c && (c >>> 24) === 255) continue;             // scenery: leave it alone
+      if (c && ((c >>> 24) === 255 || (c >>> 24) === ALPHA_DECOR_PROT)) continue;   // scenery: leave it alone
       this.colors[i] = packed; n++;
+    }
+    return n;
+  }
+  /** Scenery among `cells` becomes protected from fire, acid and lasers (or destructible again). Returns how many cells changed. */
+  setDecorProtected(cells, prot) {
+    let n = 0;
+    for (const i of cells) {
+      if (this.grid[i] !== SOLID) continue;
+      const c = this.colors[i], a = c >>> 24;
+      if (!c || (a !== 255 && a !== ALPHA_DECOR_PROT)) continue;
+      this.colors[i] = (((prot ? ALPHA_DECOR_PROT : 255) << 24) | (c & 0xffffff)) >>> 0; n++;
     }
     return n;
   }
@@ -1933,8 +1949,8 @@ fitCanvas();
 
 // ---- tools ----
 // What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
-const DOCK = ["pour", "fire", "laser", "fan", "shapes", "scenery", "theme", "creatures", "food", "text", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "recolor", "select", "adjust"];
-const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "flowers", "fence", "house", "well", "barn", "windmill"],
+const DOCK = ["pour", "fire", "laser", "fan", "shapes", "scenery", "theme", "creatures", "food", "text", "belt", "spouts", "trash", "move", "erase", "pen", "wall", "recolor", "select", "adjust"];
+const MENUS = { spouts: ["emitter", "linepour"], shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "flowers", "fence", "house", "well", "barn", "windmill"],
   theme: ["pumpkin", "scarecrow", "cross", "mask", "ghost", "tombstone", "deadtree", "gravefence", "witchhat", "bat"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
 let textMode = "solid", textScale = 2, hollow = false;   // the Text tool's settings, and whether new shapes are hollow
@@ -1945,13 +1961,13 @@ let devSize = 1, shapeDestructible = false;               // a fan's size, and w
 let selDev = null;                                       // the device the Adjust tool picked: {type: "fan" | "laser" | "emitter", ref, cx, cy}
 let shapeHex = "#7aa2ff", shapeColored = false;          // new shapes are grey unless a colour has been chosen
 const SHAPE_PAINT = ["sphere", "cone", "box", "bowl", "ramp", "wall"];
-const DEVICE_TOOLS = ["emitter", "fan", "adjust", "laser"];
+const DEVICE_TOOLS = ["emitter", "linepour", "fan", "adjust", "laser"];
 const HOLLOWABLE = ["sphere", "cone", "box"];
-const TOOL_NAMES = { deadtree: "Dead tree", gravefence: "Grave fence", witchhat: "Witch hat", adjust: "Adjust" };
+const TOOL_NAMES = { deadtree: "Dead tree", gravefence: "Grave fence", witchhat: "Witch hat", adjust: "Adjust", linepour: "Line pour", spouts: "Emitter" };
 const niceName = t => TOOL_NAMES[t] || t[0].toUpperCase() + t.slice(1);
 let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
-const lastPick = { shapes: "sphere", scenery: "oak", theme: "pumpkin", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
+const lastPick = { spouts: "emitter", shapes: "sphere", scenery: "oak", theme: "pumpkin", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
 const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
 const KEY_TOOLS = { "1": "pour", "2": "sphere", "3": "cone", "4": "box", "5": "bowl", "6": "ramp", "7": "belt", "8": "emitter",
   "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select", "i": "fire", "z": "laser", "n": "fan", "a": "adjust", "g": "recolor" };
@@ -1968,6 +1984,7 @@ const ICONS = {
   bowl: '<path d="M4 9a8 8 0 0 0 16 0"/>',
   ramp: '<path d="M4 7 20 17"/>',
   belt: '<rect x="4" y="12" width="16" height="7" rx="3.5"/><path d="M6 7h12m-3-3 3 3-3 3"/>',
+  linepour: '<path d="M3 6 21 10"/><circle cx="7" cy="14" r="1"/><circle cx="12" cy="16" r="1"/><circle cx="17" cy="14" r="1"/><circle cx="9" cy="20" r="1"/><circle cx="15" cy="20" r="1"/>',
   emitter: '<rect x="5" y="4" width="14" height="5" rx="1"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="17" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="10" cy="21" r="1"/>',
   trash: '<path d="M4 7h16M10 4h4M6 10l1 10h10l1-10"/>',
   move: '<path d="M12 3v18M3 12h18m-15-3-3 3 3 3m12-6 3 3-3 3M9 6l3-3 3 3M9 18l3 3 3-3"/>',
@@ -2109,7 +2126,7 @@ const SHAPES = ["sphere", "cone", "box", "bowl", "emitter", "trash"];
 const KIND = { emitter: EMITTER, trash: DRAIN };
 function updateLabel() {
   let s = niceName(tool);
-  if (tool === "pour" || tool === "emitter") s += material === FLAME ? " · fire" : material === ACID ? " · acid" : material === WATER ? " · water" : " · sand";
+  if (tool === "pour" || tool === "emitter" || tool === "linepour") s += material === FLAME ? " · fire" : material === ACID ? " · acid" : material === WATER ? " · water" : " · sand";
   if (tool === "erase") s += " · " + eraseShape + " · tap again";
   if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall" || tool === "fire") s += " · size " + ctl.size;
   if (tool === "fire") s += " · burns scenery, creatures and food; water puts it out";
@@ -2126,6 +2143,7 @@ function updateLabel() {
   if (tool === "text") s += ` · ${textMode === "solid" ? "barrier" : textMode === "emitter" ? "letters pour" : textMode === "shoots" ? "shoots the text" : "paint"} · ${textScale}× · tap to place`;
   if (hollow && HOLLOWABLE.includes(tool)) s += " · hollow";
   if (tool === "belt") s += " · drag the way it carries";
+  if (tool === "linepour") s += " · drag a line, it pours along its length";
   if (tool === "ramp") {
     if (dragStart) {                                     // live readout while dragging
       const [ex, ey] = rampEnd(dragStart, cur.x, cur.y);
@@ -2171,7 +2189,13 @@ function syncSpeedBtn() {
   const s = ctl.speed;
   $("speedBtn").textContent = s === 0 ? "⏸" : (s === 0.5 ? "½" : +s.toFixed(2)) + "×";
   $("speedBtn").classList.toggle("on", s !== 1);
+  $("stopBtn").innerHTML = s === 0 ? "&#9654; Run" : "&#9632; Stop";
 }
+$("stopBtn").onclick = () => {                           // the LabVIEW-style stop: freeze the simulation and drop anything waiting to pour
+  if (ctl.speed === 0) { setSpeed(lastRunSpeed || 1); return; }
+  lastRunSpeed = ctl.speed; pourBursts.length = 0; holding = false;
+  setSpeed(0);
+};
 function setSpeed(s) {
   ctl.speed = s; $("s_speed").value = s; sliderShow.speed(); updateLabel();
   toast(s === 0 ? "Paused" : "Speed " + s + "×");
@@ -2295,11 +2319,18 @@ $("shapeColor").addEventListener("input", e => { shapeHex = e.target.value; setS
 $("shapeGrey").onclick = () => { setShapeColored(false); toast("Shapes are plain grey"); };
 function syncDestructUi() { $("shapeDestruct").textContent = "Destructible: " + (shapeDestructible ? "on" : "off"); $("shapeDestruct").classList.toggle("on", shapeDestructible); }
 $("shapeDestruct").onclick = () => { shapeDestructible = !shapeDestructible; syncDestructUi(); toast(shapeDestructible ? "New shapes can be destroyed by fire and acid" : "New shapes are protected from fire and acid"); };
+let decorDestructible = true;                            // scenery, theme objects and barrier text: can fire, acid and lasers destroy them?
+function syncDecorDestructUi() { document.querySelectorAll(".decorDestruct").forEach(b => { b.textContent = "Destructible: " + (decorDestructible ? "on" : "off"); b.classList.toggle("on", decorDestructible); }); }
+document.querySelectorAll(".decorDestruct").forEach(b => b.onclick = () => {
+  decorDestructible = !decorDestructible; syncDecorDestructUi();
+  toast(decorDestructible ? "New scenery can be destroyed by fire, acid and lasers" : "New scenery is protected from fire, acid and lasers");
+});
 function recolorAt(x, y) {                               // tap a shape: the whole shape takes the chosen colour
   const obj = sand.solidObject(x, y);
   if (!obj.size) { toast("Tap a shape to recolor it"); return; }
   const n = sand.paintShapes(obj, shapePacked());
-  toast(n ? (shapeDestructible ? "Updated: fire and acid can destroy it" : "Updated: protected from fire and acid") : "Scenery keeps its own colours");
+  if (!n && sand.setDecorProtected(obj, !shapeDestructible)) { toast(shapeDestructible ? "Updated: fire, acid and lasers can destroy it" : "Updated: protected from fire, acid and lasers"); return; }   // scenery keeps its colours but takes the destructible setting
+  toast(n ? (shapeDestructible ? "Updated: fire and acid can destroy it" : "Updated: protected from fire and acid") : "Nothing to change there");
 }
 function emitterProp() {                                 // what an emitter made now will pour, and which way it faces
   const base = material === FLAME ? [FLAME, THEME.fire, false] : material === ACID ? [WATER, THEME.acid, true] : material === WATER ? [WATER, THEME.water, false]
@@ -2818,14 +2849,14 @@ function place(cx, cy) {
       for (const mx of mirroredXs(cx)) if (sand.addPrinter(mx, cy, devAngle * Math.PI / 180, { ...base, cells: rel, text: str, scale: textScale, spin: devSpin, push: emitPush })) done++;
       toast(done ? "Text shooter placed: pick it with Adjust, or erase it" : "That's plenty of text shooters");
     } else if (textMode === "emitter") { for (const mx of mirroredXs(cx)) sand.addSolid(textPixels(str, mx, cy, textScale), EMITTER, emitterProp()); }
-    else if (textMode === "solid") { const col = P(hexToRgb($("textColor").value)); sand.addDecor(px.map(([x, y]) => [x, y, col])); }
+    else if (textMode === "solid") { const col = P(hexToRgb($("textColor").value)); sand.addDecor(px.map(([x, y]) => [x, y, col]), !decorDestructible); }
     else { strokes.push({ c: $("textColor").value, w: 0, p: [0, 0], cells: px.flat() }); redrawInk(); }
     return;
   }
   if (DECOR_TYPES[tool]) {                               // scenery: the bottom of it stands where you tapped
     const rows = DECOR_TYPES[tool].rows.length;
     for (const mx of mirroredXs(cx)) {
-      sand.addDecor(decorPixels(tool, mx, cy, decorScale()));
+      sand.addDecor(decorPixels(tool, mx, cy, decorScale()), !decorDestructible);
       if (tool === "pumpkin") sand.addHaunt(mx, cy - ((rows * decorScale()) >> 1));   // ghosts will come and haunt it
     }
     return;
@@ -2839,6 +2870,8 @@ function place(cx, cy) {
     }
   }
 }
+let shiftPour = null;                                    // Shift + drag with Pour: where the line began; it pours on release
+const pourBursts = [];                                   // lines waiting to pour: {pts, left = frames still to go}
 canvas.addEventListener("pointerdown", e => {
   e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
@@ -2852,12 +2885,13 @@ canvas.addEventListener("pointerdown", e => {
   } else if (selection) cancelSelection();               // tapping elsewhere just dismisses the selection
   else if (tool === "pen") beginStroke(e);
   else if (tool === "wall") { wallLast = [cur.x, cur.y]; wallStamp([wallLast]); }
+  else if (tool === "pour" && e.shiftKey) { const c = clampCell(cur.x, cur.y); shiftPour = { x0: c[0], y0: c[1] }; }   // Shift + drag: nothing pours until you let go
   else if (tool === "pour" || tool === "erase" || tool === "fire") holding = true;
   else if (tool === "laser") laserDrag = { x: Math.min(Math.max(cur.x, 0), W - 1), y: Math.min(Math.max(cur.y, 0), H - 1) };
   else if (tool === "fan") fanDrag = { x: Math.min(Math.max(cur.x, 0), W - 1), y: Math.min(Math.max(cur.y, 0), H - 1) };
   else if (tool === "adjust") { selectDevice(deviceAt(cur.x, cur.y)); adjStart = selDev ? [cur.x, cur.y] : null; adjActive = false; }
   else if (tool === "recolor") recolorAt(cur.x, cur.y);
-  else if (tool === "ramp" || tool === "belt") dragStart = tool === "ramp" ? rampStart(cur.x, cur.y) : [cur.x, cur.y];
+  else if (tool === "ramp" || tool === "belt" || tool === "linepour") dragStart = tool === "ramp" ? rampStart(cur.x, cur.y) : [cur.x, cur.y];
   else if (tool === "move") {                            // grab the object under the finger
     const obj = sand.solidObject(cur.x, cur.y);
     moving = obj.size ? obj : null;
@@ -2880,12 +2914,18 @@ function release(e) {
     pasteDown = false;
     if (pasting) sand.paste(clipboard, cur.x - (clipboard.w >> 1), cur.y - (clipboard.h >> 1));
   }
+  if (shiftPour) {                                       // let go: the material pours along the line you dragged
+    const [ex, ey] = clampCell(cur.x, cur.y), pts = lineCells(shiftPour.x0, shiftPour.y0, ex, ey);
+    pourBursts.push({ pts: pts.filter((_, i) => i % 3 === 0), left: 45 });
+  }
   if (dragStart) {                                       // finish dragging out a ramp / belt
     const [ex, ey] = tool === "ramp" ? rampEnd(dragStart, cur.x, cur.y) : clampCell(cur.x, cur.y);
+    const prop = tool === "linepour" ? emitterProp() : null;
     const starts = mirrorCopies(dragStart[0]), ends = mirrorCopies(ex);
     starts.forEach((x0, i) => {
       const x1 = ends[i];
       if (tool === "belt") sand.addSolid(beltCells(x0, x1, dragStart[1]), CONVEYOR, x1 < x0 ? -1 : 1);
+      else if (tool === "linepour") sand.addSolid(lineCells(x0, dragStart[1], x1, ey), EMITTER, prop);
       else paintNew(sand.addSolid(lineCells(x0, dragStart[1], x1, ey)));
     });
   }
@@ -2900,11 +2940,11 @@ function release(e) {
     toast(ok ? "Fan placed: pick it with Adjust to change its speed" : "That's plenty of fans");
   }
   laserDrag = fanDrag = null; adjStart = null; adjActive = false;
-  holding = stamping = false; moving = null; dragStart = null; penStroke = null; wallLast = null;
+  holding = stamping = false; moving = null; dragStart = null; penStroke = null; wallLast = null; shiftPour = null;
   if (e.pointerType !== "mouse") cur.over = false;
 }
 canvas.addEventListener("pointerup", release);
-canvas.addEventListener("pointercancel", e => { penStroke = wallLast = laserDrag = fanDrag = adjStart = null; holding = stamping = pasteDown = false; moving = null; dragStart = null; selAnchor = selMode = null; cur.over = false; });
+canvas.addEventListener("pointercancel", e => { shiftPour = null; penStroke =wallLast = laserDrag = fanDrag = adjStart = null; holding = stamping = pasteDown = false; moving = null; dragStart = null; selAnchor = selMode = null; cur.over = false; });
 canvas.addEventListener("contextmenu", e => e.preventDefault());
 
 // ---- keyboard (handy on a computer) ----
@@ -2931,6 +2971,7 @@ addEventListener("keydown", e => {
   else if (k === "w") setMaterial((material + 1) % 4);
   else if (k === "]") nudgeSpeed(1);
   else if (k === "[") nudgeSpeed(-1);
+  else if (e.key === "Escape" && ctl.speed !== 0) $("stopBtn").click();
   else if (k === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); togglePause(); }
   else if (k === "t") toggleFx("trails");
   else if (k === "p") toggleFx("sparkle");
@@ -2975,6 +3016,14 @@ function simStep() {
       sand.removeCreaturesIn(cells);                     // the eraser removes creatures too
       sand.eraseFx(cells);                               // ...and puts out flames and removes laser turrets
     }
+  }
+  for (let b = pourBursts.length - 1; b >= 0; b--) {      // lines released with Shift: pour along each for a moment
+    const burst = pourBursts[b];
+    for (const [px, py] of burst.pts) for (const mx of mirroredXs(px)) {
+      if (material === FLAME) sand.paintFire(mx, py, fireRadius());
+      else sand.pour(mx, py, ctl.rate, live[material], ctl.spread, material === SAND ? ctl.shade : 0.06, material === SAND ? SAND : WATER, material === ACID);
+    }
+    if (--burst.left <= 0) pourBursts.splice(b, 1);
   }
   sand.hand = laserDrag && laserMode === "hold" ? { x: laserDrag.x, y: laserDrag.y, ang: laserAim(laserDrag, cur), w: laserWidth, rgb: laserRgb } : null;
   sand.runEmitters(ctl.flow, live, ctl.shade);
@@ -3073,6 +3122,17 @@ function textPixels(str, cx, cy, scale) {                // the cells of some pi
   });
   return out;
 }
+let stampFormat = 0;                                     // 0 = date and time, 1 = time, 2 = date
+function timestampText(fmt) {
+  const d = new Date(), pad = n => String(n).padStart(2, "0");
+  const h = d.getHours() % 12 || 12, time = `${h}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${d.getHours() < 12 ? "AM" : "PM"}`;
+  const date = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  return fmt === 1 ? time : fmt === 2 ? date : `${date} ${time}`;
+}
+$("textStamp").addEventListener("click", () => {
+  $("textInput").value = timestampText(stampFormat);
+  stampFormat = (stampFormat + 1) % 3;
+});
 const hollowThickness = () => Math.max(2, Math.min(6, Math.round(ctl.size / 5)));
 function shapeAt(shape, cx, cy) {                        // the cells of a shape stamped at (cx, cy), hollow if that is switched on
   if (hollow && HOLLOWABLE.includes(shape)) return hollowCells(shape, ctl.size, hollowThickness()).map(([dx, dy]) => [cx + dx, cy + dy]);
@@ -3269,6 +3329,8 @@ function previewCells() {                                // translucent ghost of
   else if (tool === "fan") cells = fanDrag ? aimLine(fanDrag, laserAim(fanDrag, cur)) : at(cur.x, cur.y, "sphere", 2).concat(aimLine({ x: cur.x, y: cur.y }, devAngle * Math.PI / 180).slice(0, 8));
   else if (tool === "recolor") cells = at(cur.x, cur.y, "sphere", 1);
   else if (tool === "ramp") cells = dragStart ? lineCells(dragStart[0], dragStart[1], ...rampEnd(dragStart, cur.x, cur.y)) : [[cur.x, cur.y]];
+  else if (tool === "pour" && shiftPour) cells = lineCells(shiftPour.x0, shiftPour.y0, ...clampCell(cur.x, cur.y));
+  else if (tool === "linepour") cells = dragStart ? lineCells(dragStart[0], dragStart[1], ...clampCell(cur.x, cur.y)) : [[cur.x, cur.y]];
   else if (tool === "belt") cells = dragStart ? beltCells(dragStart[0], cur.x, dragStart[1]) : beltCells(cur.x, cur.x, cur.y);
   if (fx.mirror > 1 && !moving) cells = cells.flatMap(([x, y]) => mirroredXs(x).map(mx => [mx, y]));
   return cells;
@@ -3343,7 +3405,8 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 setTool("pour");
-updateStats();                                             // draw the status bar right away
+syncDecorDestructUi();
+updateStats();                                            // draw the status bar right away
 requestAnimationFrame(frame);
 // ==== END APP ====
 </script>
