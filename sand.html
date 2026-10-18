@@ -546,6 +546,10 @@ class Sand {
       this.drains.delete(i); this.emitters.delete(i); this.conveyors.delete(i);
     }
     this.grains = this.grains.filter(g => { const gx = trunc(g.x), gy = trunc(g.y); return !(gx >= x0 && gx <= x1 && gy >= y0 && gy <= y1); });
+    const inBox = t => t.x >= x0 && t.x <= x1 && t.y >= y0 && t.y <= y1;   // lasers, fans and text shooters in the box go too, and so do flames and laser dots
+    for (const key of ["turrets", "fans", "printers"]) { const n = this[key].length; this[key] = this[key].filter(t => !inBox(t)); removed += n - this[key].length; }
+    this.bolts = this.bolts.filter(b => !(b.x >= x0 && b.x <= x1 + 1 && b.y >= y0 && b.y <= y1 + 1));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) this.fire[y * w0 + x] = 0;
     if (removed) this.wakeAll();                         // whatever rested on it falls
     return removed;
   }
@@ -1289,6 +1293,12 @@ class Sand {
     const a = c >>> 24;
     return a === 255 || a === ALPHA_DEST_PLAIN || a === ALPHA_DEST_PAINT;
   }
+  laserCanCut(i) {                                       // a shape marked protected stops a laser; everything else is cut
+    const c = this.colors[i];
+    if (!c) return true;
+    const a = c >>> 24;
+    return a !== ALPHA_PROT_PLAIN && a !== SHAPE_ALPHA;
+  }
   fireCanBurn(i) {                                       // coloured scenery burns, and so does a shape marked destructible
     const c = this.colors[i];
     if (!c) return false;
@@ -1430,6 +1440,7 @@ class Sand {
     if (k === STATIC || k === STILL_WATER) { this.grid[i] = EMPTY; this.colors[i] = 0; this.noteWake(cx, cy); return 1; }
     if (k === SOLID) {
       if (this.isFuel(i)) { this.burnCell(i); return 3; }
+      if (!this.laserCanCut(i)) return -1;               // protected shape: the beam stops here
       this.grid[i] = EMPTY; this.colors[i] = 0; this.noteWake(cx, cy);
       return 5;
     }
@@ -1587,7 +1598,7 @@ class Sand {
     let ext = 0;
     for (const [dx, dy] of o.cells) ext = Math.max(ext, Math.abs(dx), Math.abs(dy));
     this.printers.push({ x, y, ang, spin: o.spin || 0, push: o.push || 0, cells: o.cells, text: o.text || "", scale: o.scale || 1,
-      kind: o.kind === undefined ? SAND : o.kind, acid: !!o.acid, rgb: o.rgb || [230, 200, 120], ext, timer: 10 });
+      kind: o.kind === undefined ? SAND : o.kind, acid: !!o.acid, rgb: o.rgb || [230, 200, 120], ext, timer: 10, every: o.every || 0 });
     return true;
   }
   stepPrinters(flow) {
@@ -1596,13 +1607,13 @@ class Sand {
     for (const p of this.printers) {
       if (p.spin) p.ang += p.spin * SPIN_STEP;
       if (--p.timer > 0) continue;
-      p.timer = Math.round(20 + 20 / Math.max(flow, 0.05));   // the Emitter flow slider sets how often a line of text comes out
+      p.timer = p.every || Math.round(20 + 20 / Math.max(flow, 0.05));   // the Emitter flow slider sets how often a line of text comes out (unless the shooter has its own pace)
       const c = Math.cos(p.ang), s = Math.sin(p.ang), cx = Math.round(p.x + c * (p.ext + 3)), cy = Math.round(p.y + s * (p.ext + 3));
       let made = 0;
       for (const [dx, dy] of p.cells) {                  // every letter pixel starts side by side and travels the same way, so the words stay readable
         const gx = cx + dx, gy = cy + dy;
         if (gx < 0 || gx >= w || gy < 0 || gy >= h || this.grid[gy * w + gx] !== EMPTY) continue;
-        if (p.kind === FLAME) { this.light(gy * w + gx, 40 + Math.floor(Math.random() * 30)); continue; }
+        if (p.kind === FLAME) { this.light(gy * w + gx, 70 + Math.floor(Math.random() * 50)); continue; }
         const g = new Grain(gx + 0.5, gy + 0.5, c * p.push, s * p.push, shaded(p.rgb, 0.04), p.kind);
         if (p.acid) { g.acid = true; g.charge = newAcidCharge(); }
         this.grains.push(g);
@@ -2350,7 +2361,7 @@ $("sheet").innerHTML = `
   <div class="grid2">
     <button class="btn" id="bTrails">Trails</button><button class="btn" id="bSparkle">Sparkle</button>
     <button class="btn" id="bMirror">Mirror: off</button><button class="btn" id="bFlip">Flip world</button>
-    <button class="btn" id="bDemo">Hourglass demo</button>
+    <button class="btn" id="bDemo">Hourglass demo</button><button class="btn" id="bShowcase">Showcase demo</button>
   </div>
   <h2>Scene</h2>
   <div class="grid2">
@@ -2659,6 +2670,39 @@ function hourglass() {                                   // a never-ending hourg
   setMaterial(SAND);
   toast("Hourglass: sand that never runs out");
 }
+// ---- the showcase: a machine that runs by itself and uses most of what the game can do ----
+function setSlider(k, v) { ctl[k] = v; $("s_" + k).value = v; sliderShow[k](); }
+function showcase() {
+  sand = new Sand(W, H);
+  moving = dragStart = null; selDev = null; cancelSelection(); syncDevUi();
+  const X = f => Math.round(W * f), Y = f => Math.round(H * f), u = Math.max(0.6, W / 360);
+  const paint = (placed, hex) => { const c = hexToRgb(hex); sand.paintShapes(placed, ((SHAPE_ALPHA << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0); };
+  // 1. a spinning rainbow sprinkler drops sand onto a conveyor belt
+  sand.addSolid(at(X(0.2), Y(0.07), "emitter", Math.max(3, Math.round(4 * u))), EMITTER, [SAND, null, false, Math.PI / 2, 40, 1.4]);
+  sand.addSolid(beltCells(X(0.08), X(0.4), Y(0.26)), CONVEYOR, 1);
+  // 2. coloured shapes for the sand to tumble over (protected: lasers and fire leave them alone)
+  paint(sand.addSolid(at(X(0.47), Y(0.6), "cone", Math.round(14 * u))), "#ff6fae");
+  paint(sand.addSolid(at(X(0.3), Y(0.72), "cone", Math.round(12 * u))), "#2dd4bf");
+  paint(sand.addSolid(at(X(0.68), Y(0.46), "sphere", Math.round(9 * u))), "#fbbf24");
+  paint(sand.addSolid(at(X(0.74), Y(0.84), "bowl", Math.round(16 * u))), "#a78bfa");
+  // 3. a fan blows the falling sand toward the bowl
+  sand.addFan(X(0.33), Y(0.38), 0.2, 0, 6, 2);
+  // 4. lasers: a slow sweeping beam and a spinning dot shooter
+  sand.addTurret(X(0.74), Y(0.05), 1.9, { mode: "beam", w: 2, spin: 9, rgb: [80, 220, 255] });
+  sand.addTurret(X(0.95), Y(0.55), Math.PI, { mode: "dots", w: 2, spin: -35, rgb: [255, 70, 200] });
+  // 5. a text shooter throws a name across the scene, and a second one prints letters made of fire
+  const big = W >= 300 ? 2 : 1;
+  sand.addPrinter(X(0.88), Y(0.18), 3.2, { cells: textPixels("SWEETIEZ", 0, 0, big), text: "SWEETIEZ", scale: big, push: 3, kind: SAND, rgb: [255, 220, 80], every: 330 });
+  sand.addPrinter(X(0.12), Y(0.6), -Math.PI / 2, { cells: textPixels("FIRE", 0, 0, 1), text: "FIRE", scale: 1, push: 0, kind: FLAME, every: 200 });
+  // 6. trash along the floor, so it never fills up and runs forever
+  sand.addSolid(at(Math.floor(W / 2), H - 3, "trash", Math.ceil(W / 2)), DRAIN);
+  setSlider("flow", 0.15); setSlider("gravAngle", 90); setSlider("gravity", 0.3); setSlider("wind", 0); setSlider("speed", 1); setSlider("hue", 1);
+  setMaterial(SAND);
+  if (!fx.trails) toggleFx("trails");
+  if (!fx.sparkle) toggleFx("sparkle");
+  toast("Showcase: sand, belt, fan, lasers, text and fire, all running by themselves");
+}
+$("bShowcase").onclick = showcase;
 $("bTrails").onclick = () => toggleFx("trails");
 $("bSparkle").onclick = () => toggleFx("sparkle");
 $("bMirror").onclick = cycleMirror;
