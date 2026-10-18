@@ -120,6 +120,9 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .seg { display: flex; flex: none; border-radius: 10px; background: var(--button); border: 1px solid var(--outline); padding: 2px; }
 .seg button { border: 0; background: transparent; min-height: 34px; padding: 0 14px; border-radius: 8px; color: var(--text-dim); cursor: pointer; }
 .seg button.on { background: var(--accent-dim); color: var(--text); }
+.seg.wide { width: 100%; }
+.seg.wide button { flex: 1; }
+.note { margin: 6px 0 0; color: var(--text-dim); font-size: 12px; }
 .quick .slider { flex: 1; min-width: 0; padding: 0; }
 .tools { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
 .tools::-webkit-scrollbar { display: none; }
@@ -771,7 +774,10 @@ const fx = { trails: false, sparkle: false, mirror: 1 };
 const MIRROR_STEPS = [1, 2, 3, 4, 6, 8];
 
 // ---- the grid: sized once from the screen, 2 CSS pixels a cell ----
-const CELL = 2;
+const GRAINS = { fine: 1.5, normal: 2, chunky: 3 };      // how many CSS pixels wide one grain (grid cell) is drawn
+let grainName = "normal";
+try { const g = localStorage.getItem("falling-pixels-grain"); if (g in GRAINS) grainName = g; } catch (err) { /* no storage: stay on normal */ }
+const CELL = GRAINS[grainName];
 const box = stage.getBoundingClientRect();
 const W = Math.min(Math.max(Math.floor((box.width || 360) / CELL), 120), 560);
 const H = Math.min(Math.max(Math.floor((box.height || 480) / CELL), 120), 420);
@@ -893,6 +899,11 @@ $("sheet").innerHTML = `
   ${sliderHtml("hue")}${sliderHtml("shade")}
   <h2>Physics</h2>${sliderHtml("gravity")}${sliderHtml("wind")}${sliderHtml("bounce")}
   <h2>Objects</h2>${sliderHtml("flow")}
+  <h2>Grain size</h2>
+  <div class="seg wide" id="grainSeg" role="group" aria-label="Grain size">
+    ${Object.keys(GRAINS).map(g => `<button data-grain="${g}" class="${g === grainName ? "on" : ""}">${g[0].toUpperCase() + g.slice(1)}</button>`).join("")}
+  </div>
+  <p class="note">Fine looks sharper but runs slower. Chunky is fastest. Changing it restarts the scene.</p>
   <h2>Effects</h2>
   <div class="grid2">
     <button class="btn" id="bTrails">Trails</button><button class="btn" id="bSparkle">Sparkle</button>
@@ -904,6 +915,14 @@ $("sheet").innerHTML = `
     <button class="btn" id="bClearSand">Clear sand</button><button class="btn" id="bClearAll">Clear all</button>
     <button class="btn" id="bSave">Save</button><button class="btn" id="bLoad">Load</button>
   </div>`;
+$("grainSeg").addEventListener("click", e => {           // a different grain size means a different grid, so reload
+  const name = e.target.dataset && e.target.dataset.grain;
+  if (!name || name === grainName) return;
+  try { localStorage.setItem("falling-pixels-grain", name); }
+  catch (err) { toast("This browser won't remember the setting, so it can't change here"); return; }
+  toast(`Grain size: ${name}. Restarting the grid...`);
+  setTimeout(() => location.reload(), 700);
+});
 for (const k in SLIDERS) {
   const inp = $("s_" + k), out = $("o_" + k), s = SLIDERS[k];
   const show = () => { out.textContent = s.int ? ctl[k] : ctl[k].toFixed(2); };
@@ -1019,7 +1038,7 @@ $("bClearSand").onclick = clearSand;
 $("bClearAll").onclick = clearAll;
 
 // ---- save / load (one slot, kept in this browser) ----
-const SAVE_KEY = "falling-pixels-save";
+const SAVE_KEY = grainName === "normal" ? "falling-pixels-save" : "falling-pixels-save-" + grainName;   // one slot per grain size
 const toB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
 const fromB64 = (s, Type) => { const bin = atob(s), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
 function saveScene() {
@@ -1036,7 +1055,7 @@ function loadScene() {
   let data = null;
   try { data = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (err) { data = null; }
   if (!data) { toast("Nothing saved yet"); return; }
-  if (data.w !== W || data.h !== H) { toast("That scene was saved on a different screen size"); return; }
+  if (data.w !== W || data.h !== H) { toast("That scene was saved on a different screen size or rotation"); return; }
   const s = new Sand(W, H);
   s.grid = fromB64(data.kinds, Uint8Array);
   s.colors = fromB64(data.colors, Uint32Array);
