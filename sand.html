@@ -138,6 +138,14 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .row .btn { min-height: 34px; }
 .seg.compact button { padding: 0 11px; }
 .dimlabel { color: var(--text-dim); font-size: 13px; white-space: nowrap; }
+.quick.wrap { flex-wrap: wrap; }
+#textInput {
+  flex: 1 1 150px; min-width: 0; height: 36px; padding: 0 10px; border-radius: 10px; font: inherit;
+  background: var(--button); color: var(--text); border: 1px solid var(--outline); -webkit-user-select: text; user-select: text;
+}
+#stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; min-height: 16px; }
+#stats b { color: var(--text); font-weight: 600; }
+.tool span { max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini {
   min-height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12px; letter-spacing: 0; text-transform: none;
   background: var(--button); border: 1px solid var(--outline); color: var(--text-dim); cursor: pointer;
@@ -166,11 +174,12 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 
 /* Wide screens (a computer): the controls stay open as a side panel, like a desktop app, instead of sliding up from the bottom. */
 @media (min-width: 860px) {
-  body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px 16px; }
+  body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 8px 16px; }
   .top { grid-column: 1; grid-row: 1; }
-  #stage { grid-column: 1; grid-row: 2; }
-  .dock { grid-column: 1; grid-row: 3; min-width: 0; }
-  #sheet { display: block !important; grid-column: 2; grid-row: 1 / 4; height: auto; min-height: 0; contain: size; }
+  #stats { grid-column: 1; grid-row: 2; }
+  #stage { grid-column: 1; grid-row: 3; }
+  .dock { grid-column: 1; grid-row: 4; min-width: 0; }
+  #sheet { display: block !important; grid-column: 2; grid-row: 1 / 5; height: auto; min-height: 0; contain: size; }
   #ctlBtn { display: none; }
 }
 </style>
@@ -185,6 +194,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
   </button>
 </header>
+<div id="stats" title="Every grain of sand and water you have poured or emitted"></div>
 
 <main id="stage">
   <div id="board">
@@ -221,6 +231,17 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <div class="pen" id="penTools" hidden><input type="color" id="penColor" value="#ffffff" aria-label="Pen color"><button class="btn" id="penUndo">Undo</button></div>
     <div class="slider" id="sizeBox"><div class="lab"><span>Size</span><output id="sizeOut"></output></div><input type="range" id="sizeRange" aria-label="Size"></div>
     <button class="btn" id="bSnap" hidden aria-label="Ramp snapping">Snap: off</button>
+    <button class="btn" id="bHollow" hidden aria-label="Solid or hollow shape">Solid</button>
+  </div>
+  <div class="quick wrap" id="textRow" hidden>
+    <input type="text" id="textInput" maxlength="24" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
+    <input type="color" id="textColor" value="#ffd84a" aria-label="Text colour">
+    <div class="seg compact" id="textModeSeg" role="group" aria-label="Barrier or paint">
+      <button data-m="solid" class="on" title="Sand piles on it">Barrier</button><button data-m="paint" title="Decoration only: sand ignores it">Paint</button>
+    </div>
+    <div class="seg compact" id="textScaleSeg" role="group" aria-label="Text size">
+      <button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="3">3×</button><button data-s="4">4×</button>
+    </div>
   </div>
   <div class="tools" id="tools"></div>
 </nav>
@@ -266,6 +287,7 @@ class Grain {
 // rows: the sprite ("." = see-through, letters are colours: see PIXEL_COLORS). Sand treats the coloured pixels as solid.
 // every: ticks between steps (smaller = faster).  step: the tallest ledge it climbs at 1x.  walk / rest: how long, in ticks (30 a second).
 // likes: foods that make it grow.  water: "love" swims and splashes, "hate" avoids pools and runs from a soaking, "neutral" doesn't mind.  body: the colour letters a custom colour replaces, each with how bright it is.
+const STATS = { sand: 0, water: 0 };                     // how many grains were ever poured or emitted (the status bar shows this)
 const MAX_CREATURES = 30, MAX_FOODS = 40, MAX_SCALE = 4, VISION = 80;
 const CREATURE_TYPES = {
   slime: { rows: ["..gggg..", ".gGGGGg.", "gGkGGkGg", "gGGGGGGg", "gGGGGGGg", ".gggggg."], every: 8, step: 2, walk: [40, 140], rest: [30, 120],
@@ -282,7 +304,9 @@ const CREATURE_TYPES = {
     likes: ["bone"], water: "love", body: { n: 1, N: 0.65 } },
 };
 CREATURE_TYPES.ghost = { rows: ["..wwwww..", ".wwwwwww.", "wwwwwwwww", "wwkkwkkww", "wwkkwkkww", "wwwwwwwww", "wwwkkkwww", "wwwwwwwww", "wwwwwwwww", "ww.www.ww"], flyRows: ["..wwwww..", ".wwwwwww.", "wwwwwwwww", "wwkkwkkww", "wwkkwkkww", "wwwwwwwww", "wwwkkkwww", "wwwwwwwww", "wwwwwwwww", "w.www.www"],
-  ghost: true, fly: true, every: 4, step: 0, walk: [20, 60], rest: [20, 60], likes: [], water: "neutral", body: { w: 1 } };   // floats about and spooks the others
+  ghost: true, float: true, fly: true, every: 4, step: 0, walk: [20, 60], rest: [20, 60], likes: [], water: "neutral", body: { w: 1 } };   // floats about and spooks the others
+CREATURE_TYPES.bat = { rows: ["uu.....uu", "uuuu.uuuu", "uuuuuuuuu", ".urururu.", "..u...u.."], flyRows: ["....u....", ".u.uuu.u.", "uuuuuuuuu", "uurururuu", ".uu.u.uu."],
+  float: true, flutter: true, fly: true, every: 2, step: 0, walk: [10, 30], rest: [10, 30], likes: [], water: "neutral", body: { u: 1 } };   // flutters about
 const FOOD_TYPES = {
   apple: { rows: [".g..", "rrrr", "rrrr", ".rr."] },
   berry: { rows: [".vv.", "vvvv", "vvvv", ".vv."] },
@@ -321,7 +345,7 @@ class Sand {
     this.emitters = new Map();                  // cell -> [SAND/WATER, rgb or null = live colour]
     this.conveyors = new Map();                 // cell -> direction (+1 right, -1 left)
     this.gravity = 0.8; this.drag = 0.999; this.wind = 0; this.bounce = 0;
-    this.creatures = []; this.foods = []; this.creatureSpeed = 1;                        // pixel creatures: {type, x, y, dir, mode, timer, ...}
+    this.creatures = []; this.foods = []; this.creatureSpeed = 1; this.haunts = [];                        // pixel creatures: {type, x, y, dir, mode, timer, ...}
   }
 
   occupied(x, y) { const k = this.grid[y * this.w + x]; return k !== EMPTY && k !== IN_AIR; }
@@ -371,6 +395,7 @@ class Sand {
       const i = y * this.w + x;
       if (this.grid[i] === EMPTY) this.grid[i] = IN_AIR;
     }
+    STATS[kind === WATER ? "water" : "sand"] += n;
   }
 
   runEmitters(flow, live, shade) {
@@ -380,6 +405,7 @@ class Sand {
       if (this.grid[i + this.w] !== EMPTY || Math.random() > flow) continue;
       this.grains.push(new Grain(x + 0.5, y + 1.5, (Math.random() * 2 - 1) * 0.15, 0, shaded(rgb || live[kind], shade), kind));
       this.grid[i + this.w] = IN_AIR;
+      STATS[kind === WATER ? "water" : "sand"]++;
     }
   }
 
@@ -595,6 +621,7 @@ class Sand {
     const w = this.w, h = this.h;
     for (const c of this.creatures) this.clearBody(c);   // creatures and food stay upright: they are put back, then fall to the new floor
     for (const f of this.foods) this.unmark(FOOD_TYPES[f.type], 1, f.x, f.y, FOOD);
+    this.haunts = [];
     const grid = new Uint8Array(w * h), colors = new Uint32Array(w * h);
     for (let y = 0; y < h; y++) {
       grid.set(this.grid.subarray(y * w, (y + 1) * w), (h - 1 - y) * w);
@@ -729,7 +756,11 @@ class Sand {
       this.mark(def, 1, f.x, f.y, FOOD);
     }
   }
-  stepCreatures() { this.stepFoods(); for (const c of this.creatures) this.stepCreature(c); }
+  stepCreatures() {
+    this.stepFoods();
+    for (const h of this.haunts) h.glow = Math.max(0, h.glow - 0.05);
+    for (const c of this.creatures) this.stepCreature(c);
+  }
   advance(c, t) {                                        // how many steps it takes this tick (the speed setting scales this)
     c.prog += this.creatureSpeed;
     let n = 0;
@@ -744,7 +775,7 @@ class Sand {
     if (c.hearts > 0) c.hearts--;
     if (c.seekWait > 0) c.seekWait--;
     this.clearBody(c);
-    if (t.ghost) { this.ghostStep(c, t, g); this.setBody(c); return; }   // ghosts float: no gravity, food or thirst
+    if (t.float) { this.floatStep(c, t, g); this.setBody(c); return; }   // ghosts and bats float: no gravity, food or thirst
     let fell = 0;
     if (c.mode !== "fly") {                              // 1. gravity: fall until something is underneath
       c.vy = Math.min(c.vy + 1, 3);
@@ -990,30 +1021,52 @@ class Sand {
     this.grid[i] = EMPTY; this.colors[i] = 0;
     this.wakeRegion(x - 1, x + 1, y);                    // the water around it flows in to fill the gap
   }
-  ghostStep(c, t, g) {                                   // drift about, bob a little, and give nearby animals a fright
+  floatStep(c, t, g) {                                   // ghosts and bats: they float and never land
     c.mode = "fly"; c.hearts = 0;
     if (this.creatureSpeed > 0) {
       let n = this.advance(c, t);
+      const haunt = t.ghost ? this.nearestHaunt(c, g) : null;   // a ghost circles the nearest pumpkin
       while (n-- > 0) {
-        c.timer -= 1;
-        if (c.timer <= 0) { c.timer = 20 + Math.floor(Math.random() * 50); c.dir = Math.random() < 0.5 ? -1 : 1; c.climb = Math.floor(Math.random() * 3) - 1; }
+        let dx, dy;
+        if (haunt) {
+          c.orbit = (c.orbit || Math.random() * 6.28) + 0.07;
+          const R = 12 + 4 * c.scale;
+          const tx = haunt.cx + Math.cos(c.orbit) * R, ty = haunt.cy - R * 0.8 + Math.sin(c.orbit) * R * 0.45;
+          dx = Math.sign(Math.round(tx - (c.x + (g.w >> 1)))); dy = Math.sign(Math.round(ty - (c.y + (g.h >> 1))));
+          if (dx) c.dir = dx;
+          haunt.glow = 1;                                // the pumpkin glows while it is being haunted
+        } else {
+          c.timer -= 1;
+          if (c.timer <= 0) { c.timer = t.flutter ? 5 + Math.floor(Math.random() * 10) : 20 + Math.floor(Math.random() * 50); c.dir = Math.random() < 0.5 ? -1 : 1; c.climb = Math.floor(Math.random() * 3) - 1; }
+          if (t.flutter) c.climb = Math.floor(Math.random() * 3) - 1;   // bats never fly straight
+          dx = c.dir; dy = c.climb;
+        }
         let moved = false;
-        for (const [mx, my] of [[c.dir, c.climb], [c.dir, 0], [0, c.climb]]) {
+        for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) {
           if ((mx || my) && this.bodyFree(t, c.scale, c.x + mx, c.y + my)) { this.shedSand(c); c.x += mx; c.y += my; moved = true; c.frame ^= 1; break; }
         }
-        if (!moved) { c.dir = -c.dir; c.climb = -c.climb; }
+        if (!moved && !haunt) { c.dir = -c.dir; c.climb = -c.climb; }
+        if (!moved) c.frame ^= 1;                        // (a bat that bumped into something still flaps its wings)
       }
     }
-    if (c.age % 8 === 0) {                               // boo!
+    if (t.ghost && c.age % 8 === 0) {                    // boo!
       const cx = c.x + (g.w >> 1), cy = c.y + (g.h >> 1), reach = 22 + 6 * c.scale;
       for (const o of this.creatures) {
-        if (o === c || CREATURE_TYPES[o.type].ghost || o.mode === "fly") continue;
+        if (o === c || CREATURE_TYPES[o.type].float || o.mode === "fly") continue;
         const og = geomOf(CREATURE_TYPES[o.type], o.scale);
         if (Math.hypot(o.x + (og.w >> 1) - cx, o.y + (og.h >> 1) - cy) > reach) continue;
         if (o.panic <= 0) o.shake = 10;
         o.panic = Math.max(o.panic, 36); o.dir = o.x + (og.w >> 1) < cx ? -1 : 1; o.mode = "walk"; o.target = null; o.drinking = 0; o.waterX = null;
       }
     }
+  }
+  addHaunt(cx, cy) { if (this.haunts.length < 20) this.haunts.push({ cx, cy, glow: 0 }); }   // a pumpkin ghosts like to hang around
+  nearestHaunt(c, g) {
+    this.haunts = this.haunts.filter(h => this.grid[h.cy * this.w + h.cx] === SOLID);   // pumpkins that were erased are forgotten
+    const cx = c.x + (g.w >> 1), cy = c.y + (g.h >> 1);
+    let best = null, bestD = 140;
+    for (const h of this.haunts) { const d = Math.hypot(h.cx - cx, h.cy - cy); if (d < bestD) { bestD = d; best = h; } }
+    return best;
   }
   repositionCreaturesAfterFlip() {
     for (const c of [...this.creatures]) {
@@ -1237,6 +1290,26 @@ function shapeCells(name, r) {
   return cells;
 }
 
+const hollowCache = new Map();
+function hollowCells(name, r, t) {
+  const key = name + ":" + r + ":" + t;
+  if (hollowCache.has(key)) return hollowCache.get(key);
+  const n = 2 * r + 3, at = (dx, dy) => (dy + r + 1) * n + (dx + r + 1);
+  let inner = new Uint8Array(n * n);
+  const cells = shapeCells(name, r);
+  for (const [dx, dy] of cells) inner[at(dx, dy)] = 1;
+  for (let step = 0; step < t; step++) {                 // peel off the outermost layer t times; what is left is the inside
+    const next = new Uint8Array(n * n);
+    for (const [dx, dy] of cells) {
+      if (inner[at(dx, dy)] && inner[at(dx + 1, dy)] && inner[at(dx - 1, dy)] && inner[at(dx, dy + 1)] && inner[at(dx, dy - 1)]) next[at(dx, dy)] = 1;
+    }
+    inner = next;
+  }
+  const out = cells.filter(([dx, dy]) => !inner[at(dx, dy)]);
+  hollowCache.set(key, out);
+  return out;
+}
+
 function beltCells(x0, x1, y) {                          // a conveyor belt: a horizontal bar, 3 cells thick
   const out = [];
   for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let dy = -1; dy <= 1; dy++) out.push([x, y + dy]);
@@ -1341,6 +1414,10 @@ let penStroke = null, penColor = "#ffffff";
 function inkStyle(st) { inkCtx.strokeStyle = inkCtx.fillStyle = st.c; inkCtx.lineWidth = st.w * INK; inkCtx.lineCap = inkCtx.lineJoin = "round"; }
 function drawStroke(st) {
   inkStyle(st);
+  if (st.cells) {                                        // painted text: one square per lit pixel
+    for (let i = 0; i < st.cells.length; i += 2) inkCtx.fillRect(st.cells[i] * INK, st.cells[i + 1] * INK, INK, INK);
+    return;
+  }
   const p = st.p;
   if (p.length === 2) { inkCtx.beginPath(); inkCtx.arc(p[0] * INK, p[1] * INK, st.w * INK / 2, 0, Math.PI * 2); inkCtx.fill(); return; }
   inkCtx.beginPath(); inkCtx.moveTo(p[0] * INK, p[1] * INK);
@@ -1361,10 +1438,14 @@ fitCanvas();
 
 // ---- tools ----
 // What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
-const DOCK = ["pour", "shapes", "scenery", "theme", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
+const DOCK = ["pour", "shapes", "scenery", "theme", "creatures", "food", "text", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
 const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "flowers", "fence", "house", "well", "barn", "windmill"],
-  theme: ["pumpkin", "scarecrow", "cross", "mask", "ghost"],
+  theme: ["pumpkin", "scarecrow", "cross", "mask", "ghost", "tombstone", "deadtree", "gravefence", "witchhat", "bat"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
+let textMode = "solid", textScale = 2, hollow = false;   // the Text tool's settings, and whether new shapes are hollow
+const HOLLOWABLE = ["sphere", "cone", "box"];
+const TOOL_NAMES = { deadtree: "Dead tree", gravefence: "Grave fence", witchhat: "Witch hat" };
+const niceName = t => TOOL_NAMES[t] || t[0].toUpperCase() + t.slice(1);
 let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
 const lastPick = { shapes: "sphere", scenery: "oak", theme: "pumpkin", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
@@ -1401,6 +1482,12 @@ const ICONS = {
   cross: '<path d="M12 3v18M7 8h10"/>',
   mask: '<path d="M12 3c-3 0-5 2-5 5v4c0 3 2 5 5 9 3-4 5-6 5-9V8c0-3-2-5-5-5z"/><circle cx="10" cy="10" r=".8"/><circle cx="14" cy="10" r=".8"/><path d="M12 13v3"/>',
   ghost: '<path d="M6 20V11a6 6 0 0 1 12 0v9l-2-2-2 2-2-2-2 2-2-2z"/><circle cx="10" cy="11" r=".8"/><circle cx="14" cy="11" r=".8"/>',
+  tombstone: '<path d="M7 20V9a5 5 0 0 1 10 0v11z"/><path d="M12 9v6M10 11h4"/>',
+  deadtree: '<path d="M12 21v-8M12 14l-4-4-1-4M12 12l4-4 1-5M9 10l-3 0"/>',
+  gravefence: '<path d="M6 20V7l-1-2m1 2 1-2M12 20V7l-1-2m1 2 1-2M18 20V7l-1-2m1 2 1-2M4 12h16M4 17h16"/>',
+  witchhat: '<path d="M12 3l4 12H8z"/><path d="M4 18c3-3 13-3 16 0z"/>',
+  bat: '<path d="M3 8c3 0 5 2 6 4 1-1 2-1 3 0 1-1 2-1 3 0 1-2 3-4 6-4-1 3-1 6-5 8l-1-2-2 3-2-3-1 2c-4-2-4-5-5-8z"/>',
+  text: '<path d="M5 6h14M12 6v13M9 19h6"/>',
   scenery: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
   bird: '<path d="M4 13c3-5 8-6 11-3l5-2-3 4c0 4-4 8-9 7z"/><circle cx="14" cy="10" r=".7"/>',
   cat: '<path d="M5 20V8l3 3h8l3-3v12z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
@@ -1428,7 +1515,7 @@ let selAnchor = null, selMode = null;                   // a selection box being
 let selection = null;                                    // finished box [x0, y0, x1, y1], waiting for Copy / Delete
 let clipboard = null, pasting = false, pasteDown = false;   // pasting: the copy follows the pointer and a tap stamps it
 const toolButton = (t, icon) =>
-  `<button class="tool" data-tool="${t}" aria-label="${t}"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${t[0].toUpperCase() + t.slice(1)}</span></button>`;
+  `<button class="tool" data-tool="${t}" aria-label="${t}"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${niceName(t)}</span></button>`;
 $("tools").innerHTML = DOCK.map(t => toolButton(t, ICONS[t in MENUS ? lastPick[t] : t])).join("");
 for (const g in MENUS) {                                 // each pop-up is a small floating grid of tool buttons
   const m = document.createElement("div");
@@ -1452,12 +1539,14 @@ function setTool(t) {
   if (group) { lastPick[group] = t; refreshMenuIcon(group); }
   closeMenus();
   $("bSnap").hidden = t !== "ramp";                      // the snap button only matters while drawing ramps
-  const isCreature = !!CREATURE_TYPES[t], isScenery = !!DECOR_TYPES[t];
+  const isCreature = !!CREATURE_TYPES[t], isScenery = !!DECOR_TYPES[t], isText = t === "text";
   $("penTools").hidden = t !== "pen";                    // the pen's colour and Undo replace the Sand / Water switch
   $("creatureTools").hidden = !isCreature;               // so do a creature's colour and size
   $("sceneryTools").hidden = !isScenery;                 // scenery gets its own size picker
-  $("matSeg").hidden = t === "pen" || isCreature || isScenery;
-  $("sizeBox").hidden = isCreature || isScenery;
+  $("textRow").hidden = !isText;                         // the Text tool's box, colour, barrier / paint and size
+  $("bHollow").hidden = !HOLLOWABLE.includes(t);         // solid or hollow, for the shapes that can be either
+  $("matSeg").hidden = t === "pen" || isCreature || isScenery || isText;
+  $("sizeBox").hidden = isCreature || isScenery || isText;
   updateLabel();
 }
 function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
@@ -1505,7 +1594,7 @@ $("tools").addEventListener("scroll", closeMenus);
 const SHAPES = ["sphere", "cone", "box", "bowl", "emitter", "trash"];
 const KIND = { emitter: EMITTER, trash: DRAIN };
 function updateLabel() {
-  let s = tool[0].toUpperCase() + tool.slice(1);
+  let s = niceName(tool);
   if (tool === "pour" || tool === "emitter") s += material === WATER ? " · water" : " · sand";
   if (tool === "erase") s += " · " + eraseShape + " · tap again";
   if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall") s += " · size " + ctl.size;
@@ -1515,6 +1604,8 @@ function updateLabel() {
     s += ` · tap to drop · ${fans.join(", ")} love it`;
   }
   if (DECOR_TYPES[tool]) s += ` · ${decorScale()}× · tap to place`;
+  if (tool === "text") s += ` · ${textMode === "solid" ? "barrier" : "paint"} · ${textScale}× · tap to place`;
+  if (hollow && HOLLOWABLE.includes(tool)) s += " · hollow";
   if (tool === "belt") s += " · drag the way it carries";
   if (tool === "ramp") {
     if (dragStart) {                                     // live readout while dragging
@@ -1614,6 +1705,28 @@ $("bgColor").addEventListener("input", e => { bgHex = e.target.value; board.styl
 board.style.backgroundColor = bgHex;
 
 // ---- reset: every setting back to how the page started (not your scene, drawing, background picture or grain size) ----
+function syncTextUi() {                                  // the Text tool's controls show what is chosen
+  $("textModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === textMode));
+  $("textScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === textScale));
+  updateLabel();
+}
+$("textModeSeg").addEventListener("click", e => { const m = e.target.dataset.m; if (m) { textMode = m; syncTextUi(); } });
+$("textScaleSeg").addEventListener("click", e => { const v = +e.target.dataset.s; if (v) { textScale = v; syncTextUi(); } });
+function syncHollowUi() { $("bHollow").textContent = hollow ? "Hollow" : "Solid"; $("bHollow").classList.toggle("on", hollow); updateLabel(); }
+$("bHollow").onclick = () => { hollow = !hollow; syncHollowUi(); };
+
+// ---- the status bar: how many grains of sand and water you have made (kept between visits) ----
+const madeBefore = (() => { try { const m = JSON.parse(localStorage.getItem("falling-pixels-made")); return { sand: +m.sand || 0, water: +m.water || 0 }; } catch (err) { return { sand: 0, water: 0 }; } })();
+let statsShown = "", statsSaved = 0;
+function updateStats() {
+  const sandN = madeBefore.sand + STATS.sand, waterN = madeBefore.water + STATS.water, fmt = n => n.toLocaleString();
+  const html = `Sand <b>${fmt(sandN)}</b><span>Water <b>${fmt(waterN)}</b></span><span>Total <b>${fmt(sandN + waterN)}</b> pixels made</span>`;
+  if (html !== statsShown) { statsShown = html; $("stats").innerHTML = html; }
+  if (STATS.sand + STATS.water !== statsSaved && performance.now() % 2000 < 40) {   // remember it, but not on every frame
+    statsSaved = STATS.sand + STATS.water;
+    try { localStorage.setItem("falling-pixels-made", JSON.stringify({ sand: sandN, water: waterN })); } catch (err) { /* private window: just don't remember */ }
+  }
+}
 function syncSceneryUi() {
   $("sceneryScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === sceneryScale));
   updateLabel();
@@ -1643,6 +1756,8 @@ function resetAll() {
   eraseShape = "sphere"; refreshEraseIcon();
   creatureScale = 1; creatureTint = null; syncCreatureUi();
   sceneryScale = 1; syncSceneryUi();
+  hollow = false; syncHollowUi();
+  textMode = "solid"; textScale = 2; syncTextUi();
   updateLabel();
   toast("All settings reset to default");
 }
@@ -1859,7 +1974,8 @@ function saveScene() {
       emitters: [...sand.emitters], conveyors: [...sand.conveyors],
       creatures: sand.creatures.map(c => ({ t: c.type, x: c.x, y: c.y, d: c.dir, s: c.scale, c: c.tint })),
       foods: sand.foods.map(f => ({ t: f.type, x: f.x, y: f.y })),
-      ink: strokes.map(st => ({ c: st.c, w: st.w, p: st.p.map(v => Math.round(v * 10) / 10) })),
+      haunts: sand.haunts.map(h => [h.cx, h.cy]),
+      ink: strokes.map(st => ({ c: st.c, w: st.w, p: st.p.map(v => Math.round(v * 10) / 10), cells: st.cells })),
     }));
     toast("Saved");
   } catch (err) { toast("Couldn't save in this browser"); }
@@ -1876,6 +1992,7 @@ function loadScene() {
   s.conveyors = new Map(data.conveyors);
   for (const cr of data.creatures || data["crit" + "ters"] || []) s.restoreCreature(cr);   // put the creatures and food back where they were
   for (const fd of data.foods || []) s.restoreFood(fd);
+  for (const [hx, hy] of data.haunts || []) s.addHaunt(hx, hy);
   for (let i = 0; i < s.grid.length; i++) if (s.grid[i] === DRAIN) s.drains.add(i);
   sand = s; moving = dragStart = null; cancelSelection();
   strokes = data.ink || []; redrawInk();
@@ -1935,15 +2052,27 @@ function place(cx, cy) {
     if (!done) toast(sand.foods.length >= MAX_FOODS ? "That's plenty of food" : "No room there");
     return;
   }
+  if (tool === "text") {                                 // typed text, as a barrier (solid) or as paint (decoration)
+    const str = $("textInput").value.trim();
+    if (!str) { toast("Type something first"); return; }
+    const px = textPixels(str, cx, cy, textScale);
+    if (textMode === "solid") { const col = P(hexToRgb($("textColor").value)); sand.addDecor(px.map(([x, y]) => [x, y, col])); }
+    else { strokes.push({ c: $("textColor").value, w: 0, p: [0, 0], cells: px.flat() }); redrawInk(); }
+    return;
+  }
   if (DECOR_TYPES[tool]) {                               // scenery: the bottom of it stands where you tapped
-    for (const mx of mirroredXs(cx)) sand.addDecor(decorPixels(tool, mx, cy, decorScale()));
+    const rows = DECOR_TYPES[tool].rows.length;
+    for (const mx of mirroredXs(cx)) {
+      sand.addDecor(decorPixels(tool, mx, cy, decorScale()));
+      if (tool === "pumpkin") sand.addHaunt(mx, cy - ((rows * decorScale()) >> 1));   // ghosts will come and haunt it
+    }
     return;
   }
   if (tool === "emitter") {                              // remembers what it pours (null = follow the rainbow)
     const prop = material === WATER ? [WATER, THEME.water] : [SAND, ctl.hue === 0 ? hexToRgb(sandHex) : null];
     for (const mx of mirroredXs(cx)) sand.addSolid(at(mx, cy, "emitter", ctl.size), EMITTER, prop);
   } else {
-    for (const mx of mirroredXs(cx)) sand.addSolid(at(mx, cy, tool, ctl.size), KIND[tool] || SOLID);
+    for (const mx of mirroredXs(cx)) sand.addSolid(shapeAt(tool, mx, cy), KIND[tool] || SOLID);
   }
 }
 canvas.addEventListener("pointerdown", e => {
@@ -2069,7 +2198,7 @@ function simStep() {
 // ---- drawing ----
 const PIXEL_COLORS = { g: pack(47, 143, 58), G: pack(134, 224, 122), k: pack(26, 26, 26), w: pack(244, 244, 244), p: pack(255, 143, 176),
   y: pack(255, 216, 74), o: pack(255, 140, 26), O: pack(196, 98, 12), n: pack(150, 100, 60), N: pack(98, 60, 32), t: pack(222, 190, 140),
-  b: pack(74, 163, 255), r: pack(220, 50, 60), v: pack(130, 60, 170), s: pack(200, 210, 225) };
+  b: pack(74, 163, 255), r: pack(220, 50, 60), v: pack(130, 60, 170), s: pack(200, 210, 225), u: pack(112, 66, 168) };
 function creatureColor(c, ch) {
   const f = CREATURE_TYPES[c.type].body[ch];
   if (c.tint && f !== undefined) {                       // a custom colour replaces the body letters, keeping their light and dark
@@ -2115,7 +2244,7 @@ const DECOR_COLORS = { a: pack(110, 190, 80), A: pack(58, 130, 60), T: pack(118,
   K: pack(140, 140, 150), P: pack(36, 100, 70), p: pack(70, 150, 90),
   S: pack(172, 172, 184), s: pack(118, 118, 130), Z: pack(240, 236, 226), Y: pack(222, 186, 92),
   o: pack(232, 120, 20), q: pack(160, 76, 10), g: pack(74, 124, 44), e: pack(255, 214, 70), k: pack(22, 22, 26), h: pack(214, 176, 80),
-  n: pack(62, 92, 150), x: pack(240, 120, 170) };
+  n: pack(62, 92, 150), x: pack(240, 120, 170), v: pack(122, 72, 168), V: pack(78, 42, 112) };
 const DECOR_TYPES = {
   oak: { rows: ["...aaaaa...", "..aaaaaaa..", ".aaaAaaaaA.", ".aAaaaaAaa.", "aaaaAaaaaaa", "aAaaaaaAaaa", "aaaAaaaaaAa", ".aaaaAaaaa.", "..AAaaaaAA.",
     "....UUT....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
@@ -2133,7 +2262,31 @@ const DECOR_TYPES = {
   scarecrow: { rows: ["....UUU....", "....TTT....", "..UUUUUUU..", "...hhhhh...", "...hkhkh...", "...hhhhh...", "...hkkkh...", "hhhRRRRRhhh", "hhRRRRRRRhh", "...RRTRR...", "...nnTnn...", "..hnnTnnh..", "...hhThh...", "....hTh....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
   cross: { rows: ["....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "SSSSSSSSSSs", "SSSSSSSSSSs", "SSSSSSSSSSs", "....SSA....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "...SSSSS...", "..SSSSSSSs.", ".SSSSSSSSSs", "sssssssssss"] },
   mask: { rows: ["....kkkkk....", "...kkkkkkk...", "..kkZZZZZkk..", "..kZZZZZZZk..", "..kZkZZZkZk..", "..kZkkZkkZk..", "..kZkkZkkZk..", "..kZZkZkZZk..", "..kZZZZZZZk..", "..kZZZZZZZk..", "..kZZkkkZZk..", "..kZZkkkZZk..", "..kZZkkkZZk..", "...kZkkkZk...", "...kZZZZZk...", "....kZZZk....", ".....kZk.....", "......k......"] },
+  tombstone: { rows: ["..SSSSS..", ".SSSSSSS.", "SSSSSSSSS", "SSSSsSSSS", "SSSsssSSS", "SSSSsSSSS", "SSSSsSSSS", "SSSSSSSSS", "SASSSSSSS", "AAsSSSSsA", "sssssssss"] },
+  deadtree: { rows: [".............", "............U", ".U.....U.U.U.", ".U.U.U..U.UU.", "..U.UU..U.U..", "..U.U.U..U...", "...U..U..U...", "...U..U.U....", "....U.U.U....", ".....UUU.....", ".....TTU.....", ".....TTU.....", ".....TTU.....", ".....TTU.....", ".....TTU.....", ".....TTU.....", ".....TTU.....", "...UUUUUUU..."] },
+  gravefence: { rows: [".S..S..S..S.", ".s..s..s..s.", "SSSSSSSSSSSS", ".s..s..s..s.", ".s..s..s..s.", "SSSSSSSSSSSS", ".s..s..s..s.", ".s..s..s..s.", "ssssssssssss"] },
+  witchhat: { rows: ["......v......", ".....vvv.....", ".....vvv.....", "....vvvvv....", "....vvvvv....", "...vvvvvvv...", "...YYYYYYY...", "..vvvvvvvvv..", ".vvvvvvvvvvv.", "VVVVVVVVVVVVV", "VVVVVVVVVVVVV"] },
 };
+const FONT = {"A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"], "B": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."], "C": [".####", "#....", "#....", "#....", "#....", "#....", ".####"], "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."], "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"], "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."], "G": [".####", "#....", "#....", "#..##", "#...#", "#...#", ".###."], "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"], "I": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"], "J": ["..###", "...#.", "...#.", "...#.", "...#.", "#..#.", ".##.."], "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"], "L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"], "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"], "N": ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"], "O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."], "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."], "Q": [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"], "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"], "S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."], "T": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."], "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."], "V": ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."], "W": ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"], "X": ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"], "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."], "Z": ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####"], "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."], "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."], "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"], "3": ["####.", "....#", "....#", ".###.", "....#", "....#", "####."], "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."], "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."], "6": [".###.", "#....", "#....", "####.", "#...#", "#...#", ".###."], "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."], "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."], "9": [".###.", "#...#", "#...#", ".####", "....#", "....#", ".###."], ".": [".....", ".....", ".....", ".....", ".....", ".##..", ".##.."], ",": [".....", ".....", ".....", ".....", ".##..", "..#..", ".#..."], "!": ["..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."], "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."], "-": [".....", ".....", ".....", "#####", ".....", ".....", "....."], ":": [".....", ".##..", ".##..", ".....", ".##..", ".##..", "....."], "'": ["..#..", "..#..", ".#...", ".....", ".....", ".....", "....."], "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."], "=": [".....", ".....", "#####", ".....", "#####", ".....", "....."], "/": ["....#", "....#", "...#.", "..#..", ".#...", "#....", "#...."], "(": ["...#.", "..#..", ".#...", ".#...", ".#...", "..#..", "...#."], ")": [".#...", "..#..", "...#.", "...#.", "...#.", "..#..", ".#..."], "*": [".....", "#.#.#", ".###.", "#####", ".###.", "#.#.#", "....."], "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"], " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."]};
+function textPixels(str, cx, cy, scale) {                // the cells of some pixel text, centred on (cx, cy); wide text shrinks to fit
+  const text = str.toUpperCase();
+  let k = scale;
+  while (k > 1 && text.length * 6 * k - k > W) k--;
+  const width = text.length * 6 * k - k, x0 = cx - (width >> 1), y0 = cy - ((7 * k) >> 1), out = [];
+  [...text].forEach((ch, i) => {
+    const glyph = FONT[ch] || FONT["?"];
+    glyph.forEach((row, ry) => [...row].forEach((bit, rx) => {
+      if (bit !== "#") return;
+      for (let j = 0; j < k; j++) for (let m = 0; m < k; m++) out.push([x0 + (i * 6 + rx) * k + m, y0 + ry * k + j]);
+    }));
+  });
+  return out;
+}
+const hollowThickness = () => Math.max(2, Math.min(6, Math.round(ctl.size / 5)));
+function shapeAt(shape, cx, cy) {                        // the cells of a shape stamped at (cx, cy), hollow if that is switched on
+  if (hollow && HOLLOWABLE.includes(shape)) return hollowCells(shape, ctl.size, hollowThickness()).map(([dx, dy]) => [cx + dx, cy + dy]);
+  return at(cx, cy, shape, ctl.size);
+}
 const decorScale = () => sceneryScale;
 function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for every pixel, standing on bottomY and centred on cx
   const rows = DECOR_TYPES[type].rows, w = rows[0].length, h = rows.length, out = [];
@@ -2143,6 +2296,19 @@ function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for e
     for (let j = 0; j < scale; j++) for (let i = 0; i < scale; i++) out.push([x0 + rx * scale + i, y0 + ry * scale + j, DECOR_COLORS[ch]]);
   }));
   return out;
+}
+function drawHauntGlow() {                               // an orange glow around a pumpkin while a ghost is haunting it
+  const pulse = performance.now() / 160, orange = pack(255, 150, 40), R = 16;
+  for (const h of sand.haunts) {
+    if (h.glow < 0.03) continue;
+    const flicker = 0.65 + 0.35 * Math.sin(pulse + h.cx);
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d = Math.hypot(dx, dy), x = h.cx + dx, y = h.cy + dy;
+      if (d > R || x < 0 || x >= W || y < 0 || y >= H || sand.grid[y * W + x] === SOLID) continue;
+      const a = Math.round(Math.pow(1 - d / R, 1.6) * 80 * h.glow * flicker);
+      if (a > 0) buf[y * W + x] = over(buf[y * W + x], orange, a);
+    }
+  }
 }
 function objectColor(i, k) {
   if (k === EMITTER) {
@@ -2192,12 +2358,13 @@ function previewCells() {                                // translucent ghost of
   if (moving) return [...moving].map(i => [i % W, Math.floor(i / W)]);
   if (!cur.over) return [];
   let cells = [];
-  if (SHAPES.includes(tool)) cells = at(cur.x, cur.y, tool, ctl.size);
+  if (SHAPES.includes(tool)) cells = shapeAt(tool, cur.x, cur.y);
   else if (CREATURE_TYPES[tool] || FOOD_TYPES[tool]) {   // its silhouette, centred on the pointer
     const def = CREATURE_TYPES[tool] || FOOD_TYPES[tool], g = geomOf(def, CREATURE_TYPES[tool] ? creatureScale : 1);
     cells = g.mask.map(([dx, dy]) => [cur.x - (g.w >> 1) + dx, cur.y - (g.h >> 1) + dy]);
   }
   else if (DECOR_TYPES[tool]) cells = decorPixels(tool, cur.x, cur.y, decorScale()).map(p => [p[0], p[1]]);
+  else if (tool === "text") cells = textPixels($("textInput").value.trim() || "TEXT", cur.x, cur.y, textScale);
   else if (tool === "erase") cells = at(cur.x, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
   else if (tool === "pen") cells = at(cur.x, cur.y, "sphere", Math.max(1, Math.round(penWidth() / 2)));
   else if (tool === "wall") cells = at(cur.x, cur.y, "sphere", wallRadius());
@@ -2218,6 +2385,7 @@ function render(clean = false) {                         // clean = leave out th
   if (fx.sparkle) for (let i = 0; i < buf.length; i++) if (sparkA[i]) { const k = grid[i]; if (k === STATIC || k === STILL_WATER) buf[i] = blend(buf[i], sparkC[i], sparkA[i]); }
   for (const f of sand.foods) drawFood(f);
   for (const c of sand.creatures) drawCreature(c);
+  drawHauntGlow();
   for (const g of sand.grains) buf[trunc(g.y) * W + trunc(g.x)] = g.color;
   if (fx.mirror > 1 && !clean) {                         // dashed lines where the strips meet
     for (const seam of MIRROR_EDGES[fx.mirror].slice(1, -1)) for (let y = 0; y < H; y++) if ((y >> 2) % 2 === 0 && seam < W) buf[y * W + seam] = SEAM;
@@ -2258,11 +2426,13 @@ function frame(now) {
   frameNo++;
   if (sand.conveyors.size && frameNo % 2 === 0) beltPhase++;
   if (dragStart && tool === "ramp") updateLabel();       // live angle and length while dragging a ramp
+  if (frameNo % 15 === 0) updateStats();
   updateFx();
   render();
   requestAnimationFrame(frame);
 }
 setTool("pour");
+updateStats();                                             // draw the status bar right away
 requestAnimationFrame(frame);
 // ==== END APP ====
 </script>
