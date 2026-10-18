@@ -136,6 +136,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .pen input[type=color] { width: 44px; }
 .pair { display: flex; gap: 8px; }
 .row .btn { min-height: 34px; }
+.seg.compact button { padding: 0 11px; }
 .mini {
   min-height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12px; letter-spacing: 0; text-transform: none;
   background: var(--button); border: 1px solid var(--outline); color: var(--text-dim); cursor: pointer;
@@ -203,8 +204,15 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <div class="seg" id="matSeg" role="group" aria-label="Material">
       <button id="mSand" class="on">Sand</button><button id="mWater">Water</button>
     </div>
+    <div class="pen" id="creatureTools" hidden>
+      <input type="color" id="creatureColor" value="#7ddc6a" aria-label="Creature colour">
+      <button class="btn on" id="creatureNatural" title="Use the creature's own colours">Natural</button>
+      <div class="seg compact" id="creatureScaleSeg" role="group" aria-label="Creature size">
+        <button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="3">3×</button><button data-s="4">4×</button>
+      </div>
+    </div>
     <div class="pen" id="penTools" hidden><input type="color" id="penColor" value="#ffffff" aria-label="Pen color"><button class="btn" id="penUndo">Undo</button></div>
-    <div class="slider"><div class="lab"><span>Size</span><output id="sizeOut"></output></div><input type="range" id="sizeRange" aria-label="Size"></div>
+    <div class="slider" id="sizeBox"><div class="lab"><span>Size</span><output id="sizeOut"></output></div><input type="range" id="sizeRange" aria-label="Size"></div>
     <button class="btn" id="bSnap" hidden aria-label="Ramp snapping">Snap: off</button>
   </div>
   <div class="tools" id="tools"></div>
@@ -225,9 +233,10 @@ window.addEventListener("error", e => {
 const EMPTY = 0, STATIC = 1, IN_AIR = 2, STACKING = 3, SOLID = 4, DRAIN = 5, EMITTER = 6, CONVEYOR = 7, STILL_WATER = 8;
 const SAND = 0, WATER = 1;
 const WATER_PATIENCE = 120;
-const CREATURE = 9;                                      // a pixel critter's body (see CREATURE_TYPES)
-const FIRM = new Uint8Array(10);
-[STATIC, SOLID, EMITTER, CONVEYOR, STILL_WATER, CREATURE].forEach(k => { FIRM[k] = 1; });
+const CREATURE = 9, FOOD = 10;                           // a creature's body, and a piece of food (see CREATURE_TYPES, FOOD_TYPES)
+const FIRM = new Uint8Array(11);
+[STATIC, SOLID, EMITTER, CONVEYOR, STILL_WATER, CREATURE, FOOD].forEach(k => { FIRM[k] = 1; });
+const isBody = k => k === CREATURE || k === FOOD;        // things that live in the world but are not "objects" you can place and erase
 const isObj = k => k >= SOLID && k <= CONVEYOR;
 const trunc = Math.trunc;
 
@@ -246,24 +255,52 @@ class Grain {
   }
 }
 
-// ---- critters: tiny pixel creatures made of the same pixels as the sand ----
-// rows: the sprite ("." = see-through; letters are colours, see CRITTER_COLORS). Sand treats the coloured pixels as solid.
-// every: ticks per step (smaller = faster).  step: tallest ledge it can climb.  walk / rest: how long, in ticks (30 a second).
-const MAX_CREATURES = 30;
+// ---- creatures: tiny pixel animals made of the same pixels as the sand ----
+// rows: the sprite ("." = see-through, letters are colours: see PIXEL_COLORS). Sand treats the coloured pixels as solid.
+// every: ticks between steps (smaller = faster).  step: the tallest ledge it climbs at 1x.  walk / rest: how long, in ticks (30 a second).
+// likes: foods that make it grow.  body: the colour letters a custom colour replaces, each with how bright it is.
+const MAX_CREATURES = 30, MAX_FOODS = 40, MAX_SCALE = 4, VISION = 80;
 const CREATURE_TYPES = {
-  slime: { rows: ["..gggg..", ".gGGGGg.", "gGkGGkGg", "gGGGGGGg", "gGGGGGGg", ".gggggg."], every: 8, step: 2, walk: [40, 140], rest: [30, 120] },
-  bunny: { rows: [".w...w.", ".w...w.", ".wwwww.", "wwwwwww", "wkwwwkw", "wwwpwww", ".wwwww.", ".w...w."], every: 3, step: 4, walk: [6, 15], rest: [25, 90] },
-  chick: { rows: ["..yyy..", ".yyyyy.", ".ykyky.", ".yyoyy.", "yyyyyyy", ".yyyyy.", "..o.o.."], every: 5, step: 3, walk: [30, 100], rest: [15, 60], peck: true },
+  slime: { rows: ["..gggg..", ".gGGGGg.", "gGkGGkGg", "gGGGGGGg", "gGGGGGGg", ".gggggg."], every: 8, step: 2, walk: [40, 140], rest: [30, 120],
+    likes: ["berry", "apple"], body: { g: 0.6, G: 1 } },
+  bunny: { rows: [".w...w.", ".w...w.", ".wwwww.", "wwwwwww", "wkwwwkw", "wwwpwww", ".wwwww.", ".w...w."], every: 3, step: 4, walk: [6, 15], rest: [25, 90],
+    likes: ["carrot", "apple"], body: { w: 1 } },
+  chick: { rows: ["..yyy..", ".yyyyy.", ".ykyky.", ".yyoyy.", "yyyyyyy", ".yyyyy.", "..o.o.."], every: 5, step: 3, walk: [30, 100], rest: [15, 60], peck: true,
+    likes: ["seed", "berry"], body: { y: 1 } },
+  bird: { rows: ["..bbb..", ".bbbbb.", ".bkbkb.", ".bbobb.", "bbbbbbb", "..o.o.."], flyRows: ["b.bbb.b", "bbbbbbb", ".bkbkb.", ".bbobb.", "..bbb..", "..o.o.."],
+    fly: true, every: 2, step: 3, walk: [20, 60], rest: [30, 100], likes: ["seed", "berry"], body: { b: 1 } },
+  cat: { rows: ["oo....oo", "oooooooo", "okooooko", "oooppooo", "oOooooOo", ".oooooo.", ".oOooOo.", ".oo..oo."], every: 6, step: 6, walk: [30, 90], rest: [60, 220],
+    likes: ["fish"], body: { o: 1, O: 0.65 } },
+  dog: { rows: [".nnnnnnn.", "NnnnnnnnN", "NnknnnknN", "nnttkttnn", ".nnnpnnn.", ".nnnnnnn.", ".nn...nn.", ".nn...nn."], every: 3, step: 5, walk: [60, 200], rest: [20, 70],
+    likes: ["bone"], body: { n: 1, N: 0.65 } },
 };
-for (const t of Object.values(CREATURE_TYPES)) {
-  t.h = t.rows.length; t.w = t.rows[0].length;
-  t.mask = [];                                           // the silhouette: [dx, dy] of every coloured pixel
-  t.tops = Array(t.w).fill(-1);                          // the highest coloured pixel in each column (where sand rests on its head)
-  t.rows.forEach((row, dy) => [...row].forEach((ch, dx) => {
-    if (ch !== ".") { t.mask.push([dx, dy]); if (t.tops[dx] < 0) t.tops[dx] = dy; }
-  }));
+const FOOD_TYPES = {
+  apple: { rows: [".g..", "rrrr", "rrrr", ".rr."] },
+  berry: { rows: [".vv.", "vvvv", "vvvv", ".vv."] },
+  carrot: { rows: [".gg.", "oooo", ".oo.", "..o."] },
+  seed: { rows: [".t.", "ttt", ".t."] },
+  fish: { rows: ["s..ss", "sssss", ".sss."] },
+  bone: { rows: ["ww..ww", "wwwwww", "ww..ww"] },
+};
+const geomCache = new Map();
+function geomOf(def, scale) {                            // a sprite blown up `scale` times: its width, height, silhouette and top edge
+  let bySize = geomCache.get(def);
+  if (!bySize) { bySize = {}; geomCache.set(def, bySize); }
+  if (!bySize[scale]) {
+    const w = def.rows[0].length * scale, h = def.rows.length * scale, mask = [], tops = Array(w).fill(-1);
+    def.rows.forEach((row, ry) => [...row].forEach((ch, rx) => {
+      if (ch === ".") return;
+      for (let j = 0; j < scale; j++) for (let i = 0; i < scale; i++) {
+        const dx = rx * scale + i, dy = ry * scale + j;
+        mask.push([dx, dy]);
+        if (tops[dx] < 0) tops[dx] = dy;                  // rows go top to bottom, so the first one found is the highest
+      }
+    }));
+    bySize[scale] = { w, h, mask, tops };
+  }
+  return bySize[scale];
 }
-const critterRand = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const creatureRand = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
 class Sand {
   constructor(w, h) {
@@ -275,7 +312,7 @@ class Sand {
     this.emitters = new Map();                  // cell -> [SAND/WATER, rgb or null = live colour]
     this.conveyors = new Map();                 // cell -> direction (+1 right, -1 left)
     this.gravity = 0.8; this.drag = 0.999; this.wind = 0; this.bounce = 0;
-    this.creatures = [];                        // pixel critters: {type, x, y, dir, mode, timer, ...}
+    this.creatures = []; this.foods = []; this.creatureSpeed = 1;                        // pixel creatures: {type, x, y, dir, mode, timer, ...}
   }
 
   occupied(x, y) { const k = this.grid[y * this.w + x]; return k !== EMPTY && k !== IN_AIR; }
@@ -343,7 +380,7 @@ class Sand {
     for (const [x, y] of cells) {
       if (x >= 0 && x < w && y >= 0 && y < h) {
         const i = y * w + x;
-        if (!isObj(this.grid[i]) && this.grid[i] !== CREATURE) { this.grid[i] = kind; this.colors[i] = 0; placed.push(i); }
+        if (!isObj(this.grid[i]) && !isBody(this.grid[i])) { this.grid[i] = kind; this.colors[i] = 0; placed.push(i); }
       }
     }
     if (placed.length) {
@@ -375,7 +412,7 @@ class Sand {
       if (x >= 0 && x < w && y >= 0 && y < h) {
         const i = y * w + x;
         if (isObj(this.grid[i])) {
-          this.grid[i] = EMPTY;
+          this.grid[i] = EMPTY; this.colors[i] = 0;
           this.drains.delete(i); this.emitters.delete(i); this.conveyors.delete(i);
           removed.push(i);
         }
@@ -398,7 +435,7 @@ class Sand {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * this.w + x, k = this.grid[i];
       if (k === STATIC || k === STILL_WATER) cells.push([x - x0, y - y0, k, this.colors[i], null]);
-      else if (isObj(k)) cells.push([x - x0, y - y0, k, 0, k === EMITTER ? this.emitters.get(i) : k === CONVEYOR ? this.conveyors.get(i) : null]);
+      else if (isObj(k)) cells.push([x - x0, y - y0, k, k === SOLID ? this.colors[i] : 0, k === EMITTER ? this.emitters.get(i) : k === CONVEYOR ? this.conveyors.get(i) : null]);
     }
     return { w: x1 - x0 + 1, h: y1 - y0 + 1, cells };
   }
@@ -407,12 +444,9 @@ class Sand {
   deleteRegion(x0, y0, x1, y1) {
     [x0, y0, x1, y1] = this.clipRect(x0, y0, x1, y1);
     let removed = 0;
-    const w0 = this.w;                                   // critters touching the box go too (and all of their body)
-    for (const c of [...this.creatures]) {
-      if (CREATURE_TYPES[c.type].mask.some(([dx, dy]) => { const cx = c.x + dx, cy = c.y + dy; return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; })) {
-        this.removeCreature(c); removed++;
-      }
-    }
+    const w0 = this.w;                                   // creatures and food touching the box go too (and all of their body)
+    for (const c of [...this.creatures]) if (this.touches(CREATURE_TYPES[c.type], c.scale, c.x, c.y, x0, y0, x1, y1)) { this.removeCreature(c); removed++; }
+    for (const f of [...this.foods]) if (this.touches(FOOD_TYPES[f.type], 1, f.x, f.y, x0, y0, x1, y1)) { this.removeFood(f); removed++; }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * w0 + x;
       if (this.grid[i] !== EMPTY) removed++;
@@ -431,7 +465,7 @@ class Sand {
       const x = ox + dx, y = oy + dy;
       if (x < 0 || x >= w || y < 0 || y >= h) continue;
       const i = y * w + x;
-      if (isObj(this.grid[i]) || this.grid[i] === CREATURE) continue;
+      if (isObj(this.grid[i]) || isBody(this.grid[i])) continue;
       this.grid[i] = kind; this.colors[i] = color;
       placed.add(i);
       if (kind === DRAIN) this.drains.add(i);
@@ -499,11 +533,13 @@ class Sand {
       const x = (i % w) + dx, y = Math.floor(i / w) + dy;
       if (x < 0 || x >= w || y < 0 || y >= h) return null;
       const j = y * w + x;
-      if ((isObj(grid[j]) || grid[j] === CREATURE) && !cells.has(j)) return null;
+      if ((isObj(grid[j]) || isBody(grid[j])) && !cells.has(j)) return null;
       moved.add(j);
     }
     const kind = grid[cells.values().next().value];      // shape, trash, emitter or belt: it stays that kind
-    for (const i of cells) grid[i] = EMPTY;              // 1. lift the object out
+    const shift0 = dy * w + dx;                          // painted scenery keeps its colours when it is moved
+    const keepColors = kind === SOLID ? new Map([...cells].map(i => [i + shift0, this.colors[i]])) : null;
+    for (const i of cells) { grid[i] = EMPTY; this.colors[i] = 0; }   // 1. lift the object out
     let minX = w, maxX = 0, maxY = 0;                    // 2. wake the sand around both spots
     for (const set of [cells, moved]) for (const i of set) {
       const x = i % w, y = Math.floor(i / w);
@@ -512,7 +548,7 @@ class Sand {
       if (y > maxY) maxY = y;
     }
     this.wakeRegion(minX - 3, maxX + 3, maxY + 1);
-    for (const j of moved) { grid[j] = kind; this.colors[j] = 0; }   // 3. set it down in the new spot
+    for (const j of moved) { grid[j] = kind; this.colors[j] = keepColors ? keepColors.get(j) || 0 : 0; }   // 3. set it down in the new spot
     const shift = dy * w + dx;
     if (kind === DRAIN) {                                // 4. carry along what the object remembers
       for (const i of cells) this.drains.delete(i);
@@ -541,14 +577,15 @@ class Sand {
   clearSand() {
     this.grains = [];
     for (let i = 0; i < this.grid.length; i++) {
-      if (!isObj(this.grid[i]) && this.grid[i] !== CREATURE) { this.grid[i] = EMPTY; this.colors[i] = 0; }
+      if (!isObj(this.grid[i]) && !isBody(this.grid[i])) { this.grid[i] = EMPTY; this.colors[i] = 0; }
     }
   }
 
   /** Turn the whole world upside down. The caller then wakes the sand so it falls toward the new floor. */
   flip() {
     const w = this.w, h = this.h;
-    for (const c of this.creatures) this.clearBody(c);   // critters stay upright: they are put back, then fall to the new floor
+    for (const c of this.creatures) this.clearBody(c);   // creatures and food stay upright: they are put back, then fall to the new floor
+    for (const f of this.foods) this.unmark(FOOD_TYPES[f.type], 1, f.x, f.y, FOOD);
     const grid = new Uint8Array(w * h), colors = new Uint32Array(w * h);
     for (let y = 0; y < h; y++) {
       grid.set(this.grid.subarray(y * w, (y + 1) * w), (h - 1 - y) * w);
@@ -567,10 +604,19 @@ class Sand {
     this.repositionCreaturesAfterFlip();
   }
 
-  // ---------- critters: little pixel creatures that live on the sand ----------
-  bodyFree(type, x, y) {                                 // could this critter's body sit with its top-left at (x, y)?
-    const t = CREATURE_TYPES[type], w = this.w, h = this.h;
-    for (const [dx, dy] of t.mask) {
+  // ---------- painted scenery: solid cells that keep their own colour ----------
+  addDecor(pixels) {                                     // pixels: [x, y, packed colour]; sand piles on it like any solid
+    const w = this.w, colorAt = new Map();
+    for (const [x, y, c] of pixels) if (x >= 0 && x < w && y >= 0 && y < this.h) colorAt.set(y * w + x, c);
+    const placed = this.addSolid(pixels.map(p => [p[0], p[1]]), SOLID);
+    for (const i of placed) this.colors[i] = colorAt.get(i);
+    return placed;
+  }
+
+  // ---------- creatures: little pixel animals that live on the sand ----------
+  bodyFree(def, scale, x, y) {                           // could a body of this shape sit with its top-left at (x, y)?
+    const g = geomOf(def, scale), w = this.w, h = this.h;
+    for (const [dx, dy] of g.mask) {
       const cx = x + dx, cy = y + dy;
       if (cx < 0 || cx >= w || cy < 0 || cy >= h) return false;
       const k = this.grid[cy * w + cx];
@@ -578,102 +624,262 @@ class Sand {
     }
     return true;
   }
-  setBody(c) {                                           // mark its cells, so falling sand lands on it
-    for (const [dx, dy] of CREATURE_TYPES[c.type].mask) this.grid[(c.y + dy) * this.w + c.x + dx] = CREATURE;
+  mark(def, scale, x, y, kind) { for (const [dx, dy] of geomOf(def, scale).mask) this.grid[(y + dy) * this.w + x + dx] = kind; }
+  unmark(def, scale, x, y, kind) {
+    for (const [dx, dy] of geomOf(def, scale).mask) { const i = (y + dy) * this.w + x + dx; if (this.grid[i] === kind) this.grid[i] = EMPTY; }
   }
-  clearBody(c) {
-    for (const [dx, dy] of CREATURE_TYPES[c.type].mask) {
-      const i = (c.y + dy) * this.w + c.x + dx;
-      if (this.grid[i] === CREATURE) this.grid[i] = EMPTY;
-    }
+  setBody(c) { this.mark(CREATURE_TYPES[c.type], c.scale, c.x, c.y, CREATURE); }   // mark its cells, so falling sand lands on it
+  clearBody(c) { this.unmark(CREATURE_TYPES[c.type], c.scale, c.x, c.y, CREATURE); }
+  touches(def, scale, bx, by, x0, y0, x1, y1) {          // does a body at (bx, by) overlap this rectangle?
+    return geomOf(def, scale).mask.some(([dx, dy]) => { const cx = bx + dx, cy = by + dy; return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; });
   }
-  addCreature(type, cx, cy, dir) {
+  newCreature(type, x, y, scale, tint, dir) {
+    return { type, x, y, scale, tint, dir: dir || (Math.random() < 0.5 ? -1 : 1), mode: "rest", timer: 10 + Math.floor(Math.random() * 30),
+      vy: 0, bury: 0, frame: 0, shake: 0, age: 0, prog: 0, target: null, seekWait: 0, seekTicks: 0, hearts: 0, climb: 0, detour: 0 };
+  }
+  addCreature(type, cx, cy, scale = 1, tint = null) {
     if (this.creatures.length >= MAX_CREATURES) return null;
-    const t = CREATURE_TYPES[type];
-    const x = Math.min(Math.max(cx - (t.w >> 1), 0), this.w - t.w);
-    let y = Math.min(Math.max(cy - (t.h >> 1), 0), this.h - t.h);
-    while (y > 0 && !this.bodyFree(type, x, y)) y--;     // dropped into something: lift it out
-    if (!this.bodyFree(type, x, y)) return null;
-    const c = { type, x, y, dir: dir || (Math.random() < 0.5 ? -1 : 1), mode: "rest", timer: 10 + Math.floor(Math.random() * 30),
-      vy: 0, bury: 0, frame: 0, shake: 0, age: 0 };
+    const def = CREATURE_TYPES[type], g = geomOf(def, scale);
+    const x = Math.min(Math.max(cx - (g.w >> 1), 0), this.w - g.w);
+    let y = Math.min(Math.max(cy - (g.h >> 1), 0), this.h - g.h);
+    while (y > 0 && !this.bodyFree(def, scale, x, y)) y--;   // dropped into something: lift it out
+    if (!this.bodyFree(def, scale, x, y)) return null;
+    const c = this.newCreature(type, x, y, scale, tint);
     this.creatures.push(c);
     this.setBody(c);
     return c;
   }
+  restoreCreature(rec) {                                 // put a saved creature back where it was
+    const def = CREATURE_TYPES[rec.t];
+    if (!def) return;
+    const scale = Math.min(Math.max(rec.s || 1, 1), MAX_SCALE);
+    if (!this.bodyFree(def, scale, rec.x, rec.y)) return;
+    const c = this.newCreature(rec.t, rec.x, rec.y, scale, rec.c || null, rec.d || 1);
+    this.creatures.push(c);
+    this.setBody(c);
+  }
+  creatureAt(x, y) {                                     // the creature whose body covers this cell, if any
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h || this.grid[y * this.w + x] !== CREATURE) return null;
+    return this.creatures.find(c => geomOf(CREATURE_TYPES[c.type], c.scale).mask.some(([dx, dy]) => c.x + dx === x && c.y + dy === y)) || null;
+  }
+  resizeCreature(c, ns) {                                // change its size, keeping its feet where they are
+    const def = CREATURE_TYPES[c.type], old = geomOf(def, c.scale), nu = geomOf(def, ns);
+    this.clearBody(c);
+    const nx = Math.min(Math.max(c.x - ((nu.w - old.w) >> 1), 0), this.w - nu.w), ny = c.y + old.h - nu.h;
+    let ok = false;
+    for (let lift = 0; lift <= 12 && !ok; lift++) {      // cramped? lift it up a little to fit
+      if (ny - lift >= 0 && this.bodyFree(def, ns, nx, ny - lift)) { c.scale = ns; c.x = nx; c.y = ny - lift; ok = true; }
+    }
+    this.setBody(c);
+    return ok;
+  }
+  restyleCreature(c, scale, tint) { c.tint = tint; return scale === c.scale || this.resizeCreature(c, scale); }
+  growCreature(c) { return c.scale < MAX_SCALE && this.resizeCreature(c, c.scale + 1); }
   removeCreature(c) { this.clearBody(c); this.creatures = this.creatures.filter(o => o !== c); }
-  removeCreaturesIn(cells) {                             // cells: [x, y] pairs, such as what the eraser covers
+
+  addFood(type, cx, cy) {
+    if (this.foods.length >= MAX_FOODS) return null;
+    const def = FOOD_TYPES[type], g = geomOf(def, 1);
+    const x = Math.min(Math.max(cx - (g.w >> 1), 0), this.w - g.w);
+    let y = Math.min(Math.max(cy - (g.h >> 1), 0), this.h - g.h);
+    while (y > 0 && !this.bodyFree(def, 1, x, y)) y--;
+    if (!this.bodyFree(def, 1, x, y)) return null;
+    const f = { type, x, y };
+    this.foods.push(f);
+    this.mark(def, 1, x, y, FOOD);
+    return f;
+  }
+  restoreFood(rec) {
+    const def = FOOD_TYPES[rec.t];
+    if (!def || !this.bodyFree(def, 1, rec.x, rec.y)) return;
+    this.foods.push({ type: rec.t, x: rec.x, y: rec.y });
+    this.mark(def, 1, rec.x, rec.y, FOOD);
+  }
+  removeFood(f) { this.unmark(FOOD_TYPES[f.type], 1, f.x, f.y, FOOD); this.foods = this.foods.filter(o => o !== f); }
+  removeCreaturesIn(cells) {                             // cells: [x, y] pairs, such as what the eraser covers; creatures and food both go
     const w = this.w, covered = new Set();
     for (const [x, y] of cells) if (x >= 0 && x < w && y >= 0 && y < this.h) covered.add(y * w + x);
-    for (const c of [...this.creatures]) {
-      if (CREATURE_TYPES[c.type].mask.some(([dx, dy]) => covered.has((c.y + dy) * w + c.x + dx))) this.removeCreature(c);
-    }
+    const hit = (def, scale, bx, by) => geomOf(def, scale).mask.some(([dx, dy]) => covered.has((by + dy) * w + bx + dx));
+    for (const c of [...this.creatures]) if (hit(CREATURE_TYPES[c.type], c.scale, c.x, c.y)) this.removeCreature(c);
+    for (const f of [...this.foods]) if (hit(FOOD_TYPES[f.type], 1, f.x, f.y)) this.removeFood(f);
   }
   shedSand(c) {                                          // sand that was resting on its head has to fall once it moves away
-    const t = CREATURE_TYPES[c.type];
-    for (let dx = 0; dx < t.w; dx++) {
-      if (t.tops[dx] < 0 || c.y + t.tops[dx] === 0) continue;
-      const k = this.grid[(c.y + t.tops[dx] - 1) * this.w + c.x + dx];
-      if (k === STATIC || k === STILL_WATER) { this.wakeRegion(c.x, c.x + t.w - 1, c.y + t.tops[dx] - 1); return; }
+    const g = geomOf(CREATURE_TYPES[c.type], c.scale);
+    for (let dx = 0; dx < g.w; dx++) {
+      if (g.tops[dx] < 0 || c.y + g.tops[dx] === 0) continue;
+      const k = this.grid[(c.y + g.tops[dx] - 1) * this.w + c.x + dx];
+      if (k === STATIC || k === STILL_WATER) { this.wakeRegion(c.x, c.x + g.w - 1, c.y + g.tops[dx] - 1); return; }
     }
   }
-  stepCreatures() { for (const c of this.creatures) this.stepCreature(c); }
-  stepCreature(c) {                                      // one tick of a critter's life (30 a second)
-    const t = CREATURE_TYPES[c.type], w = this.w;
+  stepFoods() {                                          // food falls until something is underneath
+    for (const f of this.foods) {
+      const def = FOOD_TYPES[f.type];
+      this.unmark(def, 1, f.x, f.y, FOOD);
+      if (this.bodyFree(def, 1, f.x, f.y + 1)) f.y++;
+      this.mark(def, 1, f.x, f.y, FOOD);
+    }
+  }
+  stepCreatures() { this.stepFoods(); for (const c of this.creatures) this.stepCreature(c); }
+  advance(c, t) {                                        // how many steps it takes this tick (the speed setting scales this)
+    c.prog += this.creatureSpeed;
+    let n = 0;
+    while (c.prog >= t.every && n < 3) { c.prog -= t.every; n++; }
+    if (n === 3) c.prog = 0;
+    return n;
+  }
+  stepCreature(c) {                                      // one tick of a creature's life (30 a second)
+    const t = CREATURE_TYPES[c.type], g = geomOf(t, c.scale), w = this.w, speed = this.creatureSpeed;
     c.age++;
     if (c.shake > 0) c.shake--;
+    if (c.hearts > 0) c.hearts--;
+    if (c.seekWait > 0) c.seekWait--;
     this.clearBody(c);
-    c.vy = Math.min(c.vy + 1, 3);                        // 1. gravity: fall until something is underneath
     let fell = 0;
-    for (let n = 0; n < c.vy; n++) {
-      if (!this.bodyFree(c.type, c.x, c.y + 1)) break;
-      this.shedSand(c);
-      c.y++; fell++;
+    if (c.mode !== "fly") {                              // 1. gravity: fall until something is underneath
+      c.vy = Math.min(c.vy + 1, 3);
+      for (let n = 0; n < c.vy; n++) {
+        if (!this.bodyFree(t, c.scale, c.x, c.y + 1)) break;
+        this.shedSand(c);
+        c.y++; fell++;
+      }
+      if (!fell) c.vy = 0;
     }
-    if (!fell) c.vy = 0;
     let loaded = false;                                  // 2. sand piled on its head for a while: shake it off
-    for (let dx = 0; dx < t.w && !loaded; dx++) {
-      if (t.tops[dx] < 0 || c.y + t.tops[dx] === 0) continue;
-      const k = this.grid[(c.y + t.tops[dx] - 1) * w + c.x + dx];
+    for (let dx = 0; dx < g.w && !loaded; dx++) {
+      if (g.tops[dx] < 0 || c.y + g.tops[dx] === 0) continue;
+      const k = this.grid[(c.y + g.tops[dx] - 1) * w + c.x + dx];
       if (k === STATIC || k === STILL_WATER) loaded = true;
     }
     c.bury = loaded ? c.bury + 1 : 0;
-    if (c.bury > 14) { this.wakeRegion(c.x, c.x + t.w - 1, c.y - 1); c.bury = 0; c.shake = 10; }
-    if (!fell) {                                         // 3. wander: walk for a while, rest for a while
-      if (--c.timer <= 0) {
-        if (c.mode === "walk") { c.mode = "rest"; c.timer = critterRand(t.rest); }
-        else { c.mode = "walk"; c.timer = critterRand(t.walk); if (Math.random() < 0.35) c.dir = -c.dir; }
+    if (c.bury > 14) { this.wakeRegion(c.x, c.x + g.w - 1, c.y - 1); c.bury = 0; c.shake = 10; }
+    if (this.foods.length && this.tryEat(c, t, g)) { this.setBody(c); return; }   // 3. eat what it is touching
+    if (!fell && speed > 0) {
+      if (c.target && !this.foods.includes(c.target)) c.target = null;
+      if (!c.target && c.seekWait <= 0 && c.age % 6 === 0) c.target = this.findFood(c, t, g);   // 4. look for food
+      if (c.mode === "fly") this.birdFly(c, t, g);
+      else if (c.target && t.fly) { c.mode = "fly"; c.climb = 0; c.timer = 60; this.birdFly(c, t, g); }
+      else if (c.target) this.seek(c, t, g);
+      else {                                             // 5. wander: walk for a while, rest for a while
+        if (c.mode === "seek") { c.mode = "rest"; c.timer = creatureRand(t.rest); }
+        c.timer -= speed;
+        if (c.timer <= 0) {
+          if (c.mode === "walk") { c.mode = "rest"; c.timer = creatureRand(t.rest); }
+          else { c.mode = "walk"; c.timer = creatureRand(t.walk); if (Math.random() < 0.35) c.dir = -c.dir; }
+        }
+        if (t.fly && c.mode === "rest" && Math.random() < 0.004 * speed) {   // birds take off now and then
+          c.mode = "fly"; c.climb = 6 + Math.floor(Math.random() * 14); c.timer = creatureRand([60, 160]); c.dir = Math.random() < 0.5 ? -1 : 1;
+        } else if (c.mode === "walk") {
+          let n = this.advance(c, t);
+          while (n-- > 0) if (!this.walkOne(c, t, c.dir)) { c.dir = -c.dir; break; }
+        }
       }
-      if (c.mode === "walk" && c.age % t.every === 0) this.creatureStep(c, t);
     }
     this.setBody(c);
   }
-  creatureStep(c, t) {                                   // one step forward, climbing small ledges
-    for (let up = 0; up <= t.step; up++) {
-      if (this.bodyFree(c.type, c.x + c.dir, c.y - up)) {
-        this.shedSand(c);
-        c.x += c.dir; c.y -= up; c.frame ^= 1;
-        return;
-      }
+  walkOne(c, t, dir) {                                   // one step sideways, climbing a ledge if it can; false if blocked
+    const lift = t.step * c.scale;
+    for (let up = 0; up <= lift; up++) {
+      if (this.bodyFree(t, c.scale, c.x + dir, c.y - up)) { this.shedSand(c); c.x += dir; c.y -= up; c.frame ^= 1; return true; }
     }
-    if (t.peck && this.peck(c, t)) return;               // chicks dig through the sand in front of them
-    c.dir = -c.dir;                                      // everyone else turns round
+    return !!(t.peck && this.peck(c, t, dir));           // chicks dig through the sand in front of them
   }
-  peck(c, t) {
-    const w = this.w, fx = c.dir > 0 ? c.x + t.w : c.x - 1;
+  peck(c, t, dir) {
+    const g = geomOf(t, c.scale), w = this.w, fx = dir > 0 ? c.x + g.w : c.x - 1;
     if (fx < 0 || fx >= w) return false;
     let eaten = 0, lowest = -1;
-    for (let dy = t.h - 1; dy >= 0 && eaten < 3; dy--) {
+    for (let dy = g.h - 1; dy >= 0 && eaten < 3 * c.scale; dy--) {
       const y = c.y + dy, i = y * w + fx;
       if (this.grid[i] === STATIC) { this.grid[i] = EMPTY; this.colors[i] = 0; eaten++; if (lowest < 0) lowest = y; }
     }
     if (eaten) this.wakeRegion(fx, fx, lowest);          // whatever was above it falls into the gap
     return eaten > 0;
   }
+  findFood(c, t, g) {                                    // the nearest piece of food it can see (and might reach)
+    let best = null, bestD = Infinity;
+    const cx = c.x + (g.w >> 1), cy = c.y + g.h - 1;     // measured from its feet
+    for (const f of this.foods) {
+      const fg = geomOf(FOOD_TYPES[f.type], 1);
+      const dx = f.x + (fg.w >> 1) - cx, dy = f.y + fg.h - 1 - cy;   // dy < 0: the food is higher than its feet
+      if (Math.abs(dx) > VISION) continue;
+      if (t.fly ? Math.abs(dy) > VISION : (dy < -t.step * c.scale * 2 || dy > 60)) continue;   // walkers ignore food on a high shelf
+      const d = Math.abs(dx) + Math.abs(dy) * (t.fly ? 1 : 2);
+      if (d < bestD) { bestD = d; best = f; }
+    }
+    if (best) c.seekTicks = 0;
+    return best;
+  }
+  seek(c, t, g) {                                        // walk toward the food it spotted
+    c.mode = "seek";
+    const f = c.target, fg = geomOf(FOOD_TYPES[f.type], 1);
+    const tx = f.x + (fg.w >> 1), cx = c.x + (g.w >> 1);
+    if (Math.abs(tx - cx) > 1) c.dir = tx < cx ? -1 : 1;
+    let n = this.advance(c, t);
+    c.seekTicks++;
+    while (n-- > 0) {
+      if (Math.abs(tx - cx) <= 1) break;                 // right under it: nothing more to do
+      if (!this.walkOne(c, t, c.dir)) { c.target = null; c.seekWait = 90; c.mode = "rest"; c.timer = 20; return; }   // blocked: give up for a while
+    }
+    if (c.seekTicks > 400) { c.target = null; c.seekWait = 300; c.mode = "rest"; c.timer = 20; }   // can't get there
+  }
+  birdFly(c, t, g) {                                     // birds fly: up, around, to food, and back down
+    c.mode = "fly";
+    c.timer -= this.creatureSpeed;
+    let steps = this.advance(c, t);
+    while (steps-- > 0) {
+      let dx = c.dir, dy = 0;
+      const f = c.target;
+      if (f) {                                           // straight for the food
+        const fg = geomOf(FOOD_TYPES[f.type], 1);
+        const tx = f.x + (fg.w >> 1), ty = f.y + (fg.h >> 1), cx = c.x + (g.w >> 1), cy = c.y + (g.h >> 1);
+        const hover = ty - 8 * c.scale;                  // fly in above the food, then drop onto it (so ledges don't trap it)
+        dx = Math.sign(tx - cx);
+        dy = Math.abs(tx - cx) > 2 ? (cy > hover ? -1 : cy < hover - 3 ? 1 : 0) : Math.sign(ty - cy);
+        if (c.detour) { dx = Math.sign(c.detour); dy = -1; c.detour -= Math.sign(c.detour); }   // boxed in: sidestep along the wall, climbing when it can
+        if (dx) c.dir = dx;
+        c.seekTicks++;
+        if (c.seekTicks > 400) { c.target = null; c.seekWait = 120; }
+      } else if (c.climb > 0) { dy = -1; c.climb--; }
+      else if (c.timer > 0) { dy = Math.random() < 0.35 ? (Math.random() < 0.5 ? -1 : 1) : 0; }
+      else dy = 1;                                       // time to come down
+      let moved = false;
+      for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) {
+        if ((mx || my) && this.bodyFree(t, c.scale, c.x + mx, c.y + my)) { c.x += mx; c.y += my; moved = true; c.frame ^= 1; break; }
+      }
+      if (!moved && f && !c.detour) c.detour = (Math.random() < 0.5 ? -1 : 1) * 14;
+      if (!moved && !f && dy <= 0) c.dir = -c.dir;       // bumped into something: turn round
+      if (!f && c.climb <= 0 && c.timer <= 0 && !this.bodyFree(t, c.scale, c.x, c.y + 1)) {   // landed
+        c.mode = "rest"; c.timer = creatureRand(t.rest); c.vy = 0;
+        return;
+      }
+    }
+  }
+  tryEat(c, t, g) {                                      // food touching (or right next to) its body gets eaten
+    for (const f of this.foods) {
+      const fg = geomOf(FOOD_TYPES[f.type], 1);
+      if (f.x <= c.x + g.w && f.x + fg.w - 1 >= c.x - 1 && f.y <= c.y + g.h && f.y + fg.h - 1 >= c.y - 1) {
+        const liked = t.likes.includes(f.type);
+        this.removeFood(f);
+        this.wakeRegion(f.x, f.x + fg.w - 1, f.y - 1);   // anything that was piled on the food falls
+        c.target = null; c.seekWait = 0; c.mode = "rest"; c.timer = 20; c.detour = 0;
+        if (liked) { c.hearts = 16; this.growCreature(c); }   // food it likes makes it grow; the rest it just eats
+        return true;
+      }
+    }
+    return false;
+  }
   repositionCreaturesAfterFlip() {
     for (const c of [...this.creatures]) {
-      c.y = this.h - c.y - CREATURE_TYPES[c.type].h; c.vy = 0;
-      while (c.y > 0 && !this.bodyFree(c.type, c.x, c.y)) c.y--;
-      if (this.bodyFree(c.type, c.x, c.y)) this.setBody(c); else this.creatures = this.creatures.filter(o => o !== c);
+      const t = CREATURE_TYPES[c.type], g = geomOf(t, c.scale);
+      c.y = this.h - c.y - g.h; c.vy = 0;
+      if (c.mode === "fly") { c.mode = "rest"; c.timer = 20; }
+      while (c.y > 0 && !this.bodyFree(t, c.scale, c.x, c.y)) c.y--;
+      if (this.bodyFree(t, c.scale, c.x, c.y)) this.setBody(c); else this.creatures = this.creatures.filter(o => o !== c);
+    }
+    for (const f of [...this.foods]) {
+      const def = FOOD_TYPES[f.type], g = geomOf(def, 1);
+      f.y = this.h - f.y - g.h;
+      while (f.y > 0 && !this.bodyFree(def, 1, f.x, f.y)) f.y--;
+      if (this.bodyFree(def, 1, f.x, f.y)) this.mark(def, 1, f.x, f.y, FOOD); else this.foods = this.foods.filter(o => o !== f);
     }
   }
 
@@ -952,6 +1158,7 @@ const SLIDERS = {
   wind: { label: "Wind (− = left)", min: -5.0, max: 5.0, step: 0.01, value: 0 },
   bounce: { label: "Bounce", min: 0, max: 0.9, step: 0.01, value: 0 },
   flow: { label: "Emitter flow", min: 0, max: 1, step: 0.01, value: 0.3 },
+  creatureSpeed: { label: "Creature speed", min: 0, max: 3, step: 0.05, value: 1 },
 };
 const ctl = {};
 for (const k in SLIDERS) ctl[k] = SLIDERS[k].value;
@@ -1005,10 +1212,12 @@ new ResizeObserver(fitCanvas).observe(stage);
 fitCanvas();
 
 // ---- tools ----
-// What the tool row shows. "shapes" and "critters" are buttons that open a pop-up holding the tools listed in MENUS.
-const DOCK = ["pour", "shapes", "critters", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
-const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], critters: ["slime", "bunny", "chick"] };
-const lastPick = { shapes: "sphere", critters: "slime" };   // a menu button shows the icon of the one you used last
+// What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
+const DOCK = ["pour", "shapes", "scenery", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
+const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "fence", "house"],
+  creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
+let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
+const lastPick = { shapes: "sphere", scenery: "oak", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
 const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
 const KEY_TOOLS = { "1": "pour", "2": "sphere", "3": "cone", "4": "box", "5": "bowl", "6": "ramp", "7": "belt", "8": "emitter",
   "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select" };
@@ -1027,10 +1236,26 @@ const ICONS = {
   select: '<rect x="4" y="5" width="16" height="14" stroke-dasharray="3 3"/>',
   pen: '<path d="M4 20l1.2-4.2L16.5 4.5a2 2 0 0 1 3 3L8.2 18.8z"/><path d="M14.5 6.5l3 3"/>',
   wall: '<rect x="4" y="6" width="16" height="12"/><path d="M4 12h16M10 6v6M15 12v6"/>',
+  oak: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
+  pine: '<path d="M12 3l5 7h-3l4 6H6l4-6H7z"/><path d="M12 16v5"/>',
+  bush: '<path d="M4 18a4 4 0 0 1 4-7 4 4 0 0 1 8 0 4 4 0 0 1 4 7z"/>',
+  fence: '<path d="M5 20V8m7 12V8m7 12V8M3 12h18M3 17h18"/>',
+  house: '<path d="M4 11l8-7 8 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+  scenery: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
+  bird: '<path d="M4 13c3-5 8-6 11-3l5-2-3 4c0 4-4 8-9 7z"/><circle cx="14" cy="10" r=".7"/>',
+  cat: '<path d="M5 20V8l3 3h8l3-3v12z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
+  dog: '<path d="M7 6h10v11a5 5 0 0 1-10 0z"/><path d="M6 8c-2 0-3 4-2 7M18 8c2 0 3 4 2 7"/><circle cx="10" cy="11" r=".8"/><circle cx="14" cy="11" r=".8"/>',
+  food: '<path d="M12 7c-5-3-8 2-6 7 1 3 3 5 6 4 3 1 5-1 6-4 2-5-1-10-6-7z"/><path d="M12 7c0-2 1-3 3-3"/>',
+  apple: '<path d="M12 7c-5-3-8 2-6 7 1 3 3 5 6 4 3 1 5-1 6-4 2-5-1-10-6-7z"/><path d="M12 7c0-2 1-3 3-3"/>',
+  berry: '<circle cx="9" cy="14" r="3.5"/><circle cx="15" cy="14" r="3.5"/><circle cx="12" cy="9" r="3.5"/>',
+  carrot: '<path d="M6 18l9-9 3 3z"/><path d="M15 9l2-4m1 7l4-2"/>',
+  seed: '<path d="M12 5c4 3 4 11 0 14-4-3-4-11 0-14z"/>',
+  fish: '<path d="M3 12c4-6 11-6 14 0-3 6-10 6-14 0z"/><path d="M17 12l4-4v8z"/>',
+  bone: '<path d="M7 17l10-10"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/>',
   slime: '<path d="M5 19c0-7 3-11 7-11s7 4 7 11z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
   bunny: '<path d="M9 10V4m6 6V4"/><rect x="6" y="10" width="12" height="9" rx="4"/><circle cx="10" cy="14" r=".8"/><circle cx="14" cy="14" r=".8"/>',
   chick: '<circle cx="12" cy="13" r="6"/><path d="M12 7V5m5 8 3 1-3 1"/><circle cx="10" cy="12" r=".8"/>',
-  critters: '<path d="M5 19c0-7 3-11 7-11s7 4 7 11z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
+  creatures: '<path d="M5 19c0-7 3-11 7-11s7 4 7 11z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
 };
 let tool = "pour";
 const ERASE_SHAPES = ["sphere", "box", "cone", "bowl"];   // tap the Erase tool again to cycle through these
@@ -1067,8 +1292,11 @@ function setTool(t) {
   if (group) { lastPick[group] = t; refreshMenuIcon(group); }
   closeMenus();
   $("bSnap").hidden = t !== "ramp";                      // the snap button only matters while drawing ramps
+  const isCreature = !!CREATURE_TYPES[t];
   $("penTools").hidden = t !== "pen";                    // the pen's colour and Undo replace the Sand / Water switch
-  $("matSeg").hidden = t === "pen";
+  $("creatureTools").hidden = !isCreature;               // so do a creature's colour and size
+  $("matSeg").hidden = t === "pen" || isCreature;
+  $("sizeBox").hidden = isCreature;
   updateLabel();
 }
 function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
@@ -1120,7 +1348,12 @@ function updateLabel() {
   if (tool === "pour" || tool === "emitter") s += material === WATER ? " · water" : " · sand";
   if (tool === "erase") s += " · " + eraseShape + " · tap again";
   if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall") s += " · size " + ctl.size;
-  if (CREATURE_TYPES[tool]) s += ` · tap to add (${sand.creatures.length}/${MAX_CREATURES})`;
+  if (CREATURE_TYPES[tool]) s += ` · ${creatureScale}× · tap to add (${sand.creatures.length}/${MAX_CREATURES})`;
+  if (FOOD_TYPES[tool]) {                                // which creatures it makes grow
+    const fans = Object.keys(CREATURE_TYPES).filter(n => CREATURE_TYPES[n].likes.includes(tool));
+    s += ` · tap to drop · ${fans.join(", ")} love it`;
+  }
+  if (DECOR_TYPES[tool]) s += ` · ${decorScale()}× (use the Size slider)`;
   if (tool === "belt") s += " · drag the way it carries";
   if (tool === "ramp") {
     if (dragStart) {                                     // live readout while dragging
@@ -1166,6 +1399,8 @@ $("sheet").innerHTML = `
   ${sliderHtml("hue")}${sliderHtml("shade")}
   <h2>Physics</h2>${sliderHtml("gravity")}${sliderHtml("wind")}${sliderHtml("bounce")}
   <h2>Objects</h2>${sliderHtml("flow")}
+  <h2>Creatures</h2>${sliderHtml("creatureSpeed")}
+  <p class="note">Pick a creature, then set its size and colour in the row above the tools. Tap one again to restyle it. Drop food and they will find it; food they like makes them grow.</p>
   <h2>Grain size</h2>
   <div class="seg wide" id="grainSeg" role="group" aria-label="Grain size">
     ${Object.keys(GRAINS).map(g => `<button data-grain="${g}" class="${g === grainName ? "on" : ""}">${g[0].toUpperCase() + g.slice(1)}</button>`).join("")}
@@ -1218,6 +1453,14 @@ $("bgColor").addEventListener("input", e => { bgHex = e.target.value; board.styl
 board.style.backgroundColor = bgHex;
 
 // ---- reset: every setting back to how the page started (not your scene, drawing, background picture or grain size) ----
+function syncCreatureUi() {                              // the creature colour / size controls show what is chosen
+  $("creatureNatural").classList.toggle("on", creatureTint === null);
+  $("creatureScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === creatureScale));
+  updateLabel();
+}
+$("creatureColor").addEventListener("input", e => { creatureTint = hexToRgb(e.target.value); syncCreatureUi(); });
+$("creatureNatural").onclick = () => { creatureTint = null; syncCreatureUi(); };
+$("creatureScaleSeg").addEventListener("click", e => { const v = +e.target.dataset.s; if (v) { creatureScale = v; syncCreatureUi(); } });
 function resetSize() { ctl.size = DEFAULT_SIZE; $("sizeRange").value = DEFAULT_SIZE; $("sizeOut").textContent = DEFAULT_SIZE; updateLabel(); }
 onDouble($("sizeRange"), () => { resetSize(); toast("Size reset to " + DEFAULT_SIZE); });
 function resetAll() {
@@ -1232,6 +1475,7 @@ function resetAll() {
   while (fx.mirror > 1) cycleMirror();
   snapMode = 0; $("bSnap").textContent = "Snap: off"; $("bSnap").classList.remove("on");
   eraseShape = "sphere"; refreshEraseIcon();
+  creatureScale = 1; creatureTint = null; syncCreatureUi();
   updateLabel();
   toast("All settings reset to default");
 }
@@ -1442,11 +1686,12 @@ const toB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s +=
 const fromB64 = (s, Type) => { const bin = atob(s), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
 function saveScene() {
   try {
-    const kinds = sand.grid.map(k => (k === IN_AIR || k === STACKING || k === CREATURE ? EMPTY : k));
+    const kinds = sand.grid.map(k => (k === IN_AIR || k === STACKING || isBody(k) ? EMPTY : k));
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       w: W, h: H, kinds: toB64(kinds), colors: toB64(new Uint8Array(sand.colors.buffer)),
       emitters: [...sand.emitters], conveyors: [...sand.conveyors],
-      critters: sand.creatures.map(c => ({ t: c.type, x: c.x, y: c.y, d: c.dir })),
+      creatures: sand.creatures.map(c => ({ t: c.type, x: c.x, y: c.y, d: c.dir, s: c.scale, c: c.tint })),
+      foods: sand.foods.map(f => ({ t: f.type, x: f.x, y: f.y })),
       ink: strokes.map(st => ({ c: st.c, w: st.w, p: st.p.map(v => Math.round(v * 10) / 10) })),
     }));
     toast("Saved");
@@ -1462,11 +1707,8 @@ function loadScene() {
   s.colors = fromB64(data.colors, Uint32Array);
   s.emitters = new Map(data.emitters);
   s.conveyors = new Map(data.conveyors);
-  for (const cr of data.critters || []) {                // put the critters back where they were
-    if (!CREATURE_TYPES[cr.t] || !s.bodyFree(cr.t, cr.x, cr.y)) continue;
-    const c = { type: cr.t, x: cr.x, y: cr.y, dir: cr.d, mode: "rest", timer: 20, vy: 0, bury: 0, frame: 0, shake: 0, age: 0 };
-    s.creatures.push(c); s.setBody(c);
-  }
+  for (const cr of data.creatures || data["crit" + "ters"] || []) s.restoreCreature(cr);   // put the creatures and food back where they were
+  for (const fd of data.foods || []) s.restoreFood(fd);
   for (let i = 0; i < s.grid.length; i++) if (s.grid[i] === DRAIN) s.drains.add(i);
   sand = s; moving = dragStart = null; cancelSelection();
   strokes = data.ink || []; redrawInk();
@@ -1509,11 +1751,25 @@ $("bSnap").onclick = () => {
 function readMods(e) { mods.shift = e.shiftKey; mods.ctrl = e.ctrlKey; }
 
 function place(cx, cy) {
-  if (CREATURE_TYPES[tool]) {                            // a critter: it drops from where you tapped
-    let added = 0;
-    for (const mx of mirroredXs(cx)) if (sand.addCreature(tool, mx, cy)) added++;
-    if (!added) toast(sand.creatures.length >= MAX_CREATURES ? "That's plenty of critters" : "No room there");
+  if (CREATURE_TYPES[tool]) {                            // a creature drops from where you tapped; tapping one that is already there restyles it
+    let done = 0;
+    for (const mx of mirroredXs(cx)) {
+      const there = sand.creatureAt(mx, cy);
+      if (there) { if (sand.restyleCreature(there, creatureScale, creatureTint)) done++; else toast("No room to grow there"); }
+      else if (sand.addCreature(tool, mx, cy, creatureScale, creatureTint)) done++;
+    }
+    if (!done) toast(sand.creatures.length >= MAX_CREATURES ? "That's plenty of creatures" : "No room there");
     updateLabel();
+    return;
+  }
+  if (FOOD_TYPES[tool]) {                                // a piece of food that falls to the ground
+    let done = 0;
+    for (const mx of mirroredXs(cx)) if (sand.addFood(tool, mx, cy)) done++;
+    if (!done) toast(sand.foods.length >= MAX_FOODS ? "That's plenty of food" : "No room there");
+    return;
+  }
+  if (DECOR_TYPES[tool]) {                               // scenery: the bottom of it stands where you tapped
+    for (const mx of mirroredXs(cx)) sand.addDecor(decorPixels(tool, mx, cy, decorScale()));
     return;
   }
   if (tool === "emitter") {                              // remembers what it pours (null = follow the rainbow)
@@ -1617,7 +1873,7 @@ function liveSand() {
   return hsvToRgb(h + hueDrift, Math.max(s, 0.5), Math.max(v, 0.5));
 }
 function simStep() {
-  sand.gravity = ctl.gravity; sand.wind = ctl.wind; sand.bounce = ctl.bounce;
+  sand.gravity = ctl.gravity; sand.wind = ctl.wind; sand.bounce = ctl.bounce; sand.creatureSpeed = ctl.creatureSpeed;
   if (ctl.hue === 0) hueDrift = 0; else hueDrift = (hueDrift + ctl.hue / 600) % 1;
   const live = [liveSand(), THEME.water];                // indexed by SAND / WATER
 
@@ -1635,27 +1891,78 @@ function simStep() {
     for (const mx of mirroredXs(cur.x)) {
       const cells = at(mx, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
       sand.removeSolid(cells);
-      sand.removeCreaturesIn(cells);                     // the eraser removes critters too
+      sand.removeCreaturesIn(cells);                     // the eraser removes creatures too
     }
   }
   sand.runEmitters(ctl.flow, live, ctl.shade);
   sand.step();
-  if (++stepNo % 4 === 0) sand.stepCreatures();          // critters think 30 times a second
+  if (++stepNo % 4 === 0) sand.stepCreatures();          // creatures think 30 times a second
 }
 
 // ---- drawing ----
-const CRITTER_COLORS = { g: pack(47, 143, 58), G: pack(134, 224, 122), k: pack(26, 26, 26), w: pack(244, 244, 244),
-  p: pack(255, 143, 176), y: pack(255, 216, 74), o: pack(255, 140, 26) };
-function drawCreature(c) {
-  const t = CREATURE_TYPES[c.type];
-  const bob = c.mode === "walk" && c.frame ? -1 : 0;     // a little hop in time with its steps
-  const shake = c.shake > 0 ? (c.shake & 1 ? 1 : -1) : 0;   // wiggles when it is shaking sand off
-  for (let dy = 0; dy < t.h; dy++) for (let dx = 0; dx < t.w; dx++) {
-    const ch = t.rows[dy][c.dir < 0 ? t.w - 1 - dx : dx];
-    if (ch === ".") continue;
-    const x = c.x + dx + shake, y = c.y + dy + bob;
-    if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = CRITTER_COLORS[ch];
+const PIXEL_COLORS = { g: pack(47, 143, 58), G: pack(134, 224, 122), k: pack(26, 26, 26), w: pack(244, 244, 244), p: pack(255, 143, 176),
+  y: pack(255, 216, 74), o: pack(255, 140, 26), O: pack(196, 98, 12), n: pack(150, 100, 60), N: pack(98, 60, 32), t: pack(222, 190, 140),
+  b: pack(74, 163, 255), r: pack(220, 50, 60), v: pack(130, 60, 170), s: pack(200, 210, 225) };
+function creatureColor(c, ch) {
+  const f = CREATURE_TYPES[c.type].body[ch];
+  if (c.tint && f !== undefined) {                       // a custom colour replaces the body letters, keeping their light and dark
+    return pack(Math.min(255, (c.tint[0] * f) | 0), Math.min(255, (c.tint[1] * f) | 0), Math.min(255, (c.tint[2] * f) | 0));
   }
+  return PIXEL_COLORS[ch];
+}
+const HEART = [".r.r.", "rrrrr", ".rrr.", "..r.."];      // shown above a creature that just ate something it loves
+function drawCreature(c) {
+  const t = CREATURE_TYPES[c.type], k = c.scale, w = t.rows[0].length, h = t.rows.length;
+  const rows = c.mode === "fly" && c.frame && t.flyRows ? t.flyRows : t.rows;   // wings up, wings down
+  const bob = (c.mode === "walk" || c.mode === "seek") && c.frame && !t.fly ? -1 : 0;   // a little hop in time with its steps
+  const shake = c.shake > 0 ? (c.shake & 1 ? 1 : -1) : 0;   // wiggles when it is shaking sand off
+  for (let ry = 0; ry < h; ry++) for (let rx = 0; rx < w; rx++) {
+    const ch = rows[ry][c.dir < 0 ? w - 1 - rx : rx];
+    if (ch === ".") continue;
+    const col = creatureColor(c, ch);
+    for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) {
+      const x = c.x + rx * k + i + shake, y = c.y + ry * k + j + bob;
+      if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = col;
+    }
+  }
+  if (c.hearts > 0) {
+    const hx = c.x + ((w * k) >> 1) - 2, hy = c.y - 6 - (c.hearts > 8 ? 0 : 1);
+    HEART.forEach((row, ry) => [...row].forEach((ch, rx) => {
+      const x = hx + rx, y = hy + ry;
+      if (ch !== "." && x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = PIXEL_COLORS.p;
+    }));
+  }
+}
+function drawFood(f) {
+  FOOD_TYPES[f.type].rows.forEach((row, ry) => [...row].forEach((ch, rx) => {
+    const x = f.x + rx, y = f.y + ry;
+    if (ch !== "." && x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = PIXEL_COLORS[ch];
+  }));
+}
+
+// ---- scenery: little Stardew-style pixel buildings and plants. They are solid, and sand piles on them. ----
+const DECOR_COLORS = { a: pack(110, 190, 80), A: pack(58, 130, 60), T: pack(118, 78, 44), U: pack(84, 54, 30), f: pack(190, 140, 86), F: pack(140, 98, 58),
+  R: pack(178, 64, 56), r: pack(130, 44, 42), W: pack(236, 214, 170), w: pack(206, 180, 134), D: pack(110, 70, 40), G: pack(150, 200, 230),
+  K: pack(140, 140, 150), P: pack(36, 100, 70), p: pack(70, 150, 90) };
+const DECOR_TYPES = {
+  oak: { rows: ["...aaaaa...", "..aaaaaaa..", ".aaaAaaaaA.", ".aAaaaaAaa.", "aaaaAaaaaaa", "aAaaaaaAaaa", "aaaAaaaaaAa", ".aaaaAaaaa.", "..AAaaaaAA.",
+    "....UUT....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
+  pine: { rows: ["....P....", "...PpP...", "..PPpPP..", "...PpP...", "..PpPpP..", ".PPpPpPP.", "..PpPpP..", ".PpPpPpP.", "PPpPpPpPP", "....T....", "....T....", "...UTU..."] },
+  bush: { rows: ["..aaa..", ".aaAaa.", "aaaaAaa", "aAaaaAa"] },
+  fence: { rows: ["ff...ff...ff", "fF...fF...fF", "ffffffffffff", "fF...fF...fF", "ffffffffffff", "fF...fF...fF", "FF...FF...FF"] },
+  house: { rows: ["........RRRR..KK....", ".......RRRRRR.KK....", "......RRRRRRRRKK....", ".....RRRRRRRRRR.....", "....RRRRRRRRRRRR....", "...RRRRRRRRRRRRRR...",
+    "..RRRRRRRRRRRRRRRR..", ".RRRRRRRRRRRRRRRRRR.", "rrrrrrrrrrrrrrrrrrrr", ".WWWWWWWWWWWWWWWWWW.", ".WGGWWDDDDWWWWGGWWW.", ".WGGWWDDDDWWWWGGWWW.",
+    ".WWWWWDDDDWWWWWWWWW.", ".wwwwwDDDDwwwwwwwww.", ".wwwwwDDKDwwwwwwwww.", "UUUUUUUUUUUUUUUUUUUU"] },
+};
+const decorScale = () => Math.max(1, Math.min(4, Math.round(ctl.size / 8)));   // the Size slider: 8 = 1x, 16 = 2x, 24 = 3x, 32 = 4x
+function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for every pixel, standing on bottomY and centred on cx
+  const rows = DECOR_TYPES[type].rows, w = rows[0].length, h = rows.length, out = [];
+  const x0 = cx - ((w * scale) >> 1), y0 = bottomY - h * scale + 1;
+  rows.forEach((row, ry) => [...row].forEach((ch, rx) => {
+    if (ch === ".") return;
+    for (let j = 0; j < scale; j++) for (let i = 0; i < scale; i++) out.push([x0 + rx * scale + i, y0 + ry * scale + j, DECOR_COLORS[ch]]);
+  }));
+  return out;
 }
 function objectColor(i, k) {
   if (k === EMITTER) {
@@ -1667,7 +1974,8 @@ function objectColor(i, k) {
     const d = sand.conveyors.get(i) || 1, x = i % W;
     return (Math.floor((x - d * beltPhase) / 3) % 2 + 2) % 2 === 0 ? P(THEME.belt) : P(THEME.beltDark);
   }
-  return k === DRAIN ? P(THEME.trash) : P(THEME.shape);
+  if (k === DRAIN) return P(THEME.trash);
+  return sand.colors[i] || P(THEME.shape);               // scenery keeps its own colours; plain shapes are grey
 }
 const WHITE = pack(255, 255, 255), SEAM = P(THEME.accentDim);
 function updateFx() {
@@ -1705,10 +2013,11 @@ function previewCells() {                                // translucent ghost of
   if (!cur.over) return [];
   let cells = [];
   if (SHAPES.includes(tool)) cells = at(cur.x, cur.y, tool, ctl.size);
-  else if (CREATURE_TYPES[tool]) {                       // the critter's silhouette, centred on the pointer
-    const t = CREATURE_TYPES[tool];
-    cells = t.mask.map(([dx, dy]) => [cur.x - (t.w >> 1) + dx, cur.y - (t.h >> 1) + dy]);
+  else if (CREATURE_TYPES[tool] || FOOD_TYPES[tool]) {   // its silhouette, centred on the pointer
+    const def = CREATURE_TYPES[tool] || FOOD_TYPES[tool], g = geomOf(def, CREATURE_TYPES[tool] ? creatureScale : 1);
+    cells = g.mask.map(([dx, dy]) => [cur.x - (g.w >> 1) + dx, cur.y - (g.h >> 1) + dy]);
   }
+  else if (DECOR_TYPES[tool]) cells = decorPixels(tool, cur.x, cur.y, decorScale()).map(p => [p[0], p[1]]);
   else if (tool === "erase") cells = at(cur.x, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
   else if (tool === "pen") cells = at(cur.x, cur.y, "sphere", Math.max(1, Math.round(penWidth() / 2)));
   else if (tool === "wall") cells = at(cur.x, cur.y, "sphere", wallRadius());
@@ -1727,6 +2036,7 @@ function render(clean = false) {                         // clean = leave out th
     else if (k >= SOLID && k <= CONVEYOR) buf[i] = objectColor(i, k);
   }
   if (fx.sparkle) for (let i = 0; i < buf.length; i++) if (sparkA[i]) { const k = grid[i]; if (k === STATIC || k === STILL_WATER) buf[i] = blend(buf[i], sparkC[i], sparkA[i]); }
+  for (const f of sand.foods) drawFood(f);
   for (const c of sand.creatures) drawCreature(c);
   for (const g of sand.grains) buf[trunc(g.y) * W + trunc(g.x)] = g.color;
   if (fx.mirror > 1 && !clean) {                         // dashed lines where the strips meet
