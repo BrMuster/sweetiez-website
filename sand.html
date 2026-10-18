@@ -69,7 +69,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .btn:active { transform: translateY(1px); }
 .btn.on { background: var(--accent-dim); border-color: var(--accent); }
 
-#stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; }
+#stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; touch-action: none; }
 /* The sandbox is a stack: the board's own background (colour or picture), then the ink canvas (pen drawings), then the sand canvas on top. */
 #board {
   position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--outline);
@@ -77,6 +77,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   touch-action: none; -webkit-touch-callout: none;
 }
 #board canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#devRow .slider { flex: 1 1 140px; max-width: none; }
+#sweep { position: absolute; left: 0; top: 0; bottom: 0; width: 0; display: none; pointer-events: none; z-index: 3;
+  background: linear-gradient(90deg, rgba(255, 105, 105, 0), rgba(255, 105, 105, .45)); border-right: 3px solid rgba(255, 105, 105, .9); }
+#sweep.armed { background: linear-gradient(90deg, rgba(255, 105, 105, .1), rgba(255, 105, 105, .7)); }
 #c { image-rendering: pixelated; touch-action: none; }
 #toast {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: 90%;
@@ -190,6 +194,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
   <a class="btn" href="index.html" aria-label="Home" style="padding:0 12px">&#8249;</a>
   <h1>Falling Pixels</h1>
   <div class="pill" id="label">Pour · sand</div>
+  <button class="btn" id="speedBtn" aria-label="Simulation speed" title="Simulation speed: tap to speed up (] and [ on a keyboard, Space pauses)" style="padding:0 12px;min-width:48px">1×</button>
   <button class="btn" id="shotBtn" aria-label="Save a picture of the sandbox" title="Save a picture of the sandbox" style="padding:0 12px">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
   </button>
@@ -200,6 +205,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
   <div id="board">
     <canvas id="ink" aria-hidden="true"></canvas>
     <canvas id="c" aria-label="Sand simulation: touch and drag to use the selected tool"></canvas>
+    <div id="sweep" aria-hidden="true"></div>
   </div>
   <div id="selbar" hidden>
     <button class="btn" id="selCopy">Copy</button><button class="btn" id="selDelete">Delete</button>
@@ -213,7 +219,14 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 <nav class="dock" id="dock" aria-label="Tools">
   <div class="quick">
     <div class="seg" id="matSeg" role="group" aria-label="Material">
-      <button id="mSand" class="on">Sand</button><button id="mWater">Water</button>
+      <button id="mSand" class="on">Sand</button><button id="mWater">Water</button><button id="mAcid" title="Eats sand, walls and scenery">Acid</button><button id="mFire" title="Fire: with Pour it paints flames, with Emitter it makes a flame jet">Fire</button>
+    </div>
+    <div class="pen" id="laserTools" hidden>
+      <div class="seg compact" id="laserModeSeg" role="group" aria-label="Laser mode">
+        <button data-m="hold" class="on" title="Fires while you hold">Hold</button><button data-m="turret" title="Drag to aim, let go to leave a laser that keeps firing">Turret</button><button data-m="dots" title="Drag to aim, let go to leave a laser that shoots dots">Dots</button>
+      </div>
+      <div class="slider" style="max-width:150px"><div class="lab"><span>Width</span><output id="laserWidthOut">1</output></div><input type="range" id="laserWidth" min="1" max="6" step="1" value="1" aria-label="Laser width"></div>
+      <input type="color" id="laserColor" value="#ff2446" aria-label="Laser colour">
     </div>
     <div class="pen" id="creatureTools" hidden>
       <input type="color" id="creatureColor" value="#7ddc6a" aria-label="Creature colour">
@@ -232,12 +245,23 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <div class="slider" id="sizeBox"><div class="lab"><span>Size</span><output id="sizeOut"></output></div><input type="range" id="sizeRange" aria-label="Size"></div>
     <button class="btn" id="bSnap" hidden aria-label="Ramp snapping">Snap: off</button>
     <button class="btn" id="bHollow" hidden aria-label="Solid or hollow shape">Solid</button>
+    <div class="pen" id="shapeTools" hidden>
+      <span class="dimlabel">Shape colour</span><input type="color" id="shapeColor" value="#7aa2ff" aria-label="Shape colour">
+      <button class="btn on" id="shapeGrey" title="Plain grey shapes">Grey</button>
+      <button class="btn" id="shapeDestruct" title="Whether fire and acid can destroy the shapes you draw">Destructible: off</button>
+    </div>
+  </div>
+  <div class="quick wrap" id="devRow" hidden>
+    <div class="slider"><div class="lab"><span>Angle</span><output id="dAngleOut"></output></div><input type="range" id="dAngle" min="0" max="359" step="1" value="90" aria-label="Angle"></div>
+    <div class="slider"><div class="lab"><span>Spin</span><output id="dSpinOut"></output></div><input type="range" id="dSpin" min="-180" max="180" step="5" value="0" aria-label="Spin in degrees a second"></div>
+    <div class="slider" id="dSizeBox" hidden><div class="lab"><span>Fan size</span><output id="dSizeOut"></output></div><input type="range" id="dSize" min="1" max="4" step="0.5" value="1" aria-label="Fan size"></div>
+    <div class="slider" id="dPowerBox"><div class="lab"><span id="dPowerLab">Push</span><output id="dPowerOut"></output></div><input type="range" id="dPower" min="0" max="8" step="0.5" value="0" aria-label="Power"></div>
   </div>
   <div class="quick wrap" id="textRow" hidden>
     <input type="text" id="textInput" maxlength="24" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
     <input type="color" id="textColor" value="#ffd84a" aria-label="Text colour">
     <div class="seg compact" id="textModeSeg" role="group" aria-label="Barrier or paint">
-      <button data-m="solid" class="on" title="Sand piles on it">Barrier</button><button data-m="paint" title="Decoration only: sand ignores it">Paint</button>
+      <button data-m="solid" class="on" title="Sand piles on it">Barrier</button><button data-m="paint" title="Decoration only: sand ignores it">Paint</button><button data-m="emitter" title="The letters are an emitter: they pour sand, water, acid or fire">Pours</button><button data-m="shoots" title="An emitter that shoots your text out, letters and all">Shoots</button>
     </div>
     <div class="seg compact" id="textScaleSeg" role="group" aria-label="Text size">
       <button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="3">3×</button><button data-s="4">4×</button>
@@ -259,8 +283,16 @@ window.addEventListener("error", e => {
 // ==== PHYSICS ====
 // Grid cell states (same numbers as the Python version)
 const EMPTY = 0, STATIC = 1, IN_AIR = 2, STACKING = 3, SOLID = 4, DRAIN = 5, EMITTER = 6, CONVEYOR = 7, STILL_WATER = 8;
-const SAND = 0, WATER = 1;
+const SAND = 0, WATER = 1, ACID = 2;                     // ACID is a menu choice only: its grains are WATER grains with `acid` set
 const WATER_PATIENCE = 120;
+const MAX_TURRETS = 12, MAX_PRINTERS = 8, MAX_FANS = 8, MAX_BOLTS = 600, BOLT_SPEED = 2.5;
+const FLAME = 3;                                         // an emitter kind (and a menu material) that makes fire instead of grains
+const SPIN_STEP = Math.PI / 180 / 120;                   // one degree per second, as radians per physics step (there are 120 a second)
+const DEFAULT_LASER = [255, 36, 70];
+const ALPHA_PROT_PLAIN = 252, ALPHA_DEST_PLAIN = 253, ALPHA_DEST_PAINT = 251;   // shape colours carry a flag in their alpha: can fire and acid destroy this shape?
+const SHAPE_ALPHA = 254;                                 // a painted shape's colour has this alpha, so fire can tell it from flammable scenery (alpha 255)
+const N4 = [[0, 1], [-1, 0], [1, 0], [0, -1]];            // the four cells touching a cell: below, left, right, above
+const N8 = [...N4, [-1, 1], [1, 1], [-1, -1], [1, -1]];   // ...and the four corners as well
 const CREATURE = 9, FOOD = 10;                           // a creature's body, and a piece of food (see CREATURE_TYPES, FOOD_TYPES)
 const FIRM = new Uint8Array(11);
 [STATIC, SOLID, EMITTER, CONVEYOR, STILL_WATER, CREATURE, FOOD].forEach(k => { FIRM[k] = 1; });
@@ -280,8 +312,10 @@ class Grain {
   constructor(x, y, vx, vy, color, kind) {
     this.x = x; this.y = y; this.vx = vx; this.vy = vy;
     this.status = IN_AIR; this.color = color; this.kind = kind; this.idle = 0;
+    this.acid = false; this.charge = 0;                  // acid eats `charge` worth of sand and walls, then it is used up
   }
 }
+const newAcidCharge = () => 4 + Math.floor(Math.random() * 5);
 
 // ---- creatures: tiny pixel animals made of the same pixels as the sand ----
 // rows: the sprite ("." = see-through, letters are colours: see PIXEL_COLORS). Sand treats the coloured pixels as solid.
@@ -346,6 +380,12 @@ class Sand {
     this.conveyors = new Map();                 // cell -> direction (+1 right, -1 left)
     this.gravity = 0.8; this.drag = 0.999; this.wind = 0; this.bounce = 0;
     this.creatures = []; this.foods = []; this.creatureSpeed = 1; this.haunts = [];                        // pixel creatures: {type, x, y, dir, mode, timer, ...}
+    this.fire = new Uint8Array(w * h); this.flames = [];    // fire: how long each flame has left, and the cells that are burning
+    this.turrets = []; this.hand = null;                    // lasers: fixed ones {x, y, ang, spin, w, rgb, mode}, and the one being held right now
+    this.bolts = []; this.fans = []; this.printers = [];                        // laser dots in flight, and fans {x, y, ang, spin, speed, phase}
+    this.ux = 0; this.uy = 1; this.gx = 0; this.gy = 0.8;   // gravity: the cardinal way grains settle (ux, uy) and the pull on a flying grain (gx, gy)
+    this.beams = new Map();                                 // what each laser lit up last step: key -> {cells, end, life}
+    this.acidSet = null; this.wakeLanes = null;
   }
 
   occupied(x, y) { const k = this.grid[y * this.w + x]; return k !== EMPTY && k !== IN_AIR; }
@@ -384,27 +424,44 @@ class Sand {
   }
 
   // ---------- adding / removing things ----------
-  pour(x, y, n, rgb, spread, shade, kind) {
+  pour(x, y, n, rgb, spread, shade, kind, acid = false) {
     x = Math.min(Math.max(trunc(x), 0), this.w - 1);
     y = Math.min(Math.max(trunc(y), 0), this.h - 1);
     while (y > 0 && this.occupied(x, y)) y--;            // don't spawn inside the pile / a shape
     if (this.occupied(x, y)) return;
     for (let k = 0; k < n; k++) {
-      this.grains.push(new Grain(x, y, (Math.random() * 2 - 1) * spread, (Math.random() * 2 - 1) * spread,
-        shaded(rgb, shade), kind));
+      const g = new Grain(x, y, (Math.random() * 2 - 1) * spread, (Math.random() * 2 - 1) * spread, shaded(rgb, shade), kind);
+      if (acid) { g.acid = true; g.charge = newAcidCharge(); }
+      this.grains.push(g);
       const i = y * this.w + x;
       if (this.grid[i] === EMPTY) this.grid[i] = IN_AIR;
     }
     STATS[kind === WATER ? "water" : "sand"] += n;
   }
 
+  /** Emitters shoot the way they face (prop[3], radians, down by default), can spin (prop[4], degrees a second) and push (prop[5]). */
   runEmitters(flow, live, shade) {
-    for (const [i, [kind, rgb]] of this.emitters) {
-      const x = i % this.w, y = (i - x) / this.w;
-      if (this.emitters.has(i + this.w) || y + 1 >= this.h) continue;   // not on the underside
-      if (this.grid[i + this.w] !== EMPTY || Math.random() > flow) continue;
-      this.grains.push(new Grain(x + 0.5, y + 1.5, (Math.random() * 2 - 1) * 0.15, 0, shaded(rgb || live[kind], shade), kind));
-      this.grid[i + this.w] = IN_AIR;
+    const w = this.w, h = this.h;
+    for (const [i, prop] of this.emitters) {
+      const kind = prop[0], rgb = prop[1], acid = prop[2], spin = prop[4] || 0, push = prop[5] || 0;
+      let ang = prop[3] === undefined ? Math.PI / 2 : prop[3];
+      if (spin) { ang += spin * SPIN_STEP; prop[3] = ang; }
+      const c = Math.cos(ang), s = Math.sin(ang);
+      const dx = Math.abs(c) > 0.3827 ? Math.sign(c) : 0, dy = Math.abs(s) > 0.3827 ? Math.sign(s) : 0;   // which of the 8 neighbours it faces
+      const x = i % w, y = (i - x) / w, nx = x + dx, ny = y + dy;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const j = ny * w + nx;
+      if (this.emitters.has(j) || this.grid[j] !== EMPTY || Math.random() > flow) continue;   // only the cells on its facing edge emit
+      if (kind === FLAME) {                              // a jet of fire: flames along the way it points
+        const reach = 1 + Math.floor(Math.random() * (3 + push * 3)), fx = Math.round(x + c * reach), fy = Math.round(y + s * reach);
+        if (fx >= 0 && fx < w && fy >= 0 && fy < h && this.grid[fy * w + fx] === EMPTY) this.light(fy * w + fx, 20 + Math.floor(Math.random() * 40));
+        else this.light(j, 20 + Math.floor(Math.random() * 40));
+        continue;
+      }
+      const g = new Grain(nx + 0.5, ny + 0.5, c * push + (Math.random() * 2 - 1) * 0.15 * Math.abs(s), s * push + (Math.random() * 2 - 1) * 0.15 * Math.abs(c), shaded(rgb || live[kind], shade), kind);
+      if (acid) { g.acid = true; g.charge = newAcidCharge(); }
+      this.grains.push(g);
+      this.grid[j] = IN_AIR;
       STATS[kind === WATER ? "water" : "sand"]++;
     }
   }
@@ -432,7 +489,7 @@ class Sand {
         for (const i of placed) this.drains.add(i);
         this.wakeRegion(minX - 1, maxX + 1, maxY + 1);   // wake sand already touching it, so it gets eaten
       } else if (kind === EMITTER) {
-        for (const i of placed) this.emitters.set(i, prop);
+        for (const i of placed) this.emitters.set(i, Array.isArray(prop) ? prop.slice() : prop);   // one copy per cell: each keeps its own angle as it spins
       } else if (kind === CONVEYOR) {
         for (const i of placed) this.conveyors.set(i, prop);
         this.wakeRegion(minX, maxX, maxY);               // sand on it starts riding
@@ -470,7 +527,7 @@ class Sand {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * this.w + x, k = this.grid[i];
       if (k === STATIC || k === STILL_WATER) cells.push([x - x0, y - y0, k, this.colors[i], null]);
-      else if (isObj(k)) cells.push([x - x0, y - y0, k, k === SOLID ? this.colors[i] : 0, k === EMITTER ? this.emitters.get(i) : k === CONVEYOR ? this.conveyors.get(i) : null]);
+      else if (isObj(k)) cells.push([x - x0, y - y0, k, k === SOLID ? this.colors[i] : 0, k === EMITTER ? (this.emitters.get(i) || []).slice() : k === CONVEYOR ? this.conveyors.get(i) : null]);
     }
     return { w: x1 - x0 + 1, h: y1 - y0 + 1, cells };
   }
@@ -504,7 +561,7 @@ class Sand {
       this.grid[i] = kind; this.colors[i] = color;
       placed.add(i);
       if (kind === DRAIN) this.drains.add(i);
-      else if (kind === EMITTER) this.emitters.set(i, prop);
+      else if (kind === EMITTER) this.emitters.set(i, Array.isArray(prop) ? prop.slice() : prop);
       else if (kind === CONVEYOR) this.conveyors.set(i, prop);
     }
     if (placed.size) {
@@ -518,20 +575,30 @@ class Sand {
 
   touchesDrain(x, y) {
     const w = this.w, h = this.h, g = this.grid;
-    for (const [nx, ny] of [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1], [x - 1, y], [x + 1, y], [x, y - 1]]) {
+    const around = this.uy === 1 ? [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1], [x - 1, y], [x + 1, y], [x, y - 1]] : N8.map(([dx, dy]) => [x + dx, y + dy]);
+    for (const [nx, ny] of around) {
       if (nx >= 0 && nx < w && ny >= 0 && ny < h && g[ny * w + nx] === DRAIN) return true;
     }
     return false;
   }
 
-  wakeAll() { this.wakeRegion(0, this.w - 1, this.h - 1); }
+  wakeAll() { this.wakeBox(0, this.w - 1, 0, this.h - 1); }
 
-  /** Turn settled sand and water in columns x0..x1, from row yMax up, back into live grains. */
+  /** Callers pass the columns x0..x1 and the lowest row yMax of something that lost support (they think "down"). Wake what rests on it. */
   wakeRegion(x0, x1, yMax) {
+    if (this.uy > 0) this.wakeBox(x0, x1, 0, yMax);
+    else if (this.uy < 0) this.wakeBox(x0, x1, 0, this.h - 1);   // gravity up: be generous and wake the whole columns
+    else this.wakeAll();
+  }
+
+  /** Turn settled sand and water inside a box back into live grains, deepest (in the way gravity points) first, so piles re-settle in order. */
+  wakeBox(x0, x1, y0, y1) {
     const w = this.w;
-    x0 = Math.max(x0, 0); x1 = Math.min(x1, w - 1); yMax = Math.min(yMax, this.h - 1);
-    for (let y = yMax; y >= 0; y--) {                    // bottom row first, so piles re-settle in order
-      for (let x = x0; x <= x1; x++) {
+    x0 = Math.max(x0, 0); x1 = Math.min(x1, w - 1); y0 = Math.max(y0, 0); y1 = Math.min(y1, this.h - 1);
+    for (let yy = 0; yy <= y1 - y0; yy++) {
+      const y = this.uy < 0 ? y0 + yy : y1 - yy;
+      for (let xx = 0; xx <= x1 - x0; xx++) {
+        const x = this.ux < 0 ? x0 + xx : this.ux > 0 ? x1 - xx : x0 + xx;
         const i = y * w + x, k = this.grid[i];
         if (k === STATIC || k === STILL_WATER) {
           const g = new Grain(x + 0.5, y + 0.5, 0, 0, this.colors[i] || DEFAULT_COLOR, k === STILL_WATER ? WATER : SAND);
@@ -611,6 +678,7 @@ class Sand {
 
   clearSand() {
     this.grains = [];
+    this.fire.fill(0); this.flames = []; this.beams.clear();
     for (let i = 0; i < this.grid.length; i++) {
       if (!isObj(this.grid[i]) && !isBody(this.grid[i])) { this.grid[i] = EMPTY; this.colors[i] = 0; }
     }
@@ -628,6 +696,9 @@ class Sand {
       colors.set(this.colors.subarray(y * w, (y + 1) * w), (h - 1 - y) * w);
     }
     this.grid = grid; this.colors = colors;
+    this.fire.fill(0); this.flames = []; this.beams.clear();   // flames are gone; lasers turn upside down with the world
+    for (const t of this.turrets.concat(this.fans, this.printers)) { t.y = h - 1 - t.y; t.ang = -t.ang; }
+    this.bolts = [];
     const mirror = i => (h - 1 - Math.floor(i / w)) * w + (i % w);
     this.drains = new Set([...this.drains].map(mirror));
     this.emitters = new Map([...this.emitters].map(([i, v]) => [mirror(i), v]));
@@ -1084,79 +1155,93 @@ class Sand {
     }
   }
 
-  // ---------- the physics ----------
+  // ---------- the physics (gravity points down, up, left or right: (ux, uy) is the way it points) ----------
+  inb(x, y) { return x >= 0 && x < this.w && y >= 0 && y < this.h; }
+
+  /** Point gravity at an angle (degrees, 90 = down). Grains in the air feel the exact angle; resting grains use the nearest of the four directions. */
+  setGravity(mag, deg) {
+    const a = deg * Math.PI / 180, cx = Math.cos(a), cy = Math.sin(a);
+    this.gravity = mag; this.gx = cx * mag; this.gy = cy * mag;
+    let ux = 0, uy = 1;
+    if (Math.abs(cx) > Math.abs(cy) + 1e-9) { ux = cx > 0 ? 1 : -1; uy = 0; } else uy = cy >= 0 ? 1 : -1;
+    if (ux !== this.ux || uy !== this.uy) { this.ux = ux; this.uy = uy; this.wakeAll(); }   // a new floor: everything that was resting has to move
+  }
+
   status(g) {
     if (g.kind === WATER) return this.waterStatus(g);
-    const w = this.w, grid = this.grid, x = trunc(g.x), y = trunc(g.y);
-    if (y >= this.h - 1) return STATIC;
-    const below = grid[(y + 1) * w + x];
+    const w = this.w, grid = this.grid, x = trunc(g.x), y = trunc(g.y), ux = this.ux, uy = this.uy;
+    const bx = x + ux, by = y + uy;
+    if (!this.inb(bx, by)) return STATIC;                // the floor: whichever wall gravity points at
+    const below = grid[by * w + bx];
     if (below === EMPTY || below === IN_AIR) return IN_AIR;
-    g.vy = 0;
+    if (uy) g.vy = 0; else g.vx = 0;
     if (below === CONVEYOR || below === STILL_WATER) return STACKING;   // riding a belt / about to sink
-    const row = (y + 1) * w;
-    if (x > 0 && x < w - 1) {
-      if (FIRM[below] && FIRM[grid[row + x - 1]] && FIRM[grid[row + x + 1]]) return STATIC;
-    } else if (x <= 0) {
-      if (FIRM[below] && FIRM[grid[row + x + 1]]) return STATIC;
-    } else if (FIRM[below] && FIRM[grid[row + x - 1]]) return STATIC;
-    return STACKING;
+    if (!FIRM[below]) return STACKING;
+    const sx = uy ? 1 : 0, sy = ux ? 1 : 0;              // the way across, at right angles to gravity
+    for (const d of [-1, 1]) {                           // settled only if both neighbours of the cell below are firm too
+      const nx = bx + sx * d, ny = by + sy * d;
+      if (this.inb(nx, ny) && !FIRM[grid[ny * w + nx]]) return STACKING;
+    }
+    return STATIC;
   }
 
   /** Water only settles when it is boxed in: firm below, and nowhere to flow left or right. */
   waterStatus(g) {
-    const w = this.w, grid = this.grid, x = trunc(g.x), y = trunc(g.y);
-    const floor = y >= this.h - 1;
-    if (!floor) { const b = grid[(y + 1) * w + x]; if (b === EMPTY || b === IN_AIR) return IN_AIR; }
-    g.vy = 0;
-    if (g.idle > WATER_PATIENCE) return STATIC;          // wandered long enough: settle where it is
+    const w = this.w, grid = this.grid, x = trunc(g.x), y = trunc(g.y), ux = this.ux, uy = this.uy;
+    const bx = x + ux, by = y + uy, floor = !this.inb(bx, by);
+    if (!floor) { const b = grid[by * w + bx]; if (b === EMPTY || b === IN_AIR) return IN_AIR; }
+    if (uy) g.vy = 0; else g.vx = 0;
+    if (g.idle > WATER_PATIENCE) return STATIC;         // wandered long enough: settle where it is
     if (!floor) {
-      const below = grid[(y + 1) * w + x];
-      if (!FIRM[below] || below === CONVEYOR) return STACKING;   // resting on something that may still move
+      const b = grid[by * w + bx];
+      if (!FIRM[b] || b === CONVEYOR) return STACKING;  // resting on something that may still move
     }
-    for (const nx of [x - 1, x + 1]) {
-      if (nx >= 0 && nx < w) {
-        if (!FIRM[grid[y * w + nx]]) return STACKING;    // empty, or a grain that may move away
-        if (!floor && !FIRM[grid[(y + 1) * w + nx]]) return STACKING;
+    const sx = uy ? 1 : 0, sy = ux ? 1 : 0;
+    for (const d of [-1, 1]) {
+      const nx = x + sx * d, ny = y + sy * d;
+      if (this.inb(nx, ny)) {
+        if (!FIRM[grid[ny * w + nx]]) return STACKING;  // empty, or a grain that may move away
+        if (!floor && !FIRM[grid[(ny + uy) * w + nx + ux]]) return STACKING;
       }
     }
     return STATIC;
   }
 
-  /** Look down both neighbouring columns, go to whichever lets it fall further. */
+  /** Look down both neighbouring lanes, go to whichever lets it fall further. Returns the cell to move to, or null. */
   slide(g) {
-    const w = this.w, h = this.h, x = trunc(g.x), y = trunc(g.y);
-    if (y >= h - 1) return null;
-    const landing = {};
-    for (const dx of [-1, 1]) {
-      const nx = x + dx;
-      if (nx < 0 || nx > w - 1 || this.occupied(nx, y + 1)) landing[dx] = y;   // blocked: stays at this height
-      else {
-        let r = y + 1;
-        while (r <= h - 1 && !this.occupied(nx, r)) r++;
-        landing[dx] = r - 1;                             // row just above the first obstacle
-      }
-    }
-    const L = landing[-1], R = landing[1];
-    if (L === y && R === y) return null;
-    if (L > R || (L === R && g.vx < 0)) return [-1, L];
-    return [1, R];
+    const x = trunc(g.x), y = trunc(g.y), ux = this.ux, uy = this.uy;
+    if (!this.inb(x + ux, y + uy)) return null;
+    const sx = uy ? 1 : 0, sy = ux ? 1 : 0, land = [0, 0];
+    [-1, 1].forEach((d, n) => {
+      const nx = x + sx * d, ny = y + sy * d;
+      if (!this.inb(nx, ny) || this.occupied(nx + ux, ny + uy)) return;   // blocked: it stays at this depth
+      let k = 1;
+      while (this.inb(nx + ux * (k + 1), ny + uy * (k + 1)) && !this.occupied(nx + ux * (k + 1), ny + uy * (k + 1))) k++;
+      land[n] = k;                                       // how far it would fall down that lane
+    });
+    const L = land[0], R = land[1];
+    if (L === 0 && R === 0) return null;
+    const vs = g.vx * sx + g.vy * sy;
+    const d = L > R || (L === R && vs < 0) ? -1 : 1, k = d < 0 ? L : R;
+    return [x + sx * d + ux * k, y + sy * d + uy * k];
   }
 
-  /** Water with nowhere to fall spreads out: walk up to 4 cells left or right. */
+  /** Water with nowhere to fall spreads out: walk up to 4 cells across. */
   flowSideways(g) {
-    const w = this.w, h = this.h, x = trunc(g.x), y = trunc(g.y);
-    const first = g.vx >= 0 ? 1 : -1;                    // keep going the way it was going
+    const x = trunc(g.x), y = trunc(g.y), ux = this.ux, uy = this.uy, sx = uy ? 1 : 0, sy = ux ? 1 : 0;
+    const first = g.vx * sx + g.vy * sy >= 0 ? 1 : -1;   // keep going the way it was going
     for (const d of [first, -first]) {
-      let nx = x + d, best = null;
-      for (let n = 0; n < 4; n++) {
-        if (!(nx >= 0 && nx < w) || this.occupied(nx, y)) break;
-        best = nx;
-        if (y + 1 < h && !this.occupied(nx, y + 1)) break;   // found a drop: stop here and fall next step
-        nx += d;
+      let best = null;
+      for (let n = 1; n <= 4; n++) {
+        const nx = x + sx * d * n, ny = y + sy * d * n;
+        if (!this.inb(nx, ny) || this.occupied(nx, ny)) break;
+        best = [nx, ny];
+        if (this.inb(nx + ux, ny + uy) && !this.occupied(nx + ux, ny + uy)) break;   // found a drop: stop here and fall next step
       }
-      if (best !== null) {
+      if (best) {
         this.lift(g);
-        g.x = best + 0.5; g.vx = d * 0.5;
+        g.x = best[0] + 0.5; g.y = best[1] + 0.5;
+        if (uy) g.vx = d * 0.5; else g.vy = d * 0.5;
         return true;
       }
     }
@@ -1165,19 +1250,387 @@ class Sand {
 
   /** Sand resting on settled water swaps places with it (sand is heavier). */
   sink(g) {
-    const w = this.w, x = trunc(g.x), y = trunc(g.y);
+    const w = this.w, x = trunc(g.x), y = trunc(g.y), b = (y + this.uy) * w + x + this.ux;
     this.lift(g);
-    const water = new Grain(x + 0.5, y + 0.5, g.vx, 0, this.colors[(y + 1) * w + x], WATER);
+    const water = new Grain(x + 0.5, y + 0.5, g.vx, 0, this.colors[b], WATER);
     water.status = STACKING;
     this.grid[y * w + x] = STACKING;
-    this.grid[(y + 1) * w + x] = EMPTY;
-    this.colors[(y + 1) * w + x] = 0;
+    this.grid[b] = EMPTY;
+    this.colors[b] = 0;
     this.grains.push(water);                             // (gets its turn later this step)
-    g.y += 1;
+    g.x += this.ux; g.y += this.uy;
+  }
+
+  // ---------- acid, fire, lasers and fans ----------
+  noteWake(x, y) {                                       // a cell was destroyed: remember it, so what rested on it can fall (see flushWake)
+    const lanes = this.wakeLanes || (this.wakeLanes = new Map());
+    const vertical = this.uy !== 0, lane = vertical ? x : y, depth = vertical ? y : x, sgn = vertical ? this.uy : this.ux;
+    for (let l = lane - 1; l <= lane + 1; l++) {         // per lane (a column, or a row if gravity is sideways) keep the deepest destroyed cell
+      const cur = lanes.get(l);
+      if (cur === undefined || (sgn > 0 ? depth > cur : depth < cur)) lanes.set(l, depth);
+    }
+  }
+  flushWake() {
+    const lanes = this.wakeLanes;
+    if (!lanes || !lanes.size) return;
+    this.wakeLanes = null;
+    for (const [l, d] of lanes) {                        // wake everything on the far side of that cell, in the lane
+      if (this.uy > 0) this.wakeBox(l, l, 0, d);
+      else if (this.uy < 0) this.wakeBox(l, l, d, this.h - 1);
+      else if (this.ux > 0) this.wakeBox(0, d, l, l);
+      else this.wakeBox(d, this.w - 1, l, l);
+    }
+  }
+
+  /** Shapes drawn since the destructible option carry a flag in their colour's alpha. Plain shapes from before it (no colour at all) can be eaten by acid, as they always could. */
+  acidCanEat(i) {
+    const c = this.colors[i];
+    if (!c) return true;
+    const a = c >>> 24;
+    return a === 255 || a === ALPHA_DEST_PLAIN || a === ALPHA_DEST_PAINT;
+  }
+  fireCanBurn(i) {                                       // coloured scenery burns, and so does a shape marked destructible
+    const c = this.colors[i];
+    if (!c) return false;
+    const a = c >>> 24;
+    return a === ALPHA_DEST_PLAIN || a === ALPHA_DEST_PAINT || this.isFuel(i);
+  }
+  /** Does acid have something to eat next to this cell? */
+  acidFood(x, y) {
+    for (const [dx, dy] of N4) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || nx >= this.w || ny < 0 || ny >= this.h) continue;
+      const j = ny * this.w + nx, k = this.grid[j];
+      if (k === STATIC || (k === SOLID && this.acidCanEat(j)) || isBody(k)) return true;
+    }
+    return false;
+  }
+  /** One bite: eats a cell of settled sand, a wall, or anything alive next to the grain. True when the grain is used up. */
+  acidBite(g, x, y) {
+    const w = this.w, start = Math.floor(Math.random() * 4);
+    for (let n = 0; n < 4; n++) {
+      const [dx, dy] = N4[(start + n) & 3], nx = x + dx, ny = y + dy;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= this.h) continue;
+      const j = ny * w + nx, k = this.grid[j];
+      if (k === STATIC || (k === SOLID && this.acidCanEat(j))) {
+        this.grid[j] = EMPTY; this.colors[j] = 0;
+        this.noteWake(nx, ny);
+        g.charge -= k === SOLID ? 2 : 1;
+        return g.charge <= 0;
+      }
+      if (isBody(k)) { this.removeCreaturesIn([[nx, ny]]); g.charge -= 2; return g.charge <= 0; }
+    }
+    return false;
+  }
+
+  /** Scenery and anything coloured (not grey stone, not a plain or painted shape) can burn. */
+  isFuel(i) {
+    if (this.grid[i] !== SOLID) return false;
+    const c = this.colors[i];
+    if (!c || (c >>> 24) !== 255) return false;          // plain shapes have no colour; painted shapes carry SHAPE_ALPHA
+    const r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255;
+    return Math.abs(r - g) > 14 || Math.abs(g - b) > 22;
+  }
+  /** Give the plain / painted shape cells among `cells` a colour (packed, or 0 for the default grey). Scenery keeps its own colours. */
+  paintShapes(cells, packed) {
+    let n = 0;
+    for (const i of cells) {
+      if (this.grid[i] !== SOLID) continue;
+      const c = this.colors[i];
+      if (c && (c >>> 24) === 255) continue;             // scenery: leave it alone
+      this.colors[i] = packed; n++;
+    }
+    return n;
+  }
+  light(i, life) {                                       // set a cell alight, or keep it burning longer
+    if (this.fire[i] === 0) this.flames.push(i);
+    if (life > this.fire[i]) this.fire[i] = Math.min(life, 255);
+  }
+  burnCell(j) {                                          // a piece of fuel goes up in flames, sometimes leaving ash
+    const w = this.w, x = j % w, y = (j - x) / w;
+    this.grid[j] = EMPTY; this.colors[j] = 0;
+    this.noteWake(x, y);
+    this.light(j, 70 + Math.floor(Math.random() * 90));
+    if (Math.random() < 0.15) {
+      const v = 55 + Math.floor(Math.random() * 40);
+      this.grains.push(new Grain(x + 0.5, y + 0.5, 0, 0, pack(v, v, v + 6), SAND));
+      this.grid[j] = IN_AIR;
+    }
+  }
+  burnAt(j) {                                            // fire touches cell j: fuel burns, creatures and food are lost
+    const k = this.grid[j];
+    if (k === SOLID) { if (this.fireCanBurn(j)) this.burnCell(j); }
+    else if (isBody(k)) {
+      const x = j % this.w;
+      this.removeCreaturesIn([[x, (j - x) / this.w]]);
+      this.light(j, 50 + Math.floor(Math.random() * 40));
+    }
+  }
+  paintFire(cx, cy, r) {                                 // the Fire tool: scatter flames inside a round brush
+    const w = this.w, h = this.h;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r || Math.random() > 0.07) continue;
+      const x = cx + dx, y = cy + dy;
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
+      const i = y * w + x, k = this.grid[i];
+      if (k === EMPTY) this.light(i, 25 + Math.floor(Math.random() * 40));
+      else if (k === SOLID || isBody(k)) this.burnAt(i);
+    }
+    this.flushWake();
+  }
+  stepFire() {
+    const old = this.flames;
+    if (!old.length) return;
+    const w = this.w, h = this.h, grid = this.grid, fire = this.fire;
+    this.flames = [];                                    // light() fills the new list as the flames move
+    for (const i of old) {
+      let life = fire[i];
+      if (life === 0) continue;                          // stale entry: put out, or already moved
+      fire[i] = 0;
+      const x = i % w, y = (i - x) / w;
+      let out = false;
+      for (const [dx, dy] of N8) {                       // fire spreads to fuel on the diagonals too
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+        const j = ny * w + nx, k = grid[j];
+        if (k === STILL_WATER) { out = true; break; }    // water puts fire out
+        if ((k === SOLID || isBody(k)) && Math.random() < 0.012) this.burnAt(j);
+      }
+      if (out) continue;
+      life -= 1 + (Math.random() < 0.4 ? 1 : 0);
+      if (life <= 0) {                                   // a dying flame throws one last spark at fuel beside it, so no scrap is left unburnt
+        for (const [dx, dy] of N4) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h && grid[ny * w + nx] === SOLID && Math.random() < 0.6) this.burnAt(ny * w + nx);
+        }
+        continue;
+      }
+      let nx = x, ny = y;
+      const r = Math.random();
+      if (r < (life > 60 ? 0.1 : 0.4)) { ny = y - 1; nx = x + Math.floor(Math.random() * 3) - 1; }   // flames rise and flicker (a young fuel fire mostly stays put)
+      else if (r < 0.5) nx = x + (Math.random() < 0.5 ? -1 : 1);
+      if ((nx !== x || ny !== y) && nx >= 0 && nx < w && ny >= 0 && grid[ny * w + nx] === EMPTY && fire[ny * w + nx] === 0) this.light(ny * w + nx, life);
+      else this.light(i, life);
+    }
+    this.flushWake();
+  }
+
+  // ---------- lasers ----------
+  addTurret(x, y, ang, o = {}) {                         // o: spin (degrees a second), w (width in cells), rgb, mode ("beam" or "dots")
+    if (this.turrets.length >= MAX_TURRETS) return false;
+    this.turrets.push({ x, y, ang, spin: o.spin || 0, w: o.w || 1, rgb: o.rgb || DEFAULT_LASER, mode: o.mode || "beam" });
+    return true;
+  }
+  /** What a laser does to cell i. Returns its cost in beam power, or -1 if the cell stops it (trash, an emitter, a belt). */
+  zap(i, cx, cy, kill) {
+    const k = this.grid[i];
+    if (k === EMPTY) return 0;
+    if (k === DRAIN || k === EMITTER || k === CONVEYOR) return -1;
+    if (k === IN_AIR || k === STACKING) { kill.add(i); return 0; }   // falling grains are vaporised for free
+    if (k === STATIC || k === STILL_WATER) { this.grid[i] = EMPTY; this.colors[i] = 0; this.noteWake(cx, cy); return 1; }
+    if (k === SOLID) {
+      if (this.isFuel(i)) { this.burnCell(i); return 3; }
+      this.grid[i] = EMPTY; this.colors[i] = 0; this.noteWake(cx, cy);
+      return 5;
+    }
+    if (isBody(k)) { this.burnAt(i); return 2; }
+    return 0;
+  }
+  /** Fire one beam. It cuts sand and water, burns scenery, and stops when its power runs out or it meets trash / an emitter / a belt. */
+  fireBeam(x0, y0, ang, power, kill) {
+    const w = this.w, h = this.h, cells = [];
+    const dx = Math.cos(ang) * 0.5, dy = Math.sin(ang) * 0.5;       // half-cell steps, so a diagonal beam leaves no gaps
+    let px = x0 + 0.5, py = y0 + 0.5, last = -1, end = -1;
+    for (let s = 0; s < 2 * (w + h); s++) {
+      px += dx; py += dy;
+      const cx = Math.floor(px), cy = Math.floor(py);
+      if (cx < 0 || cx >= w || cy < 0 || cy >= h) break;
+      const i = cy * w + cx;
+      if (i === last) continue;
+      last = i;
+      const cost = this.zap(i, cx, cy, kill);
+      end = i;
+      if (cost < 0) break;
+      cells.push(i);
+      power -= cost;
+      if (power <= 0) break;
+    }
+    return { cells, end };
+  }
+  stepLasers() {
+    const shots = [];
+    if (this.hand) shots.push(["hand", this.hand]);
+    this.turrets.forEach((t, n) => {
+      if (t.spin) t.ang += t.spin * SPIN_STEP;
+      if (t.mode !== "dots") shots.push(["t" + n, t]);
+    });
+    const kill = new Set();
+    for (const [key, s] of shots) {                      // a wide beam is several parallel thin ones side by side
+      const wd = Math.max(1, s.w || 1), nxp = -Math.sin(s.ang), nyp = Math.cos(s.ang), all = new Set();
+      let end = -1;
+      for (let k = 0; k < wd; k++) {
+        const o = k - (wd - 1) / 2, b = this.fireBeam(s.x + nxp * o, s.y + nyp * o, s.ang, 120, kill);
+        for (const c of b.cells) all.add(c);
+        if (k === wd >> 1) end = b.end;
+      }
+      this.beams.set(key, { cells: [...all], end, life: 5, rgb: s.rgb || DEFAULT_LASER });
+    }
+    for (const t of this.turrets) {                      // "dots" lasers throw small bright bolts instead of a beam
+      if (t.mode === "dots" && Math.random() < 0.3 && this.bolts.length < MAX_BOLTS) {
+        this.bolts.push({ x: t.x + 0.5, y: t.y + 0.5, vx: Math.cos(t.ang) * BOLT_SPEED, vy: Math.sin(t.ang) * BOLT_SPEED, power: 14, w: t.w || 1, rgb: t.rgb || DEFAULT_LASER });
+      }
+    }
+    this.stepBolts(kill);
+    this.flushWake();
+    if (kill.size) {
+      const w = this.w;
+      this.grains = this.grains.filter(g => {
+        const i = trunc(g.y) * w + trunc(g.x);
+        if (!kill.has(i)) return true;
+        if (this.grid[i] === IN_AIR || this.grid[i] === STACKING) this.grid[i] = EMPTY;
+        return false;
+      });
+    }
+    for (const [key, b] of this.beams) if (--b.life <= 0) this.beams.delete(key);
+  }
+  stepBolts(kill) {
+    if (!this.bolts.length) return;
+    const w = this.w, h = this.h, keep = [];
+    for (const b of this.bolts) {
+      const n = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vy))), sx = b.vx / n, sy = b.vy / n;
+      let alive = true;
+      for (let s = 0; s < n && alive; s++) {
+        b.x += sx; b.y += sy;
+        const cx = Math.floor(b.x), cy = Math.floor(b.y);
+        if (cx < 0 || cx >= w || cy < 0 || cy >= h) { alive = false; break; }
+        const r = b.w >> 1;
+        for (let dy = -r; dy < b.w - r; dy++) for (let dx = -r; dx < b.w - r; dx++) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 0 || x >= w || y < 0 || y >= h) continue;
+          const cost = this.zap(y * w + x, x, y, kill);
+          if (cost < 0) alive = false; else b.power -= cost;
+        }
+        if (b.power <= 0) alive = false;
+      }
+      if (alive) keep.push(b);
+    }
+    this.bolts = keep;
+  }
+
+  // ---------- fans ----------
+  addFan(x, y, ang, spin, speed, size = 1) {
+    if (this.fans.length >= MAX_FANS) return false;
+    this.fans.push({ x, y, ang, spin: spin || 0, speed, size: size || 1, phase: 0 });
+    return true;
+  }
+  /** A fan blows loose grains and flames along a cone in front of it, and peels the top off piles of sand it points at. A bigger fan has a wider, longer cone. */
+  stepFans() {
+    if (!this.fans.length) return;
+    const w = this.w, h = this.h, grid = this.grid, fresh = [];
+    for (const f of this.fans) {
+      if (f.spin) f.ang += f.spin * SPIN_STEP;
+      f.phase += f.speed * 0.012;
+      if (f.speed <= 0) continue;
+      const m = f.size || 1, wide = d => (2 + d * 0.3) * m;
+      const c = Math.cos(f.ang), s = Math.sin(f.ang), reach = (24 + f.speed * 6) * (0.7 + 0.3 * m), push = f.speed * 0.2, ox = Math.round(c), oy = Math.round(s);
+      for (const g of this.grains) {                     // grains in the cone get pushed
+        const dx = g.x - f.x, dy = g.y - f.y, along = dx * c + dy * s;
+        if (along < 1.5 * m || along > reach || Math.abs(-dx * s + dy * c) > wide(along)) continue;
+        if (g.status === STACKING) {                     // a resting liquid is lifted off the ground
+          if (Math.random() > 0.3) continue;
+          const gi = trunc(g.y) * w + trunc(g.x);
+          if (grid[gi] === STACKING) grid[gi] = IN_AIR;
+          g.status = IN_AIR;
+        }
+        const a = push * (1 - along / reach);
+        g.vx += c * a; g.vy += s * a;
+      }
+      for (let d = Math.ceil(2 * m); d <= reach; d++) {  // settled sand and water at the surface is blown loose
+        const chance = 0.02 * f.speed * (1 - d / reach), half = Math.floor(wide(d));
+        for (let l = -half; l <= half; l++) {
+          const cx = Math.round(f.x + c * d - s * l), cy = Math.round(f.y + s * d + c * l);
+          if (cx < 0 || cx >= w || cy < 0 || cy >= h) continue;
+          const i = cy * w + cx, k = grid[i];
+          if ((k !== STATIC && k !== STILL_WATER) || Math.random() > chance) continue;
+          const ux = cx - ox, uy = cy - oy;              // only the exposed face: the cell upwind of it must be open
+          if (ux < 0 || ux >= w || uy < 0 || uy >= h) continue;
+          const up = grid[uy * w + ux];
+          if (up !== EMPTY && up !== IN_AIR) continue;
+          const gl = Math.hypot(this.gx, this.gy) || 1, lift = push * 0.9;   // a puff of lift against gravity, so it is carried a good way
+          const g = new Grain(cx + 0.5, cy + 0.5, c * push * 2 - this.gx / gl * lift, s * push * 2 - this.gy / gl * lift, this.colors[i] || DEFAULT_COLOR, k === STILL_WATER ? WATER : SAND);
+          g.status = IN_AIR;
+          grid[i] = IN_AIR; this.colors[i] = 0;
+          this.noteWake(cx, cy);
+          fresh.push(g);
+        }
+      }
+      const n = this.flames.length;                      // flames lean the way the air goes
+      for (let q = 0; q < n; q++) {
+        const i = this.flames[q];
+        if (!this.fire[i]) continue;
+        const x = i % w, y = (i - x) / w, dx = x - f.x, dy = y - f.y, along = dx * c + dy * s;
+        if (along < 1 || along > reach || Math.abs(-dx * s + dy * c) > wide(along) || Math.random() > 0.15 * f.speed / 5) continue;
+        const nx = x + ox, ny = y + oy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+        const j = ny * w + nx;
+        if (grid[j] === EMPTY && this.fire[j] === 0) { this.light(j, this.fire[i]); this.fire[i] = 0; }
+      }
+    }
+    for (const g of fresh) this.grains.push(g);
+    this.flushWake();
+  }
+
+  // ---------- text shooters: an emitter that sends out your text, letters and all ----------
+  /** o: cells ([dx, dy] offsets from the text's centre), text, scale, kind (SAND / WATER / FLAME), acid, rgb, push, spin. */
+  addPrinter(x, y, ang, o) {
+    if (this.printers.length >= MAX_PRINTERS || !o.cells || !o.cells.length) return false;
+    let ext = 0;
+    for (const [dx, dy] of o.cells) ext = Math.max(ext, Math.abs(dx), Math.abs(dy));
+    this.printers.push({ x, y, ang, spin: o.spin || 0, push: o.push || 0, cells: o.cells, text: o.text || "", scale: o.scale || 1,
+      kind: o.kind === undefined ? SAND : o.kind, acid: !!o.acid, rgb: o.rgb || [230, 200, 120], ext, timer: 10 });
+    return true;
+  }
+  stepPrinters(flow) {
+    if (!this.printers.length) return;
+    const w = this.w, h = this.h;
+    for (const p of this.printers) {
+      if (p.spin) p.ang += p.spin * SPIN_STEP;
+      if (--p.timer > 0) continue;
+      p.timer = Math.round(20 + 20 / Math.max(flow, 0.05));   // the Emitter flow slider sets how often a line of text comes out
+      const c = Math.cos(p.ang), s = Math.sin(p.ang), cx = Math.round(p.x + c * (p.ext + 3)), cy = Math.round(p.y + s * (p.ext + 3));
+      let made = 0;
+      for (const [dx, dy] of p.cells) {                  // every letter pixel starts side by side and travels the same way, so the words stay readable
+        const gx = cx + dx, gy = cy + dy;
+        if (gx < 0 || gx >= w || gy < 0 || gy >= h || this.grid[gy * w + gx] !== EMPTY) continue;
+        if (p.kind === FLAME) { this.light(gy * w + gx, 40 + Math.floor(Math.random() * 30)); continue; }
+        const g = new Grain(gx + 0.5, gy + 0.5, c * p.push, s * p.push, shaded(p.rgb, 0.04), p.kind);
+        if (p.acid) { g.acid = true; g.charge = newAcidCharge(); }
+        this.grains.push(g);
+        this.grid[gy * w + gx] = IN_AIR;
+        made++;
+      }
+      STATS[p.kind === WATER ? "water" : "sand"] += made;
+    }
+  }
+
+  eraseFx(cells) {                                       // the eraser puts out flames and removes lasers, fans and text shooters
+    const w = this.w, h = this.h, set = new Set();
+    for (const [x, y] of cells) if (x >= 0 && x < w && y >= 0 && y < h) set.add(y * w + x);
+    for (const i of set) this.fire[i] = 0;
+    const hit = (t, r = 1) => {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (set.has((t.y + dy) * w + t.x + dx)) return true;
+      return false;
+    };
+    this.turrets = this.turrets.filter(t => !hit(t));
+    this.fans = this.fans.filter(f => !hit(f, Math.ceil(2 * (f.size || 1))));
+    this.printers = this.printers.filter(p => !hit(p));
   }
 
   step() {
-    const w = this.w, h = this.h, grid = this.grid, alive = [];
+    const w = this.w, h = this.h, grid = this.grid, alive = [], ux = this.ux, uy = this.uy;
+    const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+    this.acidSet = null;                                 // where the acid is, so sand that lands in it can dissolve
+    for (const g of this.grains) if (g.acid) (this.acidSet || (this.acidSet = new Set())).add(trunc(g.y) * w + trunc(g.x));
     // (grains added during the loop, like the water from sink(), are picked up by index)
     for (let n = 0; n < this.grains.length; n++) {
       const g = this.grains[n];
@@ -1186,58 +1639,76 @@ class Sand {
         this.lift(g);
         let bounced = false;
 
-        // ---- sideways move (bounce off outer walls, shapes and piles) ----
-        let nx = g.x + g.vx;
-        if (nx < 0) { nx = -nx; g.vx = -g.vx; }
-        else if (nx > w - 1) { nx = 2 * (w - 1) - nx; g.vx = -g.vx; }
-        nx = Math.min(Math.max(nx, 0), w - 1);
+        // ---- sideways move (bounce off outer walls, shapes and piles; if gravity points that way, land) ----
+        let nx = g.x + g.vx, floorX = false;
+        if (nx < 0 || nx > w - 1) {
+          if (ux && (nx < 0) === (ux < 0)) { nx = nx < 0 ? 0 : w - 1; floorX = true; }   // gravity points at this wall: it is the floor
+          else if (nx < 0) { nx = -nx; g.vx = -g.vx; }
+          else { nx = 2 * (w - 1) - nx; g.vx = -g.vx; }
+        }
+        nx = clamp(nx, 0, w - 1);
         const tx = trunc(nx);
         const rx = this.sweepX(yi, xi, tx);
-        if (rx !== tx) { nx = rx + 0.5; g.vx *= -Math.max(0.3, this.bounce); }
+        if (rx !== tx || floorX) {
+          nx = (rx !== tx ? rx : tx) + 0.5;
+          if (!ux) g.vx *= -Math.max(0.3, this.bounce);  // gravity is vertical: bounce off a side wall or pile
+          else if (g.vx * ux < 0) g.vx = 0;              // gravity is sideways and it hit something above it
+          else if (this.bounce > 0 && Math.abs(g.vx) > 2.0) {
+            g.vx = -g.vx * this.bounce;
+            g.vy += (Math.random() * 2 - 1) * Math.abs(g.vx) * 0.6;
+            bounced = true;
+          }
+        }
         g.x = nx;
 
         // ---- vertical move: stop at the first solid thing in the way ----
-        const ny = g.y + g.vy;
-        const ty = Math.min(Math.max(trunc(ny), 0), h - 1);
+        let ny = g.y + g.vy, floorY = false;
+        if (!uy) { if (ny < 0) { ny = -ny; g.vy = -g.vy; } else if (ny > h - 1) { ny = 2 * (h - 1) - ny; g.vy = -g.vy; } }   // gravity is sideways: top and bottom are walls
+        else floorY = uy > 0 ? ny >= h - 1 : ny < 0;
+        const ty = clamp(trunc(ny), 0, h - 1);
         const ry = this.sweepY(trunc(g.x), yi, ty);
-        if (ry !== ty || ny >= h - 1) {                  // blocked (by something, or by the floor)
+        if (ry !== ty || floorY) {                       // blocked (by something, or by the floor)
           g.y = ry + 0.5;
-          if (g.vy < 0) g.vy = 0;
-          else if (this.bounce > 0 && g.vy > 2.0) {      // hit hard enough to bounce: splash up
+          if (!uy) g.vy *= -Math.max(0.3, this.bounce);
+          else if (g.vy * uy < 0) g.vy = 0;
+          else if (this.bounce > 0 && Math.abs(g.vy) > 2.0) {   // hit hard enough to bounce: splash back
             g.vy = -g.vy * this.bounce;
-            g.vx += (Math.random() * 2 - 1) * -g.vy * 0.6;
+            g.vx += (Math.random() * 2 - 1) * Math.abs(g.vy) * 0.6;
             bounced = true;
           }
-        } else g.y = Math.min(Math.max(ny, 0), h - 0.001);
+        } else g.y = clamp(ny, 0, h - 0.001);
 
-        // another grain may have claimed this exact cell earlier this step: hop up
-        const fx = trunc(g.x);
-        let fy = trunc(g.y);
-        while (fy > 0 && this.occupied(fx, fy)) fy--;
+        // another grain may have claimed this exact cell earlier this step: hop back against gravity
+        let fx = trunc(g.x), fy = trunc(g.y);
+        while (this.inb(fx - ux, fy - uy) && this.occupied(fx, fy)) { fx -= ux; fy -= uy; }
+        if (fx !== trunc(g.x)) g.x = fx + 0.5;
         if (fy !== trunc(g.y)) g.y = fy + 0.5;
 
-        g.vy += this.gravity;
+        g.vx += this.gx; g.vy += this.gy;
         g.vx = g.vx * this.drag + this.wind;
         g.idle = 0;
         g.status = bounced ? IN_AIR : this.status(g);
 
       } else if (g.status === STACKING) {
         const x = trunc(g.x), y = trunc(g.y);
-        const below = y + 1 < h ? grid[(y + 1) * w + x] : -1;
-        if (below === CONVEYOR) {                        // ride the belt one cell along
-          const d = this.conveyors.get((y + 1) * w + x) || 1;
+        const bx = x + ux, by = y + uy, bi = by * w + bx;
+        const below = this.inb(bx, by) ? grid[bi] : -1;
+        if (below === CONVEYOR && uy > 0) {              // ride the belt one cell along
+          const d = this.conveyors.get(bi) || 1;
           if (x + d >= 0 && x + d < w && !this.occupied(x + d, y)) {
             this.lift(g);
             g.x = x + d + 0.5; g.vx = d * 0.5;
           }
+        } else if (g.kind === SAND && below === STACKING && this.acidSet && this.acidSet.has(bi)) {
+          this.lift(g);                                  // sand that lands in acid dissolves
+          continue;
         } else if (g.kind === SAND && below === STILL_WATER) {
           this.sink(g);
         } else {
           const move = this.slide(g);
           if (move) {
             this.lift(g);
-            g.x = Math.min(Math.max(g.x + move[0], 0), w - 1);
-            g.y = move[1];
+            g.x = move[0] + 0.5; g.y = move[1] + 0.5;
             g.idle = 0;
           } else if (g.kind === WATER) {
             this.flowSideways(g);
@@ -1252,6 +1723,16 @@ class Sand {
         if (grid[i] === IN_AIR || grid[i] === STACKING) grid[i] = EMPTY;
         continue;
       }
+      if (g.kind === WATER) {
+        if (g.acid) {
+          const gone = () => { if (grid[i] === STACKING || grid[i] === IN_AIR) grid[i] = EMPTY; };
+          if (g.status !== IN_AIR && Math.random() < 0.12 && this.acidBite(g, xi, yi)) { gone(); continue; }   // used up
+          if (g.status === STATIC) {                     // acid never sets like water: it stays while it has something to eat, else it fades
+            if (this.acidFood(xi, yi)) { g.status = STACKING; g.idle = WATER_PATIENCE - 30; }
+            else { gone(); continue; }
+          }
+        } else if (this.flames.length && this.fire[i]) this.fire[i] = 0;   // water puts out a flame it falls through
+      }
       if (g.status === STATIC) {
         grid[i] = g.kind === WATER ? STILL_WATER : STATIC;
         this.colors[i] = g.color;
@@ -1261,6 +1742,7 @@ class Sand {
       }
     }
     this.grains = alive;
+    this.flushWake();                                    // sand that lost its support (to acid) starts falling
   }
 }
 
@@ -1337,7 +1819,7 @@ const canvas = $("c"), stage = $("stage"), board = $("board"), ctx = canvas.getC
 
 // ---- colours ----
 const THEME = { accent: [110, 168, 255], danger: [255, 105, 105], shape: [150, 160, 182], trash: [150, 55, 68],
-  belt: [128, 136, 156], beltDark: [70, 76, 92], water: [64, 140, 235], accentDim: [42, 66, 110] };
+  belt: [128, 136, 156], beltDark: [70, 76, 92], water: [64, 140, 235], acid: [120, 255, 50], fire: [255, 140, 30], accentDim: [42, 66, 110] };
 const hexToRgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const P = rgb => pack(rgb[0], rgb[1], rgb[2]);
 const lerpRgb = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -1380,6 +1862,8 @@ const SLIDERS = {
   bounce: { label: "Bounce", min: 0, max: 0.9, step: 0.01, value: 0 },
   flow: { label: "Emitter flow", min: 0, max: 1, step: 0.01, value: 0.3 },
   creatureSpeed: { label: "Creature speed", min: 0, max: 3, step: 0.05, value: 1 },
+  speed: { label: "Simulation speed (0 = paused)", min: 0, max: 8, step: 0.25, value: 1 },
+  gravAngle: { label: "Gravity direction (90° = down)", min: 0, max: 359, step: 1, value: 90, int: true },
 };
 const ctl = {};
 for (const k in SLIDERS) ctl[k] = SLIDERS[k].value;
@@ -1438,22 +1922,35 @@ fitCanvas();
 
 // ---- tools ----
 // What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
-const DOCK = ["pour", "shapes", "scenery", "theme", "creatures", "food", "text", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
+const DOCK = ["pour", "fire", "laser", "fan", "shapes", "scenery", "theme", "creatures", "food", "text", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "recolor", "select", "adjust"];
 const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "flowers", "fence", "house", "well", "barn", "windmill"],
   theme: ["pumpkin", "scarecrow", "cross", "mask", "ghost", "tombstone", "deadtree", "gravefence", "witchhat", "bat"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
 let textMode = "solid", textScale = 2, hollow = false;   // the Text tool's settings, and whether new shapes are hollow
+let laserMode = "hold";                                  // the Laser tool: "hold" fires while pressed, "turret" leaves a beam behind, "dots" leaves a dot shooter
+let laserWidth = 1, laserColor = "#ff2446", laserRgb = [255, 36, 70];
+let devAngle = 90, devSpin = 0, emitPush = 0, fanSpeed = 5;   // the angle (degrees, 90 = down), spin (degrees a second) and power for the next emitter / fan, or for the device picked with Adjust
+let devSize = 1, shapeDestructible = false;               // a fan's size, and whether new shapes can be destroyed by fire and acid
+let selDev = null;                                       // the device the Adjust tool picked: {type: "fan" | "laser" | "emitter", ref, cx, cy}
+let shapeHex = "#7aa2ff", shapeColored = false;          // new shapes are grey unless a colour has been chosen
+const SHAPE_PAINT = ["sphere", "cone", "box", "bowl", "ramp", "wall"];
+const DEVICE_TOOLS = ["emitter", "fan", "adjust", "laser"];
 const HOLLOWABLE = ["sphere", "cone", "box"];
-const TOOL_NAMES = { deadtree: "Dead tree", gravefence: "Grave fence", witchhat: "Witch hat" };
+const TOOL_NAMES = { deadtree: "Dead tree", gravefence: "Grave fence", witchhat: "Witch hat", adjust: "Adjust" };
 const niceName = t => TOOL_NAMES[t] || t[0].toUpperCase() + t.slice(1);
 let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
 const lastPick = { shapes: "sphere", scenery: "oak", theme: "pumpkin", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
 const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
 const KEY_TOOLS = { "1": "pour", "2": "sphere", "3": "cone", "4": "box", "5": "bowl", "6": "ramp", "7": "belt", "8": "emitter",
-  "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select" };
+  "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select", "i": "fire", "z": "laser", "n": "fan", "a": "adjust", "g": "recolor" };
 const ICONS = {
   pour: '<circle cx="7" cy="6" r="2"/><circle cx="17" cy="9" r="2"/><circle cx="11" cy="17" r="2"/>',
+  fire: '<path d="M12 3c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-10z"/>',
+  fan: '<circle cx="12" cy="12" r="1.6"/><path d="M12 10.4C11 6 13 3.6 16.5 4.6c.8 3.2-1.2 5.2-4.5 5.8zM13.6 12c4.4-1 6.8 1 5.8 4.5-3.2.8-5.2-1.2-5.8-4.5zM12 13.6c1 4.4-1 6.8-4.5 5.8-.8-3.2 1.2-5.2 4.5-5.8zM10.4 12c-4.4 1-6.8-1-5.8-4.5 3.2-.8 5.2 1.2 5.8 4.5z"/>',
+  adjust: '<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/><circle cx="12" cy="12" r="1.5"/>',
+  recolor: '<path d="M5 12l7-7 7 7-6 6a2 2 0 0 1-3 0z"/><path d="M19 15c1 1.5 2 2.5 2 3.5a2 2 0 0 1-4 0c0-1 1-2 2-3.5z"/>',
+  laser: '<path d="M3 12h13"/><path d="M18 8l3 4-3 4"/><rect x="2" y="9" width="4" height="6" rx="1"/>',
   sphere: '<circle cx="12" cy="12" r="8"/>',
   cone: '<path d="M12 4 20 20H4z"/>',
   box: '<rect x="5" y="5" width="14" height="14"/>',
@@ -1544,9 +2041,15 @@ function setTool(t) {
   $("creatureTools").hidden = !isCreature;               // so do a creature's colour and size
   $("sceneryTools").hidden = !isScenery;                 // scenery gets its own size picker
   $("textRow").hidden = !isText;                         // the Text tool's box, colour, barrier / paint and size
+  $("laserTools").hidden = !(t === "laser" || (t === "adjust" && selDev && selDev.type === "laser"));   // laser: mode, width and colour
+  const devTool = DEVICE_TOOLS.includes(t) || (t === "text" && (textMode === "emitter" || textMode === "shoots"));
+  $("devRow").hidden = !devTool;                         // angle, spin and power for emitters, fans and lasers
+  $("shapeTools").hidden = !(SHAPE_PAINT.includes(t) || t === "recolor");
+  if (t !== "adjust" && selDev) selDev = null;           // leaving Adjust lets go of the device
+  syncDevUi();
   $("bHollow").hidden = !HOLLOWABLE.includes(t);         // solid or hollow, for the shapes that can be either
-  $("matSeg").hidden = t === "pen" || isCreature || isScenery || isText;
-  $("sizeBox").hidden = isCreature || isScenery || isText;
+  $("matSeg").hidden = t === "pen" || isCreature || isScenery || (isText && textMode !== "emitter" && textMode !== "shoots") || t === "fire" || t === "laser" || t === "fan" || t === "adjust" || t === "recolor";
+  $("sizeBox").hidden = isCreature || isScenery || isText || t === "laser" || t === "fan" || t === "adjust" || t === "recolor";
   updateLabel();
 }
 function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
@@ -1595,16 +2098,21 @@ const SHAPES = ["sphere", "cone", "box", "bowl", "emitter", "trash"];
 const KIND = { emitter: EMITTER, trash: DRAIN };
 function updateLabel() {
   let s = niceName(tool);
-  if (tool === "pour" || tool === "emitter") s += material === WATER ? " · water" : " · sand";
+  if (tool === "pour" || tool === "emitter") s += material === FLAME ? " · fire" : material === ACID ? " · acid" : material === WATER ? " · water" : " · sand";
   if (tool === "erase") s += " · " + eraseShape + " · tap again";
-  if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall") s += " · size " + ctl.size;
+  if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall" || tool === "fire") s += " · size " + ctl.size;
+  if (tool === "fire") s += " · burns scenery, creatures and food; water puts it out";
+  if (tool === "laser") s += laserMode === "turret" ? " · drag to aim, let go to leave a laser" : laserMode === "dots" ? " · drag to aim, let go to leave a dot shooter" : " · hold and drag to aim";
+  if (tool === "fan") s += " · drag to aim, let go to place";
+  if (tool === "adjust") s += selDev ? " · drag to aim it · sliders change it" : " · tap an emitter, fan or laser";
+  if (tool === "recolor") s += " · tap a shape to give it the chosen colour and destructible setting";
   if (CREATURE_TYPES[tool]) s += ` · ${creatureScale}× · tap to add (${sand.creatures.length}/${MAX_CREATURES})`;
   if (FOOD_TYPES[tool]) {                                // which creatures it makes grow
     const fans = Object.keys(CREATURE_TYPES).filter(n => CREATURE_TYPES[n].likes.includes(tool));
     s += ` · tap to drop · ${fans.join(", ")} love it`;
   }
   if (DECOR_TYPES[tool]) s += ` · ${decorScale()}× · tap to place`;
-  if (tool === "text") s += ` · ${textMode === "solid" ? "barrier" : "paint"} · ${textScale}× · tap to place`;
+  if (tool === "text") s += ` · ${textMode === "solid" ? "barrier" : textMode === "emitter" ? "letters pour" : textMode === "shoots" ? "shoots the text" : "paint"} · ${textScale}× · tap to place`;
   if (hollow && HOLLOWABLE.includes(tool)) s += " · hollow";
   if (tool === "belt") s += " · drag the way it carries";
   if (tool === "ramp") {
@@ -1630,10 +2138,188 @@ function setMaterial(m) {
   material = m;
   $("mSand").classList.toggle("on", m === SAND);
   $("mWater").classList.toggle("on", m === WATER);
+  $("mAcid").classList.toggle("on", m === ACID);
+  $("mFire").classList.toggle("on", m === FLAME);
   updateLabel();
 }
 $("mSand").onclick = () => setMaterial(SAND);
 $("mWater").onclick = () => setMaterial(WATER);
+$("mAcid").onclick = () => setMaterial(ACID);
+$("mFire").onclick = () => setMaterial(FLAME);
+$("laserModeSeg").addEventListener("click", e => {
+  const m = e.target.dataset.m;
+  if (!m) return;
+  laserMode = m;
+  $("laserModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  updateLabel();
+});
+
+// ---- simulation speed: the header button steps through these; the slider in Controls sets any value ----
+const SPEED_PRESETS = [1, 2, 4, 8, 0.5, 0];
+function syncSpeedBtn() {
+  const s = ctl.speed;
+  $("speedBtn").textContent = s === 0 ? "⏸" : (s === 0.5 ? "½" : +s.toFixed(2)) + "×";
+  $("speedBtn").classList.toggle("on", s !== 1);
+}
+function setSpeed(s) {
+  ctl.speed = s; $("s_speed").value = s; sliderShow.speed(); updateLabel();
+  toast(s === 0 ? "Paused" : "Speed " + s + "×");
+}
+function nudgeSpeed(dir) {                               // ] and [ : the next faster / slower step (0.5, 1, 2, 4, 8)
+  const steps = [0.5, 1, 2, 4, 8], s = ctl.speed;
+  setSpeed(dir > 0 ? steps.find(v => v > s) ?? 8 : [...steps].reverse().find(v => v < s) ?? 0.5);
+}
+function togglePause() { if (ctl.speed === 0) setSpeed(lastRunSpeed); else { lastRunSpeed = ctl.speed; setSpeed(0); } }
+let lastRunSpeed = 1;
+$("speedBtn").onclick = () => {                          // 1× → 2× → 4× → 8× → ½× → pause → 1×
+  const i = SPEED_PRESETS.indexOf(ctl.speed);
+  setSpeed(SPEED_PRESETS[(i + 1) % SPEED_PRESETS.length]);
+};
+
+// ---- devices: emitters, fans and lasers have an angle, a spin and a power. Set them before placing, or pick one with Adjust ----
+const rgbToHex = c => "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+const norm360 = deg => ((Math.round(deg) % 360) + 360) % 360;
+const selType = () => (selDev ? selDev.type : tool);
+const powerIsFan = () => selType() === "fan";
+function syncDevUi() {                                   // the sliders show what is set for the next placement, or for the picked device
+  $("dAngle").value = devAngle; $("dAngleOut").textContent = devAngle + "°";
+  $("dSpin").value = devSpin; $("dSpinOut").textContent = devSpin;
+  const fan = powerIsFan();
+  $("dPowerLab").textContent = fan ? "Speed" : "Push";
+  $("dPower").max = fan ? 10 : 8;
+  $("dPower").value = fan ? fanSpeed : emitPush; $("dPowerOut").textContent = fan ? fanSpeed : emitPush;
+  $("dPowerBox").hidden = selType() === "laser";
+  $("dSizeBox").hidden = !fan;
+  $("dSize").value = devSize; $("dSizeOut").textContent = devSize + "×";
+  $("laserWidth").value = laserWidth; $("laserWidthOut").textContent = laserWidth; $("laserColor").value = laserColor;
+}
+function applyToDevice(field) {                          // change one setting of the picked device
+  const d = selDev;
+  if (!d) return;
+  const ang = devAngle * Math.PI / 180;
+  if (d.type === "fan") {
+    if (field === "angle") d.ref.ang = ang; else if (field === "spin") d.ref.spin = devSpin; else if (field === "power") d.ref.speed = fanSpeed; else if (field === "size") d.ref.size = devSize;
+  } else if (d.type === "printer") {
+    if (field === "angle") d.ref.ang = ang; else if (field === "spin") d.ref.spin = devSpin; else if (field === "power") d.ref.push = emitPush;
+  } else if (d.type === "laser") {
+    if (field === "angle") d.ref.ang = ang; else if (field === "spin") d.ref.spin = devSpin;
+    else if (field === "width") d.ref.w = laserWidth; else if (field === "color") d.ref.rgb = laserRgb.slice();
+  } else {
+    for (const i of d.ref) {
+      const p = sand.emitters.get(i);
+      if (!p) continue;
+      if (field === "angle") p[3] = ang; else if (field === "spin") p[4] = devSpin; else if (field === "power") p[5] = emitPush;
+    }
+  }
+}
+$("dAngle").addEventListener("input", e => { devAngle = +e.target.value; $("dAngleOut").textContent = devAngle + "°"; applyToDevice("angle"); });
+$("dSpin").addEventListener("input", e => { devSpin = +e.target.value; $("dSpinOut").textContent = devSpin; applyToDevice("spin"); });
+$("dPower").addEventListener("input", e => {
+  if (powerIsFan()) fanSpeed = +e.target.value; else emitPush = +e.target.value;
+  $("dPowerOut").textContent = e.target.value; applyToDevice("power");
+});
+$("dSize").addEventListener("input", e => { devSize = +e.target.value; $("dSizeOut").textContent = devSize + "×"; applyToDevice("size"); });
+$("laserWidth").addEventListener("input", e => { laserWidth = +e.target.value; $("laserWidthOut").textContent = laserWidth; applyToDevice("width"); });
+$("laserColor").addEventListener("input", e => { laserColor = e.target.value; laserRgb = hexToRgb(laserColor); applyToDevice("color"); });
+onDouble($("dAngle"), () => { devAngle = 90; syncDevUi(); applyToDevice("angle"); });
+onDouble($("dSpin"), () => { devSpin = 0; syncDevUi(); applyToDevice("spin"); });
+
+function deviceAt(x, y) {                                // the fan, laser or emitter under the pointer
+  let best = null, bd = 40;
+  for (const f of sand.fans) { const d = (f.x - x) ** 2 + (f.y - y) ** 2, lim = Math.max(40, (3 * (f.size || 1)) ** 2); if (d < lim && d < bd) { bd = d; best = { type: "fan", ref: f, cx: f.x, cy: f.y }; } }
+  for (const t of sand.printers) { const d = (t.x - x) ** 2 + (t.y - y) ** 2; if (d < bd) { bd = d; best = { type: "printer", ref: t, cx: t.x, cy: t.y }; } }
+  for (const t of sand.turrets) { const d = (t.x - x) ** 2 + (t.y - y) ** 2; if (d < bd) { bd = d; best = { type: "laser", ref: t, cx: t.x, cy: t.y }; } }
+  if (best) return best;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    const px = x + dx, py = y + dy;
+    if (px < 0 || px >= W || py < 0 || py >= H || sand.grid[py * W + px] !== EMITTER) continue;
+    const cells = sand.solidObject(px, py);
+    let sx = 0, sy = 0;
+    for (const i of cells) { sx += i % W; sy += Math.floor(i / W); }
+    return { type: "emitter", ref: cells, cx: sx / cells.size, cy: sy / cells.size };
+  }
+  return null;
+}
+function selectDevice(d) {                               // pick it (or nothing) and show its settings in the sliders
+  selDev = d;
+  if (d) {
+    if (d.type === "fan") { devAngle = norm360(d.ref.ang * 180 / Math.PI); devSpin = d.ref.spin; fanSpeed = d.ref.speed; devSize = d.ref.size || 1; }
+    else if (d.type === "printer") { devAngle = norm360(d.ref.ang * 180 / Math.PI); devSpin = d.ref.spin; emitPush = d.ref.push; }
+    else if (d.type === "laser") { devAngle = norm360(d.ref.ang * 180 / Math.PI); devSpin = d.ref.spin; laserWidth = d.ref.w; laserRgb = d.ref.rgb.slice(); laserColor = rgbToHex(laserRgb); }
+    else {
+      const p = sand.emitters.get(d.ref.values().next().value) || [];
+      devAngle = p[3] === undefined ? 90 : norm360(p[3] * 180 / Math.PI); devSpin = p[4] || 0; emitPush = p[5] || 0;
+    }
+  }
+  $("laserTools").hidden = !(tool === "laser" || (tool === "adjust" && selDev && selDev.type === "laser"));   // a picked laser shows its width and colour
+  syncDevUi(); updateLabel();
+}
+let adjStart = null, adjActive = false;                  // the Adjust tool: where the press began, and whether it has become an aiming drag
+function aimSelected(x, y) {                             // while dragging with Adjust, the device turns to face the pointer
+  if (!selDev || !adjStart) return;
+  if (!adjActive && Math.hypot(x - adjStart[0], y - adjStart[1]) < 6) return;   // a tap or a wobble does not turn it
+  adjActive = true;
+  const dx = x - selDev.cx, dy = y - selDev.cy;
+  if (Math.hypot(dx, dy) < 2) return;
+  devAngle = norm360(Math.atan2(dy, dx) * 180 / Math.PI);
+  applyToDevice("angle"); syncDevUi();
+}
+function selectionAlive() {
+  if (!selDev) return true;
+  if (selDev.type === "fan") return sand.fans.includes(selDev.ref);
+  if (selDev.type === "laser") return sand.turrets.includes(selDev.ref);
+  if (selDev.type === "printer") return sand.printers.includes(selDev.ref);
+  return sand.grid[selDev.ref.values().next().value] === EMITTER;
+}
+
+// ---- shape colours ----
+const shapePacked = () => {                              // the colour stored for a shape; its alpha says whether fire and acid can destroy it
+  const rgb = shapeColored ? hexToRgb(shapeHex) : THEME.shape;
+  const a = shapeColored ? (shapeDestructible ? ALPHA_DEST_PAINT : SHAPE_ALPHA) : (shapeDestructible ? ALPHA_DEST_PLAIN : ALPHA_PROT_PLAIN);
+  return ((a << 24) | (rgb[2] << 16) | (rgb[1] << 8) | rgb[0]) >>> 0;
+};
+function paintNew(placed) { if (placed && placed.length) sand.paintShapes(placed, shapePacked()); }
+function setShapeColored(on) { shapeColored = on; $("shapeGrey").classList.toggle("on", !on); }
+$("shapeColor").addEventListener("input", e => { shapeHex = e.target.value; setShapeColored(true); });
+$("shapeGrey").onclick = () => { setShapeColored(false); toast("Shapes are plain grey"); };
+function syncDestructUi() { $("shapeDestruct").textContent = "Destructible: " + (shapeDestructible ? "on" : "off"); $("shapeDestruct").classList.toggle("on", shapeDestructible); }
+$("shapeDestruct").onclick = () => { shapeDestructible = !shapeDestructible; syncDestructUi(); toast(shapeDestructible ? "New shapes can be destroyed by fire and acid" : "New shapes are protected from fire and acid"); };
+function recolorAt(x, y) {                               // tap a shape: the whole shape takes the chosen colour
+  const obj = sand.solidObject(x, y);
+  if (!obj.size) { toast("Tap a shape to recolor it"); return; }
+  const n = sand.paintShapes(obj, shapePacked());
+  toast(n ? (shapeDestructible ? "Updated: fire and acid can destroy it" : "Updated: protected from fire and acid") : "Scenery keeps its own colours");
+}
+function emitterProp() {                                 // what an emitter made now will pour, and which way it faces
+  const base = material === FLAME ? [FLAME, THEME.fire, false] : material === ACID ? [WATER, THEME.acid, true] : material === WATER ? [WATER, THEME.water, false]
+    : [SAND, ctl.hue === 0 ? hexToRgb(sandHex) : null, false];
+  return [...base, devAngle * Math.PI / 180, devSpin, emitPush];
+}
+
+// ---- a gesture: press just outside the left edge of the board, drag across, let go on the right side = Clear all ----
+let sweep = null;
+function boardRect() { return canvas.getBoundingClientRect(); }
+document.addEventListener("pointerdown", e => {
+  if (e.target.closest("button, input, select, textarea, .popmenu, #sheet, #dock, header, #selbar, #toast")) return;
+  const r = boardRect();
+  if (e.clientX < r.left && e.clientY > r.top - 30 && e.clientY < r.bottom + 30) sweep = { x0: e.clientX, y0: e.clientY, id: e.pointerId };
+}, true);
+document.addEventListener("pointermove", e => {
+  if (!sweep || e.pointerId !== sweep.id) return;
+  const r = boardRect(), progress = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+  $("sweep").style.display = "block"; $("sweep").style.width = progress * 100 + "%";
+  $("sweep").classList.toggle("armed", progress >= 0.75);
+});
+function endSweep(e, cancelled) {
+  if (!sweep || e.pointerId !== sweep.id) return;
+  const r = boardRect(), dx = e.clientX - sweep.x0, dy = e.clientY - sweep.y0;
+  const armed = !cancelled && e.clientX >= r.left + r.width * 0.75 && Math.abs(dx) > 2 * Math.abs(dy) && e.clientY > r.top - 40 && e.clientY < r.bottom + 40;
+  sweep = null;
+  $("sweep").style.display = "none"; $("sweep").style.width = "0"; $("sweep").classList.remove("armed");
+  if (armed) clearAll();
+}
+document.addEventListener("pointerup", e => endSweep(e, false), true);
+document.addEventListener("pointercancel", e => endSweep(e, true), true);
 
 // ---- the controls sheet ----
 function sliderHtml(k) {
@@ -1649,7 +2335,9 @@ $("sheet").innerHTML = `
   <div class="row"><span>Background picture</span><span class="pair"><button class="btn" id="bgPicBtn">Choose</button><button class="btn" id="bgPicClear" hidden>Remove</button></span></div>
   <input type="file" id="bgPicFile" accept="image/*" hidden>
   ${sliderHtml("hue")}${sliderHtml("shade")}
-  <h2>Physics</h2>${sliderHtml("gravity")}${sliderHtml("wind")}${sliderHtml("bounce")}
+  <h2>Physics</h2>${sliderHtml("speed")}${sliderHtml("gravity")}${sliderHtml("gravAngle")}
+  <div class="seg wide" id="gravSeg" role="group" aria-label="Gravity direction"><button data-a="270">↑ Up</button><button data-a="180">← Left</button><button data-a="90">↓ Down</button><button data-a="0">→ Right</button></div>
+  <p class="note">Sand and water settle against the wall gravity points at. Creatures always walk on the bottom.</p>${sliderHtml("wind")}${sliderHtml("bounce")}
   <h2>Objects</h2>${sliderHtml("flow")}
   <h2>Creatures</h2>${sliderHtml("creatureSpeed")}
   <p class="note">Pick a creature, then set its size and colour in the row above the tools. Tap one again to restyle it. Drop food and they will find it; food they like makes them grow. Slimes and dogs love water, cats, bunnies and chicks avoid it, and everyone gets thirsty now and then.</p>
@@ -1669,7 +2357,16 @@ $("sheet").innerHTML = `
     <button class="btn" id="bClearSand">Clear sand</button><button class="btn" id="bClearAll">Clear all</button>
     <button class="btn" id="bSave">Save</button><button class="btn" id="bLoad">Load</button>
     <button class="btn" id="bClearInk">Clear drawing</button>
-  </div>`;
+  </div>
+  <p class="note">Shortcut: press just outside the left edge of the board and drag across to the right side to Clear all.</p>`;
+// ---- gravity direction buttons ----
+$("gravSeg").addEventListener("click", e => {
+  const a = e.target.dataset && e.target.dataset.a;
+  if (a === undefined) return;
+  ctl.gravAngle = +a; $("s_gravAngle").value = a; sliderShow.gravAngle(); updateLabel();
+  toast("Gravity points " + { 270: "up", 180: "left", 90: "down", 0: "right" }[a]);
+});
+
 $("grainSeg").addEventListener("click", e => {           // a different grain size means a different grid, so reload
   const name = e.target.dataset && e.target.dataset.grain;
   if (!name || name === grainName) return;
@@ -1694,7 +2391,7 @@ function resetSlider(k) {                                // one slider back to t
 }
 for (const k in SLIDERS) {
   const inp = $("s_" + k), out = $("o_" + k), s = SLIDERS[k];
-  const show = () => { out.textContent = s.int ? ctl[k] : ctl[k].toFixed(2); };
+  const show = () => { out.textContent = s.int ? ctl[k] : ctl[k].toFixed(2); if (k === "speed") syncSpeedBtn(); };
   show();
   sliderShow[k] = show;
   inp.addEventListener("input", () => { ctl[k] = +inp.value; show(); });
@@ -1708,7 +2405,7 @@ board.style.backgroundColor = bgHex;
 function syncTextUi() {                                  // the Text tool's controls show what is chosen
   $("textModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === textMode));
   $("textScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === textScale));
-  updateLabel();
+  if (tool === "text") setTool("text"); else updateLabel();   // (the Emitter mode needs the material and angle rows)
 }
 $("textModeSeg").addEventListener("click", e => { const m = e.target.dataset.m; if (m) { textMode = m; syncTextUi(); } });
 $("textScaleSeg").addEventListener("click", e => { const v = +e.target.dataset.s; if (v) { textScale = v; syncTextUi(); } });
@@ -1758,7 +2455,12 @@ function resetAll() {
   sceneryScale = 1; syncSceneryUi();
   hollow = false; syncHollowUi();
   textMode = "solid"; textScale = 2; syncTextUi();
-  updateLabel();
+  devAngle = 90; devSpin = 0; emitPush = 0; fanSpeed = 5; devSize = 1; selDev = null;
+  shapeDestructible = false; syncDestructUi();
+  laserWidth = 1; laserColor = "#ff2446"; laserRgb = hexToRgb(laserColor); laserMode = "hold";
+  $("laserModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === "hold"));
+  shapeHex = "#7aa2ff"; $("shapeColor").value = shapeHex; setShapeColored(false);
+  syncDevUi(); updateLabel();
   toast("All settings reset to default");
 }
 $("bReset").onclick = resetAll;
@@ -1815,7 +2517,7 @@ const wallRadius = () => Math.max(1, Math.round(penWidth() / 2));
 function wallStamp(points) {                             // one addSolid for the whole batch keeps dragging smooth
   const cells = [];
   for (const [px, py] of points) for (const mx of mirroredXs(px)) for (const c of at(mx, py, "sphere", wallRadius())) cells.push(c);
-  sand.addSolid(cells, SOLID);
+  paintNew(sand.addSolid(cells, SOLID));
 }
 function wallTo(x, y) {                                  // stamp along the straight line from the last point, so fast drags leave no gaps
   if (!wallLast) return;
@@ -1891,6 +2593,9 @@ const mirroredXs = x => [...new Set(mirrorCopies(x))];
 
 // ---- actions (shared by buttons and keys) ----
 let moving = null, moveAnchor = null, dragStart = null, holding = false, stamping = false;
+let laserDrag = null, fanDrag = null;                    // the Laser / Fan tool while pressed: where it starts (it aims at the pointer)
+const fireRadius = () => Math.max(2, Math.round(ctl.size / 2));
+const laserAim = (from, to) => (Math.hypot(to.x - from.x, to.y - from.y) < 2 ? devAngle * Math.PI / 180 : Math.atan2(to.y - from.y, to.x - from.x));   // no drag: the Angle slider
 function clearSand() { sand.clearSand(); toast("Sand cleared"); }
 function clearAll() { sand = new Sand(W, H); moving = dragStart = null; cancelSelection(); toast("Cleared"); }
 function flipWorld() { sand.flip(); sand.wakeAll(); moving = dragStart = null; cancelSelection(); toast("Flipped!"); }
@@ -1975,6 +2680,9 @@ function saveScene() {
       creatures: sand.creatures.map(c => ({ t: c.type, x: c.x, y: c.y, d: c.dir, s: c.scale, c: c.tint })),
       foods: sand.foods.map(f => ({ t: f.type, x: f.x, y: f.y })),
       haunts: sand.haunts.map(h => [h.cx, h.cy]),
+      turrets: sand.turrets.map(t => ({ x: t.x, y: t.y, a: Math.round(t.ang * 1000) / 1000, s: t.spin, w: t.w, c: t.rgb, m: t.mode })),
+      fans: sand.fans.map(f => [f.x, f.y, Math.round(f.ang * 1000) / 1000, f.spin, f.speed, f.size || 1]),
+      printers: sand.printers.map(t => ({ x: t.x, y: t.y, a: Math.round(t.ang * 1000) / 1000, s: t.spin, p: t.push, t: t.text, sc: t.scale, k: t.kind, ac: t.acid, c: t.rgb })),
       ink: strokes.map(st => ({ c: st.c, w: st.w, p: st.p.map(v => Math.round(v * 10) / 10), cells: st.cells })),
     }));
     toast("Saved");
@@ -1993,6 +2701,9 @@ function loadScene() {
   for (const cr of data.creatures || data["crit" + "ters"] || []) s.restoreCreature(cr);   // put the creatures and food back where they were
   for (const fd of data.foods || []) s.restoreFood(fd);
   for (const [hx, hy] of data.haunts || []) s.addHaunt(hx, hy);
+  for (const t of data.turrets || []) { if (Array.isArray(t)) s.addTurret(t[0], t[1], t[2]); else s.addTurret(t.x, t.y, t.a, { spin: t.s, w: t.w, rgb: t.c, mode: t.m }); }
+  for (const [fx2, fy2, fa, fs, fv, fz] of data.fans || []) s.addFan(fx2, fy2, fa, fs, fv, fz);
+  for (const t of data.printers || []) s.addPrinter(t.x, t.y, t.a, { spin: t.s, push: t.p, text: t.t, scale: t.sc, kind: t.k, acid: t.ac, rgb: t.c, cells: textPixels(t.t, 0, 0, t.sc) });
   for (let i = 0; i < s.grid.length; i++) if (s.grid[i] === DRAIN) s.drains.add(i);
   sand = s; moving = dragStart = null; cancelSelection();
   strokes = data.ink || []; redrawInk();
@@ -2056,7 +2767,14 @@ function place(cx, cy) {
     const str = $("textInput").value.trim();
     if (!str) { toast("Type something first"); return; }
     const px = textPixels(str, cx, cy, textScale);
-    if (textMode === "solid") { const col = P(hexToRgb($("textColor").value)); sand.addDecor(px.map(([x, y]) => [x, y, col])); }
+    if (textMode === "shoots") {                         // an emitter that sends the text itself out, letters and all
+      const rel = textPixels(str, 0, 0, textScale), sandRgb = hexToRgb($("textColor").value);
+      const base = material === FLAME ? { kind: FLAME } : material === ACID ? { kind: WATER, acid: true, rgb: THEME.acid } : material === WATER ? { kind: WATER, rgb: THEME.water } : { kind: SAND, rgb: sandRgb };
+      let done = 0;
+      for (const mx of mirroredXs(cx)) if (sand.addPrinter(mx, cy, devAngle * Math.PI / 180, { ...base, cells: rel, text: str, scale: textScale, spin: devSpin, push: emitPush })) done++;
+      toast(done ? "Text shooter placed: pick it with Adjust, or erase it" : "That's plenty of text shooters");
+    } else if (textMode === "emitter") { for (const mx of mirroredXs(cx)) sand.addSolid(textPixels(str, mx, cy, textScale), EMITTER, emitterProp()); }
+    else if (textMode === "solid") { const col = P(hexToRgb($("textColor").value)); sand.addDecor(px.map(([x, y]) => [x, y, col])); }
     else { strokes.push({ c: $("textColor").value, w: 0, p: [0, 0], cells: px.flat() }); redrawInk(); }
     return;
   }
@@ -2069,10 +2787,12 @@ function place(cx, cy) {
     return;
   }
   if (tool === "emitter") {                              // remembers what it pours (null = follow the rainbow)
-    const prop = material === WATER ? [WATER, THEME.water] : [SAND, ctl.hue === 0 ? hexToRgb(sandHex) : null];
-    for (const mx of mirroredXs(cx)) sand.addSolid(at(mx, cy, "emitter", ctl.size), EMITTER, prop);
+    for (const mx of mirroredXs(cx)) sand.addSolid(at(mx, cy, "emitter", ctl.size), EMITTER, emitterProp());
   } else {
-    for (const mx of mirroredXs(cx)) sand.addSolid(shapeAt(tool, mx, cy), KIND[tool] || SOLID);
+    for (const mx of mirroredXs(cx)) {
+      const placed = sand.addSolid(shapeAt(tool, mx, cy), KIND[tool] || SOLID);
+      if (!KIND[tool]) paintNew(placed);
+    }
   }
 }
 canvas.addEventListener("pointerdown", e => {
@@ -2088,7 +2808,11 @@ canvas.addEventListener("pointerdown", e => {
   } else if (selection) cancelSelection();               // tapping elsewhere just dismisses the selection
   else if (tool === "pen") beginStroke(e);
   else if (tool === "wall") { wallLast = [cur.x, cur.y]; wallStamp([wallLast]); }
-  else if (tool === "pour" || tool === "erase") holding = true;
+  else if (tool === "pour" || tool === "erase" || tool === "fire") holding = true;
+  else if (tool === "laser") laserDrag = { x: Math.min(Math.max(cur.x, 0), W - 1), y: Math.min(Math.max(cur.y, 0), H - 1) };
+  else if (tool === "fan") fanDrag = { x: Math.min(Math.max(cur.x, 0), W - 1), y: Math.min(Math.max(cur.y, 0), H - 1) };
+  else if (tool === "adjust") { selectDevice(deviceAt(cur.x, cur.y)); adjStart = selDev ? [cur.x, cur.y] : null; adjActive = false; }
+  else if (tool === "recolor") recolorAt(cur.x, cur.y);
   else if (tool === "ramp" || tool === "belt") dragStart = tool === "ramp" ? rampStart(cur.x, cur.y) : [cur.x, cur.y];
   else if (tool === "move") {                            // grab the object under the finger
     const obj = sand.solidObject(cur.x, cur.y);
@@ -2096,7 +2820,7 @@ canvas.addEventListener("pointerdown", e => {
     moveAnchor = [cur.x, cur.y];
   } else stamping = true;                                // shapes land when the finger lifts, where the ghost shows
 });
-canvas.addEventListener("pointermove", e => { readMods(e); [cur.x, cur.y] = toCell(e); cur.over = true; continueStroke(e); wallTo(cur.x, cur.y); });
+canvas.addEventListener("pointermove", e => { readMods(e); [cur.x, cur.y] = toCell(e); cur.over = true; continueStroke(e); wallTo(cur.x, cur.y); if (adjStart) aimSelected(cur.x, cur.y); });
 canvas.addEventListener("pointerleave", () => { if (!holding && !dragStart && !stamping && !moving && !selAnchor) cur.over = false; });
 function release(e) {
   readMods(e);
@@ -2118,15 +2842,25 @@ function release(e) {
     starts.forEach((x0, i) => {
       const x1 = ends[i];
       if (tool === "belt") sand.addSolid(beltCells(x0, x1, dragStart[1]), CONVEYOR, x1 < x0 ? -1 : 1);
-      else sand.addSolid(lineCells(x0, dragStart[1], x1, ey));
+      else paintNew(sand.addSolid(lineCells(x0, dragStart[1], x1, ey)));
     });
   }
   if (stamping) place(cur.x, cur.y);
+  if (laserDrag && laserMode !== "hold") {               // leave a laser behind, aimed where you dragged
+    const ok = sand.addTurret(laserDrag.x, laserDrag.y, laserAim(laserDrag, cur), { spin: devSpin, w: laserWidth, rgb: laserRgb.slice(), mode: laserMode === "dots" ? "dots" : "beam" });
+    toast(ok ? "Laser placed: pick it with Adjust, or erase it" : "That's plenty of lasers");
+  }
+  if (fanDrag) {
+    const far = Math.hypot(cur.x - fanDrag.x, cur.y - fanDrag.y) >= 2;
+    const ok = sand.addFan(fanDrag.x, fanDrag.y, far ? Math.atan2(cur.y - fanDrag.y, cur.x - fanDrag.x) : devAngle * Math.PI / 180, devSpin, fanSpeed, devSize);
+    toast(ok ? "Fan placed: pick it with Adjust to change its speed" : "That's plenty of fans");
+  }
+  laserDrag = fanDrag = null; adjStart = null; adjActive = false;
   holding = stamping = false; moving = null; dragStart = null; penStroke = null; wallLast = null;
   if (e.pointerType !== "mouse") cur.over = false;
 }
 canvas.addEventListener("pointerup", release);
-canvas.addEventListener("pointercancel", e => { penStroke = wallLast = null; holding = stamping = pasteDown = false; moving = null; dragStart = null; selAnchor = selMode = null; cur.over = false; });
+canvas.addEventListener("pointercancel", e => { penStroke = wallLast = laserDrag = fanDrag = adjStart = null; holding = stamping = pasteDown = false; moving = null; dragStart = null; selAnchor = selMode = null; cur.over = false; });
 canvas.addEventListener("contextmenu", e => e.preventDefault());
 
 // ---- keyboard (handy on a computer) ----
@@ -2150,7 +2884,10 @@ addEventListener("keydown", e => {
   else if (Object.hasOwn(KEY_TOOLS, k)) selectTool(KEY_TOOLS[k]);
   else if (k === "r") clearSand();
   else if (k === "x") clearAll();
-  else if (k === "w") setMaterial(1 - material);
+  else if (k === "w") setMaterial((material + 1) % 4);
+  else if (k === "]") nudgeSpeed(1);
+  else if (k === "[") nudgeSpeed(-1);
+  else if (k === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); togglePause(); }
   else if (k === "t") toggleFx("trails");
   else if (k === "p") toggleFx("sparkle");
   else if (k === "m") cycleMirror();
@@ -2169,9 +2906,9 @@ function liveSand() {
   return hsvToRgb(h + hueDrift, Math.max(s, 0.5), Math.max(v, 0.5));
 }
 function simStep() {
-  sand.gravity = ctl.gravity; sand.wind = ctl.wind; sand.bounce = ctl.bounce; sand.creatureSpeed = ctl.creatureSpeed;
+  sand.setGravity(ctl.gravity, ctl.gravAngle); sand.wind = ctl.wind; sand.bounce = ctl.bounce; sand.creatureSpeed = ctl.creatureSpeed;
   if (ctl.hue === 0) hueDrift = 0; else hueDrift = (hueDrift + ctl.hue / 600) % 1;
-  const live = [liveSand(), THEME.water];                // indexed by SAND / WATER
+  const live = [liveSand(), THEME.water, THEME.acid];    // indexed by SAND / WATER / ACID
 
   if (moving) {                                          // Move tool: drag the object toward the finger
     const tx = Math.min(Math.max(cur.x, 0), W - 1), ty = Math.min(Math.max(cur.y, 0), H - 1);
@@ -2181,16 +2918,26 @@ function simStep() {
       if (moved) { moving = moved; moveAnchor = [moveAnchor[0] + sx, moveAnchor[1] + sy]; break; }
     }
   }
-  if (holding && tool === "pour") {
-    for (const mx of mirroredXs(cur.x)) sand.pour(mx, cur.y, ctl.rate, live[material], ctl.spread, material === WATER ? 0.06 : ctl.shade, material);
+  if (holding && tool === "pour" && material === FLAME) {
+    for (const mx of mirroredXs(cur.x)) sand.paintFire(mx, cur.y, fireRadius());
+  } else if (holding && tool === "pour") {
+    for (const mx of mirroredXs(cur.x)) sand.pour(mx, cur.y, ctl.rate, live[material], ctl.spread, material === SAND ? ctl.shade : 0.06, material === SAND ? SAND : WATER, material === ACID);
+  } else if (holding && tool === "fire") {
+    for (const mx of mirroredXs(cur.x)) sand.paintFire(mx, cur.y, fireRadius());
   } else if (holding && tool === "erase") {
     for (const mx of mirroredXs(cur.x)) {
       const cells = at(mx, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
       sand.removeSolid(cells);
       sand.removeCreaturesIn(cells);                     // the eraser removes creatures too
+      sand.eraseFx(cells);                               // ...and puts out flames and removes laser turrets
     }
   }
+  sand.hand = laserDrag && laserMode === "hold" ? { x: laserDrag.x, y: laserDrag.y, ang: laserAim(laserDrag, cur), w: laserWidth, rgb: laserRgb } : null;
   sand.runEmitters(ctl.flow, live, ctl.shade);
+  if (stepNo % 2 === 0) sand.stepFire();                 // flames move 60 times a second
+  sand.stepLasers();
+  sand.stepFans();
+  sand.stepPrinters(ctl.flow);
   sand.step();
   if (++stepNo % 4 === 0) sand.stepCreatures();          // creatures think 30 times a second
 }
@@ -2297,6 +3044,108 @@ function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for e
   }));
   return out;
 }
+// ---- fire and lasers ----
+const FIRE_COLORS = [pack(255, 238, 170), pack(255, 176, 48), pack(236, 72, 22), pack(112, 30, 20)];   // hottest first
+const FIRE_GLOW = pack(255, 130, 30);
+function drawFire() {
+  const fire = sand.fire, grid = sand.grid;
+  for (const i of sand.flames) {
+    const life = fire[i];
+    if (!life) continue;
+    let tier = life > 90 ? 0 : life > 45 ? 1 : life > 18 ? 2 : 3;
+    if (tier < 3 && Math.random() < 0.25) tier++;        // flicker
+    buf[i] = over(buf[i], FIRE_COLORS[tier], tier === 3 ? 70 + life * 6 : 235);
+    if (tier < 2) {                                      // a faint glow on the open air around a hot flame
+      const x = i % W;
+      for (const n of [i - 1, i + 1, i - W, i + W]) {
+        if (n < 0 || n >= buf.length || (n === i - 1 && x === 0) || (n === i + 1 && x === W - 1)) continue;
+        if (grid[n] === EMPTY && !sand.fire[n]) buf[n] = over(buf[n], FIRE_GLOW, 34);
+      }
+    }
+  }
+}
+const TURRET_BODY = pack(96, 102, 120), FAN_BODY = pack(88, 96, 116), FAN_BLADE = pack(205, 214, 232), FAN_AIR = pack(200, 220, 255), ACCENT = pack(110, 168, 255);
+const lightened = rgb => pack(Math.round(rgb[0] + (255 - rgb[0]) * 0.78), Math.round(rgb[1] + (255 - rgb[1]) * 0.78), Math.round(rgb[2] + (255 - rgb[2]) * 0.78));
+function plot(x, y, c, a) { if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = a === undefined ? c : over(buf[y * W + x], c, a); }
+function drawLasers() {
+  for (const b of sand.beams.values()) {                 // glow first, for every beam, so no glow covers a bright core
+    const glow = pack(...b.rgb);
+    for (const i of b.cells) {
+      const x = i % W;
+      for (const n of [i - 1, i + 1, i - W, i + W]) {
+        if (n < 0 || n >= buf.length || (n === i - 1 && x === 0) || (n === i + 1 && x === W - 1)) continue;
+        buf[n] = over(buf[n], glow, 85);
+      }
+    }
+  }
+  for (const b of sand.beams.values()) {
+    const core = lightened(b.rgb);
+    for (const i of b.cells) buf[i] = core;
+    if (b.end >= 0) {                                    // a bright flash where it stops
+      const ex = b.end % W, ey = (b.end - ex) / W;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (Math.abs(dx) + Math.abs(dy) <= 2) plot(ex + dx, ey + dy, core, 150);
+    }
+  }
+  for (const b of sand.bolts) {                          // laser dots: a bright square with a soft halo
+    const x = Math.floor(b.x), y = Math.floor(b.y), r = b.w >> 1, glow = pack(...b.rgb), core = lightened(b.rgb);
+    for (let dy = -r - 1; dy <= b.w - r; dy++) for (let dx = -r - 1; dx <= b.w - r; dx++) {
+      const inside = dx >= -r && dx < b.w - r && dy >= -r && dy < b.w - r;
+      plot(x + dx, y + dy, inside ? core : glow, inside ? undefined : 90);
+    }
+  }
+  for (const t of sand.turrets) {                        // a small box with a coloured lens, pointing the way it fires
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) plot(t.x + dx, t.y + dy, TURRET_BODY);
+    const lens = pack(...t.rgb);
+    plot(t.x + Math.round(Math.cos(t.ang) * 2), t.y + Math.round(Math.sin(t.ang) * 2), lens);
+    plot(t.x, t.y, t.mode === "dots" ? lightened(t.rgb) : lens);
+  }
+}
+const PRINTER_BODY = pack(104, 88, 150);
+function drawPrinters() {                                // a small violet box with a lens pointing the way the text will leave
+  for (const t of sand.printers) {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) plot(t.x + dx, t.y + dy, PRINTER_BODY);
+    plot(t.x + Math.round(Math.cos(t.ang) * 2), t.y + Math.round(Math.sin(t.ang) * 2), FAN_BLADE);
+    plot(t.x, t.y, ACCENT);
+  }
+}
+function drawFans() {
+  const now = performance.now();
+  for (const f of sand.fans) {
+    const c = Math.cos(f.ang), s = Math.sin(f.ang), m = f.size || 1;
+    if (f.speed > 0) {                                   // faint streaks of air drifting along the cone
+      const reach = (24 + f.speed * 6) * (0.7 + 0.3 * m), period = 1100 - f.speed * 70;
+      for (let k = 0; k < 16 + 6 * m; k++) {
+        const t = (now / period + k / (16 + 6 * m)) % 1, d = 3 * m + t * (reach - 3 * m), l = (((k * 7919) % 100) / 100 * 2 - 1) * (2 + d * 0.3) * m;
+        plot(Math.round(f.x + c * d - s * l), Math.round(f.y + s * d + c * l), FAN_AIR, Math.round(80 * (1 - t)));
+      }
+    }
+    const R = Math.ceil(2.3 * m);
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) if (dx * dx + dy * dy <= (2.3 * m) ** 2) plot(f.x + dx, f.y + dy, FAN_BODY);
+    for (let b = 0; b < 3; b++) {                        // three blades turning at the fan's speed
+      const a = f.phase + b * Math.PI * 2 / 3;
+      for (let r = 0; r <= 4 * m; r++) plot(Math.round(f.x + Math.cos(a) * r), Math.round(f.y + Math.sin(a) * r), FAN_BLADE);
+    }
+    plot(Math.round(f.x + c * (4 * m + 1)), Math.round(f.y + s * (4 * m + 1)), ACCENT);   // which way it blows
+  }
+}
+function drawSelection() {                               // the device picked with Adjust: a dotted ring and an arrow
+  if (!selDev) return;
+  const d = selDev, ang = devAngle * Math.PI / 180;
+  if (d.type === "emitter") for (const i of d.ref) buf[i] = over(buf[i], ACCENT, 70);
+  else { const rr = d.type === "fan" ? 4 + 2 * (d.ref.size || 1) : 6; for (let k = 0; k < 24; k += 2) plot(Math.round(d.cx + Math.cos(k * Math.PI / 12) * rr), Math.round(d.cy + Math.sin(k * Math.PI / 12) * rr), ACCENT); }
+  for (let r = 7; r <= 14; r++) plot(Math.round(d.cx + Math.cos(ang) * (r + (d.type === "fan" ? 3 * (d.ref.size || 1) : 0))), Math.round(d.cy + Math.sin(ang) * (r + (d.type === "fan" ? 3 * (d.ref.size || 1) : 0))), ACCENT);
+}
+function aimLine(from, ang) {                            // the cells a beam from `from` would cross (for the aiming preview)
+  const cells = [], dx = Math.cos(ang) * 0.5, dy = Math.sin(ang) * 0.5;
+  let px = from.x + 0.5, py = from.y + 0.5, last = -1;
+  for (let s = 0; s < 2 * (W + H); s += 2) {             // every other half-step: a dotted line
+    px += dx * 2; py += dy * 2;
+    const x = Math.floor(px), y = Math.floor(py);
+    if (x < 0 || x >= W || y < 0 || y >= H) break;
+    if (y * W + x !== last) { last = y * W + x; cells.push([x, y]); }
+  }
+  return cells;
+}
 function drawHauntGlow() {                               // an orange glow around a pumpkin while a ghost is haunting it
   const pulse = performance.now() / 160, orange = pack(255, 150, 40), R = 16;
   for (const h of sand.haunts) {
@@ -2313,7 +3162,7 @@ function drawHauntGlow() {                               // an orange glow aroun
 function objectColor(i, k) {
   if (k === EMITTER) {
     const e = sand.emitters.get(i) || [SAND, null], x = i % W;
-    const base = e[0] === WATER ? THEME.water : e[1] || hsvToRgb((x * 0.025) % 1, 0.55, 0.95);
+    const base = e[0] === FLAME ? THEME.fire : e[2] ? THEME.acid : e[0] === WATER ? THEME.water : e[1] || hsvToRgb((x * 0.025) % 1, 0.55, 0.95);
     return P(lerpRgb(base, THEME.shape, 0.3));
   }
   if (k === CONVEYOR) {
@@ -2358,7 +3207,10 @@ function previewCells() {                                // translucent ghost of
   if (moving) return [...moving].map(i => [i % W, Math.floor(i / W)]);
   if (!cur.over) return [];
   let cells = [];
-  if (SHAPES.includes(tool)) cells = shapeAt(tool, cur.x, cur.y);
+  if (SHAPES.includes(tool)) {
+    cells = shapeAt(tool, cur.x, cur.y);
+    if (tool === "emitter") cells = cells.concat(aimLine({ x: cur.x, y: cur.y }, devAngle * Math.PI / 180).slice(0, 10).map(([x, y]) => [x, y]));   // a dotted arrow for the way it will face
+  }
   else if (CREATURE_TYPES[tool] || FOOD_TYPES[tool]) {   // its silhouette, centred on the pointer
     const def = CREATURE_TYPES[tool] || FOOD_TYPES[tool], g = geomOf(def, CREATURE_TYPES[tool] ? creatureScale : 1);
     cells = g.mask.map(([dx, dy]) => [cur.x - (g.w >> 1) + dx, cur.y - (g.h >> 1) + dy]);
@@ -2368,6 +3220,10 @@ function previewCells() {                                // translucent ghost of
   else if (tool === "erase") cells = at(cur.x, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
   else if (tool === "pen") cells = at(cur.x, cur.y, "sphere", Math.max(1, Math.round(penWidth() / 2)));
   else if (tool === "wall") cells = at(cur.x, cur.y, "sphere", wallRadius());
+  else if (tool === "fire") cells = at(cur.x, cur.y, "sphere", fireRadius());
+  else if (tool === "laser") cells = laserDrag && laserMode !== "hold" ? aimLine(laserDrag, laserAim(laserDrag, cur)) : at(cur.x, cur.y, "sphere", 1);
+  else if (tool === "fan") cells = fanDrag ? aimLine(fanDrag, laserAim(fanDrag, cur)) : at(cur.x, cur.y, "sphere", 2).concat(aimLine({ x: cur.x, y: cur.y }, devAngle * Math.PI / 180).slice(0, 8));
+  else if (tool === "recolor") cells = at(cur.x, cur.y, "sphere", 1);
   else if (tool === "ramp") cells = dragStart ? lineCells(dragStart[0], dragStart[1], ...rampEnd(dragStart, cur.x, cur.y)) : [[cur.x, cur.y]];
   else if (tool === "belt") cells = dragStart ? beltCells(dragStart[0], cur.x, dragStart[1]) : beltCells(cur.x, cur.x, cur.y);
   if (fx.mirror > 1 && !moving) cells = cells.flatMap(([x, y]) => mirroredXs(x).map(mx => [mx, y]));
@@ -2387,6 +3243,11 @@ function render(clean = false) {                         // clean = leave out th
   for (const c of sand.creatures) drawCreature(c);
   drawHauntGlow();
   for (const g of sand.grains) buf[trunc(g.y) * W + trunc(g.x)] = g.color;
+  drawFire();
+  drawFans();
+  drawPrinters();
+  drawLasers();
+  if (!clean) drawSelection();
   if (fx.mirror > 1 && !clean) {                         // dashed lines where the strips meet
     for (const seam of MIRROR_EDGES[fx.mirror].slice(1, -1)) for (let y = 0; y < H; y++) if ((y >> 2) % 2 === 0 && seam < W) buf[y * W + seam] = SEAM;
   }
@@ -2418,15 +3279,21 @@ function render(clean = false) {                         // clean = leave out th
 const STEP_MS = 1000 / 120;
 let last = performance.now(), acc = 0;
 function frame(now) {
-  acc += Math.min(now - last, 100);
+  acc += Math.min(now - last, 100) * ctl.speed;          // the speed setting makes time run faster (or slower, or not at all)
   last = now;
   let steps = 0;
-  while (acc >= STEP_MS && steps < 4) { simStep(); acc -= STEP_MS; steps++; }
-  if (steps === 4) acc = 0;                              // can't keep up: drop the backlog instead of spiralling
+  const cap = Math.max(4, Math.ceil(4 * ctl.speed));
+  while (acc >= STEP_MS && steps < cap) { simStep(); acc -= STEP_MS; steps++; }
+  if (steps === cap) acc = 0;                            // can't keep up: drop the backlog instead of spiralling
   frameNo++;
   if (sand.conveyors.size && frameNo % 2 === 0) beltPhase++;
   if (dragStart && tool === "ramp") updateLabel();       // live angle and length while dragging a ramp
   if (frameNo % 15 === 0) updateStats();
+  if (selDev) {
+    if (!selectionAlive()) { selDev = null; syncDevUi(); updateLabel(); }                      // it was erased, or the scene was cleared
+    else if (devSpin && selDev.type !== "emitter" && frameNo % 4 === 0) { devAngle = norm360(selDev.ref.ang * 180 / Math.PI); syncDevUi(); }   // follow a spinning device
+    else if (devSpin && selDev.type === "emitter" && frameNo % 4 === 0) { const p = sand.emitters.get(selDev.ref.values().next().value); if (p) { devAngle = norm360(p[3] * 180 / Math.PI); syncDevUi(); } }
+  }
   updateFx();
   render();
   requestAnimationFrame(frame);
