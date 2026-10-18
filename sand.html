@@ -281,6 +281,8 @@ const CREATURE_TYPES = {
   dog: { rows: [".nnnnnnn.", "NnnnnnnnN", "NnknnnknN", "nnttkttnn", ".nnnpnnn.", ".nnnnnnn.", ".nn...nn.", ".nn...nn."], every: 3, step: 5, walk: [60, 200], rest: [20, 70],
     likes: ["bone"], water: "love", body: { n: 1, N: 0.65 } },
 };
+CREATURE_TYPES.ghost = { rows: ["..wwwww..", ".wwwwwww.", "wwwwwwwww", "wwkkwkkww", "wwkkwkkww", "wwwwwwwww", "wwwkkkwww", "wwwwwwwww", "wwwwwwwww", "ww.www.ww"], flyRows: ["..wwwww..", ".wwwwwww.", "wwwwwwwww", "wwkkwkkww", "wwkkwkkww", "wwwwwwwww", "wwwkkkwww", "wwwwwwwww", "wwwwwwwww", "w.www.www"],
+  ghost: true, fly: true, every: 4, step: 0, walk: [20, 60], rest: [20, 60], likes: [], water: "neutral", body: { w: 1 } };   // floats about and spooks the others
 const FOOD_TYPES = {
   apple: { rows: [".g..", "rrrr", "rrrr", ".rr."] },
   berry: { rows: [".vv.", "vvvv", "vvvv", ".vv."] },
@@ -742,6 +744,7 @@ class Sand {
     if (c.hearts > 0) c.hearts--;
     if (c.seekWait > 0) c.seekWait--;
     this.clearBody(c);
+    if (t.ghost) { this.ghostStep(c, t, g); this.setBody(c); return; }   // ghosts float: no gravity, food or thirst
     let fell = 0;
     if (c.mode !== "fly") {                              // 1. gravity: fall until something is underneath
       c.vy = Math.min(c.vy + 1, 3);
@@ -855,7 +858,7 @@ class Sand {
       else dy = 1;                                       // time to come down
       let moved = false;
       for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) {
-        if ((mx || my) && this.bodyFree(t, c.scale, c.x + mx, c.y + my)) { c.x += mx; c.y += my; moved = true; c.frame ^= 1; break; }
+        if ((mx || my) && this.bodyFree(t, c.scale, c.x + mx, c.y + my)) { this.shedSand(c); c.x += mx; c.y += my; moved = true; c.frame ^= 1; break; }
       }
       if (!moved && f && !c.detour) c.detour = (Math.random() < 0.5 ? -1 : 1) * 14;
       if (!moved && !f && dy <= 0) c.dir = -c.dir;       // bumped into something: turn round
@@ -986,6 +989,31 @@ class Sand {
     const x = i % this.w, y = (i - x) / this.w;
     this.grid[i] = EMPTY; this.colors[i] = 0;
     this.wakeRegion(x - 1, x + 1, y);                    // the water around it flows in to fill the gap
+  }
+  ghostStep(c, t, g) {                                   // drift about, bob a little, and give nearby animals a fright
+    c.mode = "fly"; c.hearts = 0;
+    if (this.creatureSpeed > 0) {
+      let n = this.advance(c, t);
+      while (n-- > 0) {
+        c.timer -= 1;
+        if (c.timer <= 0) { c.timer = 20 + Math.floor(Math.random() * 50); c.dir = Math.random() < 0.5 ? -1 : 1; c.climb = Math.floor(Math.random() * 3) - 1; }
+        let moved = false;
+        for (const [mx, my] of [[c.dir, c.climb], [c.dir, 0], [0, c.climb]]) {
+          if ((mx || my) && this.bodyFree(t, c.scale, c.x + mx, c.y + my)) { this.shedSand(c); c.x += mx; c.y += my; moved = true; c.frame ^= 1; break; }
+        }
+        if (!moved) { c.dir = -c.dir; c.climb = -c.climb; }
+      }
+    }
+    if (c.age % 8 === 0) {                               // boo!
+      const cx = c.x + (g.w >> 1), cy = c.y + (g.h >> 1), reach = 22 + 6 * c.scale;
+      for (const o of this.creatures) {
+        if (o === c || CREATURE_TYPES[o.type].ghost || o.mode === "fly") continue;
+        const og = geomOf(CREATURE_TYPES[o.type], o.scale);
+        if (Math.hypot(o.x + (og.w >> 1) - cx, o.y + (og.h >> 1) - cy) > reach) continue;
+        if (o.panic <= 0) o.shake = 10;
+        o.panic = Math.max(o.panic, 36); o.dir = o.x + (og.w >> 1) < cx ? -1 : 1; o.mode = "walk"; o.target = null; o.drinking = 0; o.waterX = null;
+      }
+    }
   }
   repositionCreaturesAfterFlip() {
     for (const c of [...this.creatures]) {
@@ -1333,12 +1361,13 @@ fitCanvas();
 
 // ---- tools ----
 // What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
-const DOCK = ["pour", "shapes", "scenery", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
-const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "fence", "house", "well", "barn"],
+const DOCK = ["pour", "shapes", "scenery", "theme", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
+const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "flowers", "fence", "house", "well", "barn", "windmill"],
+  theme: ["pumpkin", "scarecrow", "cross", "mask", "ghost"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
 let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
-const lastPick = { shapes: "sphere", scenery: "oak", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
+const lastPick = { shapes: "sphere", scenery: "oak", theme: "pumpkin", creatures: "slime", food: "apple" };   // a menu button shows the icon of the one you used last
 const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
 const KEY_TOOLS = { "1": "pour", "2": "sphere", "3": "cone", "4": "box", "5": "bowl", "6": "ramp", "7": "belt", "8": "emitter",
   "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select" };
@@ -1364,6 +1393,14 @@ const ICONS = {
   house: '<path d="M4 11l8-7 8 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
   well: '<path d="M5 20h14M7 20v-8h10v8M6 12l6-6 6 6M12 12v4"/>',
   barn: '<path d="M3 20v-9l4-6h10l4 6v9z"/><path d="M8 20v-6h8v6M8 14l8 6M16 14l-8 6"/>',
+  flowers: '<circle cx="12" cy="8" r="3"/><path d="M12 11v9M8 20h8"/>',
+  windmill: '<path d="M12 11l-6-6m6 6l6-6m-6 6l-6 6m6-6l6 6"/><path d="M10 21l1-9h2l1 9z"/>',
+  theme: '<path d="M12 7c-6-2-9 2-8 7s4 6 8 6 7-1 8-6-2-9-8-7z"/><path d="M12 7V4"/>',
+  pumpkin: '<path d="M12 7c-6-2-9 2-8 7s4 6 8 6 7-1 8-6-2-9-8-7z"/><path d="M12 7V4"/>',
+  scarecrow: '<path d="M12 5v16M4 11h16"/><circle cx="12" cy="7" r="2.5"/>',
+  cross: '<path d="M12 3v18M7 8h10"/>',
+  mask: '<path d="M12 3c-3 0-5 2-5 5v4c0 3 2 5 5 9 3-4 5-6 5-9V8c0-3-2-5-5-5z"/><circle cx="10" cy="10" r=".8"/><circle cx="14" cy="10" r=".8"/><path d="M12 13v3"/>',
+  ghost: '<path d="M6 20V11a6 6 0 0 1 12 0v9l-2-2-2 2-2-2-2 2-2-2z"/><circle cx="10" cy="11" r=".8"/><circle cx="14" cy="11" r=".8"/>',
   scenery: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
   bird: '<path d="M4 13c3-5 8-6 11-3l5-2-3 4c0 4-4 8-9 7z"/><circle cx="14" cy="10" r=".7"/>',
   cat: '<path d="M5 20V8l3 3h8l3-3v12z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
@@ -2054,7 +2091,7 @@ function drawCreature(c) {
     const col = creatureColor(c, ch);
     for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) {
       const x = c.x + rx * k + i + shake, y = c.y + ry * k + j + bob;
-      if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = col;
+      if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = t.ghost ? over(buf[y * W + x], col, 190) : col;
     }
   }
   if (c.hearts > 0) {
@@ -2076,7 +2113,9 @@ function drawFood(f) {
 const DECOR_COLORS = { a: pack(110, 190, 80), A: pack(58, 130, 60), T: pack(118, 78, 44), U: pack(84, 54, 30), f: pack(190, 140, 86), F: pack(140, 98, 58),
   R: pack(178, 64, 56), r: pack(130, 44, 42), W: pack(236, 214, 170), w: pack(206, 180, 134), D: pack(110, 70, 40), G: pack(150, 200, 230),
   K: pack(140, 140, 150), P: pack(36, 100, 70), p: pack(70, 150, 90),
-  S: pack(172, 172, 184), s: pack(118, 118, 130), Z: pack(240, 236, 226), Y: pack(222, 186, 92) };
+  S: pack(172, 172, 184), s: pack(118, 118, 130), Z: pack(240, 236, 226), Y: pack(222, 186, 92),
+  o: pack(232, 120, 20), q: pack(160, 76, 10), g: pack(74, 124, 44), e: pack(255, 214, 70), k: pack(22, 22, 26), h: pack(214, 176, 80),
+  n: pack(62, 92, 150), x: pack(240, 120, 170) };
 const DECOR_TYPES = {
   oak: { rows: ["...aaaaa...", "..aaaaaaa..", ".aaaAaaaaA.", ".aAaaaaAaa.", "aaaaAaaaaaa", "aAaaaaaAaaa", "aaaAaaaaaAa", ".aaaaAaaaa.", "..AAaaaaAA.",
     "....UUT....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
@@ -2088,6 +2127,12 @@ const DECOR_TYPES = {
     ".WWWWWDDDDWWWWWWWWW.", ".wwwwwDDDDwwwwwwwww.", ".wwwwwDDKDwwwwwwwww.", "UUUUUUUUUUUUUUUUUUUU"] },
   well: { rows: ["...RRRRR...", "..RRRRRRR..", ".rrrrrrrrr.", ".T.......T.", ".T...w...T.", ".T...w...T.", ".T..fFf..T.", ".T.......T.", "SSSSSSSSSSS", "SsSSsSSSsSS", "sSSSsSSsSSS", "SSsSSSsSSsS", "sSSsSSSsSSs", "sssssssssss"] },
   barn: { rows: [".......rrrrrrrrrr.......", "......rrrrrrrrrrrr......", ".....rrrrrrrrrrrrrr.....", "....rrrrrrrrrrrrrrrr....", "...rrrrrrrrrrrrrrrrrr...", "..rrrrrrrrrrrrrrrrrrrr..", ".rrrrrrrrrrrrrrrrrrrrrr.", "rrrrrrrrrrrrrrrrrrrrrrrr", "ZRRRRRRRRRRRRRRRRRRRRRRZ", "ZRRRRRRRRRZZZZRRRRRRRRRZ", "ZRRRRRRRRRZYYZRRRRRRRRRZ", "ZRRRRRRRRRZYYZRRRRRRRRRZ", "ZRRRRRRRRRZZZZRRRRRRRRRZ", "ZRRRRRRRRRRRRRRRRRRRRRRZ", "ZRRRRZZrrrrrrrrrrZZRRRRZ", "ZRRRRZrZrrrrrrrrZrZRRRRZ", "ZRRRRZrrZrrrrrrZrrZRRRRZ", "ZRRRRZrrrZrrrrZrrrZRRRRZ", "ZRRRRZrrrrZrrZrrrrZRRRRZ", "UUUUUUUUUUUUUUUUUUUUUUUU"] },
+  flowers: { rows: [".x...Y...R.", "xxx.YYY.RRR", ".x...Y...R.", ".a...a...a.", ".aA..aA..aA", "aaaaaaaaaaa"] },
+  windmill: { rows: [".................", ".................", ".......fTf.......", "........T........", ".......fTf.......", "........T........", ".......fTf.......", "........T........", ".......fTf.......", "f.f.f.f.T.f.f.f.f", "TTTTTTTTUTTTTTTTT", "f.f.f.fRTRf.f.f.f", "....rrrfTfrrr....", ".....wwwTWWW.....", ".....wwfTfWW.....", ".....wwwTWWW.....", "....wwwfTfWWW....", "....wwwwTWWWW....", "....wwwfTfWWW....", "....wwwwWWWWW....", "....wwwwGWWWW....", "...wwwwwGWWWWW...", "...wwwwwWWWWWW...", "...wwwwwWWWWWW...", "...wwwwwWWWWWW...", "...wwwwwWWWWWW...", "...wwwwDDDWWWW...", "..wwwwwDDDWWWWW..", "..wwwwwDDDWWWWW..", "..wwwwwDDDWWWWW.."] },
+  pumpkin: { rows: [".....gg....", "..oooggooo.", "oooqoooqooo", "oooqoooqooo", "ooeoooooeoo", "oeeeoooeeeo", "oooqoooqooo", "oeooeeeooeo", "ooeeeeeeeoo", ".ooqoooqoo.", "..qqqqqqq.."] },
+  scarecrow: { rows: ["....UUU....", "....TTT....", "..UUUUUUU..", "...hhhhh...", "...hkhkh...", "...hhhhh...", "...hkkkh...", "hhhRRRRRhhh", "hhRRRRRRRhh", "...RRTRR...", "...nnTnn...", "..hnnTnnh..", "...hhThh...", "....hTh....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
+  cross: { rows: ["....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "SSSSSSSSSSs", "SSSSSSSSSSs", "SSSSSSSSSSs", "....SSA....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "....SSs....", "...SSSSS...", "..SSSSSSSs.", ".SSSSSSSSSs", "sssssssssss"] },
+  mask: { rows: ["....kkkkk....", "...kkkkkkk...", "..kkZZZZZkk..", "..kZZZZZZZk..", "..kZkZZZkZk..", "..kZkkZkkZk..", "..kZkkZkkZk..", "..kZZkZkZZk..", "..kZZZZZZZk..", "..kZZZZZZZk..", "..kZZkkkZZk..", "..kZZkkkZZk..", "..kZZkkkZZk..", "...kZkkkZk...", "...kZZZZZk...", "....kZZZk....", ".....kZk.....", "......k......"] },
 };
 const decorScale = () => sceneryScale;
 function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for every pixel, standing on bottomY and centred on cx
