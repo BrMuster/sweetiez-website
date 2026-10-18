@@ -1334,7 +1334,7 @@ fitCanvas();
 // ---- tools ----
 // What the tool row shows. "shapes", "scenery", "creatures" and "food" are buttons that open a pop-up holding the tools listed in MENUS.
 const DOCK = ["pour", "shapes", "scenery", "creatures", "food", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
-const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "fence", "house"],
+const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], scenery: ["oak", "pine", "bush", "fence", "house", "well", "barn"],
   creatures: ["slime", "bunny", "chick", "bird", "cat", "dog"], food: ["apple", "berry", "carrot", "seed", "fish", "bone"] };
 let sceneryScale = 1;                                    // how big the next piece of scenery is (1 to 6 times)
 let creatureScale = 1, creatureTint = null;              // the size and colour the next creature gets (null = its own colours)
@@ -1362,6 +1362,8 @@ const ICONS = {
   bush: '<path d="M4 18a4 4 0 0 1 4-7 4 4 0 0 1 8 0 4 4 0 0 1 4 7z"/>',
   fence: '<path d="M5 20V8m7 12V8m7 12V8M3 12h18M3 17h18"/>',
   house: '<path d="M4 11l8-7 8 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+  well: '<path d="M5 20h14M7 20v-8h10v8M6 12l6-6 6 6M12 12v4"/>',
+  barn: '<path d="M3 20v-9l4-6h10l4 6v9z"/><path d="M8 20v-6h8v6M8 14l8 6M16 14l-8 6"/>',
   scenery: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
   bird: '<path d="M4 13c3-5 8-6 11-3l5-2-3 4c0 4-4 8-9 7z"/><circle cx="14" cy="10" r=".7"/>',
   cat: '<path d="M5 20V8l3 3h8l3-3v12z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
@@ -2073,7 +2075,8 @@ function drawFood(f) {
 // ---- scenery: little Stardew-style pixel buildings and plants. They are solid, and sand piles on them. ----
 const DECOR_COLORS = { a: pack(110, 190, 80), A: pack(58, 130, 60), T: pack(118, 78, 44), U: pack(84, 54, 30), f: pack(190, 140, 86), F: pack(140, 98, 58),
   R: pack(178, 64, 56), r: pack(130, 44, 42), W: pack(236, 214, 170), w: pack(206, 180, 134), D: pack(110, 70, 40), G: pack(150, 200, 230),
-  K: pack(140, 140, 150), P: pack(36, 100, 70), p: pack(70, 150, 90) };
+  K: pack(140, 140, 150), P: pack(36, 100, 70), p: pack(70, 150, 90),
+  S: pack(172, 172, 184), s: pack(118, 118, 130), Z: pack(240, 236, 226), Y: pack(222, 186, 92) };
 const DECOR_TYPES = {
   oak: { rows: ["...aaaaa...", "..aaaaaaa..", ".aaaAaaaaA.", ".aAaaaaAaa.", "aaaaAaaaaaa", "aAaaaaaAaaa", "aaaAaaaaaAa", ".aaaaAaaaa.", "..AAaaaaAA.",
     "....UUT....", "....TUT....", "....TUT....", "....TUT....", "...TTUTT..."] },
@@ -2083,6 +2086,8 @@ const DECOR_TYPES = {
   house: { rows: ["........RRRR..KK....", ".......RRRRRR.KK....", "......RRRRRRRRKK....", ".....RRRRRRRRRR.....", "....RRRRRRRRRRRR....", "...RRRRRRRRRRRRRR...",
     "..RRRRRRRRRRRRRRRR..", ".RRRRRRRRRRRRRRRRRR.", "rrrrrrrrrrrrrrrrrrrr", ".WWWWWWWWWWWWWWWWWW.", ".WGGWWDDDDWWWWGGWWW.", ".WGGWWDDDDWWWWGGWWW.",
     ".WWWWWDDDDWWWWWWWWW.", ".wwwwwDDDDwwwwwwwww.", ".wwwwwDDKDwwwwwwwww.", "UUUUUUUUUUUUUUUUUUUU"] },
+  well: { rows: ["...RRRRR...", "..RRRRRRR..", ".rrrrrrrrr.", ".T.......T.", ".T...w...T.", ".T...w...T.", ".T..fFf..T.", ".T.......T.", "SSSSSSSSSSS", "SsSSsSSSsSS", "sSSSsSSsSSS", "SSsSSSsSSsS", "sSSsSSSsSSs", "sssssssssss"] },
+  barn: { rows: [".......rrrrrrrrrr.......", "......rrrrrrrrrrrr......", ".....rrrrrrrrrrrrrr.....", "....rrrrrrrrrrrrrrrr....", "...rrrrrrrrrrrrrrrrrr...", "..rrrrrrrrrrrrrrrrrrrr..", ".rrrrrrrrrrrrrrrrrrrrrr.", "rrrrrrrrrrrrrrrrrrrrrrrr", "ZRRRRRRRRRRRRRRRRRRRRRRZ", "ZRRRRRRRRRZZZZRRRRRRRRRZ", "ZRRRRRRRRRZYYZRRRRRRRRRZ", "ZRRRRRRRRRZYYZRRRRRRRRRZ", "ZRRRRRRRRRZZZZRRRRRRRRRZ", "ZRRRRRRRRRRRRRRRRRRRRRRZ", "ZRRRRZZrrrrrrrrrrZZRRRRZ", "ZRRRRZrZrrrrrrrrZrZRRRRZ", "ZRRRRZrrZrrrrrrZrrZRRRRZ", "ZRRRRZrrrZrrrrZrrrZRRRRZ", "ZRRRRZrrrrZrrZrrrrZRRRRZ", "UUUUUUUUUUUUUUUUUUUUUUUU"] },
 };
 const decorScale = () => sceneryScale;
 function decorPixels(type, cx, bottomY, scale) {         // [x, y, colour] for every pixel, standing on bottomY and centred on cx
