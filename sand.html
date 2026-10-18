@@ -120,8 +120,8 @@ input[type=range]::-webkit-slider-thumb {
 input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #dde3f2; border: 5px solid var(--accent); }
 
 .dock { display: grid; gap: 8px; position: relative; }
-#shapeMenu {
-  position: absolute; z-index: 5; display: grid; grid-template-columns: repeat(2, 62px); gap: 8px; padding: 8px;
+.popmenu {
+  position: absolute; z-index: 5; display: grid; grid-template-columns: repeat(3, 62px); gap: 8px; padding: 8px;
   border-radius: 14px; background: var(--card); border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(0, 0, 0, .55);
 }
 .quick { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -136,6 +136,12 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .pen input[type=color] { width: 44px; }
 .pair { display: flex; gap: 8px; }
 .row .btn { min-height: 34px; }
+.mini {
+  min-height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12px; letter-spacing: 0; text-transform: none;
+  background: var(--button); border: 1px solid var(--outline); color: var(--text-dim); cursor: pointer;
+}
+.mini:hover { background: var(--button-hover); color: var(--text); }
+#sheet h2 .mini { order: 2; }
 .quick .slider { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; max-width: 230px; padding: 0; }
 .quick .slider .lab { display: contents; }
 .quick .slider .lab span { color: var(--text-dim); font-size: 13px; }
@@ -193,7 +199,6 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 <section id="sheet" hidden aria-label="Controls"></section>
 
 <nav class="dock" id="dock" aria-label="Tools">
-  <div id="shapeMenu" hidden role="menu" aria-label="Shapes"></div>
   <div class="quick">
     <div class="seg" id="matSeg" role="group" aria-label="Material">
       <button id="mSand" class="on">Sand</button><button id="mWater">Water</button>
@@ -220,8 +225,9 @@ window.addEventListener("error", e => {
 const EMPTY = 0, STATIC = 1, IN_AIR = 2, STACKING = 3, SOLID = 4, DRAIN = 5, EMITTER = 6, CONVEYOR = 7, STILL_WATER = 8;
 const SAND = 0, WATER = 1;
 const WATER_PATIENCE = 120;
-const FIRM = new Uint8Array(9);
-[STATIC, SOLID, EMITTER, CONVEYOR, STILL_WATER].forEach(k => { FIRM[k] = 1; });
+const CREATURE = 9;                                      // a pixel critter's body (see CREATURE_TYPES)
+const FIRM = new Uint8Array(10);
+[STATIC, SOLID, EMITTER, CONVEYOR, STILL_WATER, CREATURE].forEach(k => { FIRM[k] = 1; });
 const isObj = k => k >= SOLID && k <= CONVEYOR;
 const trunc = Math.trunc;
 
@@ -240,6 +246,25 @@ class Grain {
   }
 }
 
+// ---- critters: tiny pixel creatures made of the same pixels as the sand ----
+// rows: the sprite ("." = see-through; letters are colours, see CRITTER_COLORS). Sand treats the coloured pixels as solid.
+// every: ticks per step (smaller = faster).  step: tallest ledge it can climb.  walk / rest: how long, in ticks (30 a second).
+const MAX_CREATURES = 30;
+const CREATURE_TYPES = {
+  slime: { rows: ["..gggg..", ".gGGGGg.", "gGkGGkGg", "gGGGGGGg", "gGGGGGGg", ".gggggg."], every: 8, step: 2, walk: [40, 140], rest: [30, 120] },
+  bunny: { rows: [".w...w.", ".w...w.", ".wwwww.", "wwwwwww", "wkwwwkw", "wwwpwww", ".wwwww.", ".w...w."], every: 3, step: 4, walk: [6, 15], rest: [25, 90] },
+  chick: { rows: ["..yyy..", ".yyyyy.", ".ykyky.", ".yyoyy.", "yyyyyyy", ".yyyyy.", "..o.o.."], every: 5, step: 3, walk: [30, 100], rest: [15, 60], peck: true },
+};
+for (const t of Object.values(CREATURE_TYPES)) {
+  t.h = t.rows.length; t.w = t.rows[0].length;
+  t.mask = [];                                           // the silhouette: [dx, dy] of every coloured pixel
+  t.tops = Array(t.w).fill(-1);                          // the highest coloured pixel in each column (where sand rests on its head)
+  t.rows.forEach((row, dy) => [...row].forEach((ch, dx) => {
+    if (ch !== ".") { t.mask.push([dx, dy]); if (t.tops[dx] < 0) t.tops[dx] = dy; }
+  }));
+}
+const critterRand = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
 class Sand {
   constructor(w, h) {
     this.w = w; this.h = h;
@@ -250,6 +275,7 @@ class Sand {
     this.emitters = new Map();                  // cell -> [SAND/WATER, rgb or null = live colour]
     this.conveyors = new Map();                 // cell -> direction (+1 right, -1 left)
     this.gravity = 0.8; this.drag = 0.999; this.wind = 0; this.bounce = 0;
+    this.creatures = [];                        // pixel critters: {type, x, y, dir, mode, timer, ...}
   }
 
   occupied(x, y) { const k = this.grid[y * this.w + x]; return k !== EMPTY && k !== IN_AIR; }
@@ -317,7 +343,7 @@ class Sand {
     for (const [x, y] of cells) {
       if (x >= 0 && x < w && y >= 0 && y < h) {
         const i = y * w + x;
-        if (!isObj(this.grid[i])) { this.grid[i] = kind; this.colors[i] = 0; placed.push(i); }
+        if (!isObj(this.grid[i]) && this.grid[i] !== CREATURE) { this.grid[i] = kind; this.colors[i] = 0; placed.push(i); }
       }
     }
     if (placed.length) {
@@ -381,8 +407,14 @@ class Sand {
   deleteRegion(x0, y0, x1, y1) {
     [x0, y0, x1, y1] = this.clipRect(x0, y0, x1, y1);
     let removed = 0;
+    const w0 = this.w;                                   // critters touching the box go too (and all of their body)
+    for (const c of [...this.creatures]) {
+      if (CREATURE_TYPES[c.type].mask.some(([dx, dy]) => { const cx = c.x + dx, cy = c.y + dy; return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; })) {
+        this.removeCreature(c); removed++;
+      }
+    }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const i = y * this.w + x;
+      const i = y * w0 + x;
       if (this.grid[i] !== EMPTY) removed++;
       this.grid[i] = EMPTY; this.colors[i] = 0;
       this.drains.delete(i); this.emitters.delete(i); this.conveyors.delete(i);
@@ -399,7 +431,7 @@ class Sand {
       const x = ox + dx, y = oy + dy;
       if (x < 0 || x >= w || y < 0 || y >= h) continue;
       const i = y * w + x;
-      if (isObj(this.grid[i])) continue;
+      if (isObj(this.grid[i]) || this.grid[i] === CREATURE) continue;
       this.grid[i] = kind; this.colors[i] = color;
       placed.add(i);
       if (kind === DRAIN) this.drains.add(i);
@@ -467,7 +499,7 @@ class Sand {
       const x = (i % w) + dx, y = Math.floor(i / w) + dy;
       if (x < 0 || x >= w || y < 0 || y >= h) return null;
       const j = y * w + x;
-      if (isObj(grid[j]) && !cells.has(j)) return null;
+      if ((isObj(grid[j]) || grid[j] === CREATURE) && !cells.has(j)) return null;
       moved.add(j);
     }
     const kind = grid[cells.values().next().value];      // shape, trash, emitter or belt: it stays that kind
@@ -509,13 +541,14 @@ class Sand {
   clearSand() {
     this.grains = [];
     for (let i = 0; i < this.grid.length; i++) {
-      if (!isObj(this.grid[i])) { this.grid[i] = EMPTY; this.colors[i] = 0; }
+      if (!isObj(this.grid[i]) && this.grid[i] !== CREATURE) { this.grid[i] = EMPTY; this.colors[i] = 0; }
     }
   }
 
   /** Turn the whole world upside down. The caller then wakes the sand so it falls toward the new floor. */
   flip() {
     const w = this.w, h = this.h;
+    for (const c of this.creatures) this.clearBody(c);   // critters stay upright: they are put back, then fall to the new floor
     const grid = new Uint8Array(w * h), colors = new Uint32Array(w * h);
     for (let y = 0; y < h; y++) {
       grid.set(this.grid.subarray(y * w, (y + 1) * w), (h - 1 - y) * w);
@@ -530,6 +563,117 @@ class Sand {
       const row = trunc(g.y), frac = g.y - row;
       g.y = Math.min(h - 1 - row + (frac ? 1 - frac : 0.5), h - 0.001);
       g.vy = 0;
+    }
+    this.repositionCreaturesAfterFlip();
+  }
+
+  // ---------- critters: little pixel creatures that live on the sand ----------
+  bodyFree(type, x, y) {                                 // could this critter's body sit with its top-left at (x, y)?
+    const t = CREATURE_TYPES[type], w = this.w, h = this.h;
+    for (const [dx, dy] of t.mask) {
+      const cx = x + dx, cy = y + dy;
+      if (cx < 0 || cx >= w || cy < 0 || cy >= h) return false;
+      const k = this.grid[cy * w + cx];
+      if (k !== EMPTY && k !== IN_AIR) return false;
+    }
+    return true;
+  }
+  setBody(c) {                                           // mark its cells, so falling sand lands on it
+    for (const [dx, dy] of CREATURE_TYPES[c.type].mask) this.grid[(c.y + dy) * this.w + c.x + dx] = CREATURE;
+  }
+  clearBody(c) {
+    for (const [dx, dy] of CREATURE_TYPES[c.type].mask) {
+      const i = (c.y + dy) * this.w + c.x + dx;
+      if (this.grid[i] === CREATURE) this.grid[i] = EMPTY;
+    }
+  }
+  addCreature(type, cx, cy, dir) {
+    if (this.creatures.length >= MAX_CREATURES) return null;
+    const t = CREATURE_TYPES[type];
+    const x = Math.min(Math.max(cx - (t.w >> 1), 0), this.w - t.w);
+    let y = Math.min(Math.max(cy - (t.h >> 1), 0), this.h - t.h);
+    while (y > 0 && !this.bodyFree(type, x, y)) y--;     // dropped into something: lift it out
+    if (!this.bodyFree(type, x, y)) return null;
+    const c = { type, x, y, dir: dir || (Math.random() < 0.5 ? -1 : 1), mode: "rest", timer: 10 + Math.floor(Math.random() * 30),
+      vy: 0, bury: 0, frame: 0, shake: 0, age: 0 };
+    this.creatures.push(c);
+    this.setBody(c);
+    return c;
+  }
+  removeCreature(c) { this.clearBody(c); this.creatures = this.creatures.filter(o => o !== c); }
+  removeCreaturesIn(cells) {                             // cells: [x, y] pairs, such as what the eraser covers
+    const w = this.w, covered = new Set();
+    for (const [x, y] of cells) if (x >= 0 && x < w && y >= 0 && y < this.h) covered.add(y * w + x);
+    for (const c of [...this.creatures]) {
+      if (CREATURE_TYPES[c.type].mask.some(([dx, dy]) => covered.has((c.y + dy) * w + c.x + dx))) this.removeCreature(c);
+    }
+  }
+  shedSand(c) {                                          // sand that was resting on its head has to fall once it moves away
+    const t = CREATURE_TYPES[c.type];
+    for (let dx = 0; dx < t.w; dx++) {
+      if (t.tops[dx] < 0 || c.y + t.tops[dx] === 0) continue;
+      const k = this.grid[(c.y + t.tops[dx] - 1) * this.w + c.x + dx];
+      if (k === STATIC || k === STILL_WATER) { this.wakeRegion(c.x, c.x + t.w - 1, c.y + t.tops[dx] - 1); return; }
+    }
+  }
+  stepCreatures() { for (const c of this.creatures) this.stepCreature(c); }
+  stepCreature(c) {                                      // one tick of a critter's life (30 a second)
+    const t = CREATURE_TYPES[c.type], w = this.w;
+    c.age++;
+    if (c.shake > 0) c.shake--;
+    this.clearBody(c);
+    c.vy = Math.min(c.vy + 1, 3);                        // 1. gravity: fall until something is underneath
+    let fell = 0;
+    for (let n = 0; n < c.vy; n++) {
+      if (!this.bodyFree(c.type, c.x, c.y + 1)) break;
+      this.shedSand(c);
+      c.y++; fell++;
+    }
+    if (!fell) c.vy = 0;
+    let loaded = false;                                  // 2. sand piled on its head for a while: shake it off
+    for (let dx = 0; dx < t.w && !loaded; dx++) {
+      if (t.tops[dx] < 0 || c.y + t.tops[dx] === 0) continue;
+      const k = this.grid[(c.y + t.tops[dx] - 1) * w + c.x + dx];
+      if (k === STATIC || k === STILL_WATER) loaded = true;
+    }
+    c.bury = loaded ? c.bury + 1 : 0;
+    if (c.bury > 14) { this.wakeRegion(c.x, c.x + t.w - 1, c.y - 1); c.bury = 0; c.shake = 10; }
+    if (!fell) {                                         // 3. wander: walk for a while, rest for a while
+      if (--c.timer <= 0) {
+        if (c.mode === "walk") { c.mode = "rest"; c.timer = critterRand(t.rest); }
+        else { c.mode = "walk"; c.timer = critterRand(t.walk); if (Math.random() < 0.35) c.dir = -c.dir; }
+      }
+      if (c.mode === "walk" && c.age % t.every === 0) this.creatureStep(c, t);
+    }
+    this.setBody(c);
+  }
+  creatureStep(c, t) {                                   // one step forward, climbing small ledges
+    for (let up = 0; up <= t.step; up++) {
+      if (this.bodyFree(c.type, c.x + c.dir, c.y - up)) {
+        this.shedSand(c);
+        c.x += c.dir; c.y -= up; c.frame ^= 1;
+        return;
+      }
+    }
+    if (t.peck && this.peck(c, t)) return;               // chicks dig through the sand in front of them
+    c.dir = -c.dir;                                      // everyone else turns round
+  }
+  peck(c, t) {
+    const w = this.w, fx = c.dir > 0 ? c.x + t.w : c.x - 1;
+    if (fx < 0 || fx >= w) return false;
+    let eaten = 0, lowest = -1;
+    for (let dy = t.h - 1; dy >= 0 && eaten < 3; dy--) {
+      const y = c.y + dy, i = y * w + fx;
+      if (this.grid[i] === STATIC) { this.grid[i] = EMPTY; this.colors[i] = 0; eaten++; if (lowest < 0) lowest = y; }
+    }
+    if (eaten) this.wakeRegion(fx, fx, lowest);          // whatever was above it falls into the gap
+    return eaten > 0;
+  }
+  repositionCreaturesAfterFlip() {
+    for (const c of [...this.creatures]) {
+      c.y = this.h - c.y - CREATURE_TYPES[c.type].h; c.vy = 0;
+      while (c.y > 0 && !this.bodyFree(c.type, c.x, c.y)) c.y--;
+      if (this.bodyFree(c.type, c.x, c.y)) this.setBody(c); else this.creatures = this.creatures.filter(o => o !== c);
     }
   }
 
@@ -812,8 +956,10 @@ const SLIDERS = {
 const ctl = {};
 for (const k in SLIDERS) ctl[k] = SLIDERS[k].value;
 ctl.size = 8;
+const DEFAULT_SIZE = ctl.size;
 let material = SAND;
 let sandHex = "#ff5a5a", bgHex = "#0a0a0e";
+const DEFAULT_SAND = sandHex, DEFAULT_BG = bgHex;
 const fx = { trails: false, sparkle: false, mirror: 1 };
 const MIRROR_STEPS = [1, 2, 3, 4, 6, 8];
 
@@ -859,10 +1005,11 @@ new ResizeObserver(fitCanvas).observe(stage);
 fitCanvas();
 
 // ---- tools ----
-// What the tool row shows. "shapes" is one button that opens a pop-up holding the four tools in SHAPE_MENU.
-const DOCK = ["pour", "shapes", "box", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
-const SHAPE_MENU = ["sphere", "cone", "bowl", "ramp"];
-let lastShape = "sphere";                                // the Shapes button shows the one you used last
+// What the tool row shows. "shapes" and "critters" are buttons that open a pop-up holding the tools listed in MENUS.
+const DOCK = ["pour", "shapes", "critters", "belt", "emitter", "trash", "move", "erase", "pen", "wall", "select"];
+const MENUS = { shapes: ["sphere", "cone", "box", "bowl", "ramp"], critters: ["slime", "bunny", "chick"] };
+const lastPick = { shapes: "sphere", critters: "slime" };   // a menu button shows the icon of the one you used last
+const menuOf = t => Object.keys(MENUS).find(g => MENUS[g].includes(t));   // which pop-up a tool lives in, if any
 const KEY_TOOLS = { "1": "pour", "2": "sphere", "3": "cone", "4": "box", "5": "bowl", "6": "ramp", "7": "belt", "8": "emitter",
   "9": "trash", "0": "move", "-": "erase", "d": "pen", "b": "wall", "=": "select" };
 const ICONS = {
@@ -880,6 +1027,10 @@ const ICONS = {
   select: '<rect x="4" y="5" width="16" height="14" stroke-dasharray="3 3"/>',
   pen: '<path d="M4 20l1.2-4.2L16.5 4.5a2 2 0 0 1 3 3L8.2 18.8z"/><path d="M14.5 6.5l3 3"/>',
   wall: '<rect x="4" y="6" width="16" height="12"/><path d="M4 12h16M10 6v6M15 12v6"/>',
+  slime: '<path d="M5 19c0-7 3-11 7-11s7 4 7 11z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
+  bunny: '<path d="M9 10V4m6 6V4"/><rect x="6" y="10" width="12" height="9" rx="4"/><circle cx="10" cy="14" r=".8"/><circle cx="14" cy="14" r=".8"/>',
+  chick: '<circle cx="12" cy="13" r="6"/><path d="M12 7V5m5 8 3 1-3 1"/><circle cx="10" cy="12" r=".8"/>',
+  critters: '<path d="M5 19c0-7 3-11 7-11s7 4 7 11z"/><circle cx="9.5" cy="14" r=".8"/><circle cx="14.5" cy="14" r=".8"/>',
 };
 let tool = "pour";
 const ERASE_SHAPES = ["sphere", "box", "cone", "bowl"];   // tap the Erase tool again to cycle through these
@@ -893,8 +1044,13 @@ let selection = null;                                    // finished box [x0, y0
 let clipboard = null, pasting = false, pasteDown = false;   // pasting: the copy follows the pointer and a tap stamps it
 const toolButton = (t, icon) =>
   `<button class="tool" data-tool="${t}" aria-label="${t}"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${t[0].toUpperCase() + t.slice(1)}</span></button>`;
-$("tools").innerHTML = DOCK.map(t => toolButton(t, ICONS[t === "shapes" ? lastShape : t])).join("");
-$("shapeMenu").innerHTML = SHAPE_MENU.map(t => toolButton(t, ICONS[t])).join("");
+$("tools").innerHTML = DOCK.map(t => toolButton(t, ICONS[t in MENUS ? lastPick[t] : t])).join("");
+for (const g in MENUS) {                                 // each pop-up is a small floating grid of tool buttons
+  const m = document.createElement("div");
+  m.className = "popmenu"; m.id = "menu-" + g; m.hidden = true; m.setAttribute("role", "menu"); m.setAttribute("aria-label", g);
+  m.innerHTML = MENUS[g].map(t => toolButton(t, ICONS[t])).join("");
+  $("dock").appendChild(m);
+}
 // The Controls button lives at the end of the tool row, right after Select. It stays pinned to the right edge while the row scrolls.
 const CTL_GEAR = '<circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/>';
 const CTL_X = '<path d="M6 6l12 12M18 6 6 18"/>';
@@ -905,30 +1061,32 @@ function setTool(t) {
   cancelSelection();
   document.querySelectorAll(".tool[data-tool]").forEach(b => {
     const d = b.dataset.tool;
-    b.classList.toggle("on", d === t || (d === "shapes" && SHAPE_MENU.includes(t)));
+    b.classList.toggle("on", d === t || (d in MENUS && MENUS[d].includes(t)));
   });
-  if (SHAPE_MENU.includes(t)) { lastShape = t; refreshShapesIcon(); }
-  closeShapeMenu();
+  const group = menuOf(t);
+  if (group) { lastPick[group] = t; refreshMenuIcon(group); }
+  closeMenus();
   $("bSnap").hidden = t !== "ramp";                      // the snap button only matters while drawing ramps
   $("penTools").hidden = t !== "pen";                    // the pen's colour and Undo replace the Sand / Water switch
   $("matSeg").hidden = t === "pen";
   updateLabel();
 }
-function refreshShapesIcon() {                           // the Shapes button shows the shape you picked last
-  const svg = document.querySelector('.tool[data-tool="shapes"] svg');
-  if (svg) svg.innerHTML = ICONS[lastShape];
+function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
+  const svg = document.querySelector(`.tool[data-tool="${g}"] svg`);
+  if (svg) svg.innerHTML = ICONS[lastPick[g]];
 }
-function closeShapeMenu() { $("shapeMenu").hidden = true; }
-function openShapeMenu() {                               // float the pop-up just above the Shapes button
-  const menu = $("shapeMenu"), b = document.querySelector('.tool[data-tool="shapes"]').getBoundingClientRect(), d = $("dock").getBoundingClientRect();
+function closeMenus() { document.querySelectorAll(".popmenu").forEach(m => { m.hidden = true; }); }
+function openMenu(g) {                                   // float the pop-up just above its button
+  closeMenus();
+  const menu = $("menu-" + g), b = document.querySelector(`.tool[data-tool="${g}"]`).getBoundingClientRect(), d = $("dock").getBoundingClientRect();
   menu.hidden = false;
   menu.style.left = Math.min(Math.max(b.left - d.left + b.width / 2 - menu.offsetWidth / 2, 0), d.width - menu.offsetWidth) + "px";
   menu.style.bottom = (d.bottom - b.top + 8) + "px";
 }
-function toggleShapeMenu() {
-  if (!$("shapeMenu").hidden) { closeShapeMenu(); return; }
-  if (!SHAPE_MENU.includes(tool)) setTool(lastShape);   // first tap picks the last shape, and the pop-up lets you change it
-  openShapeMenu();
+function toggleMenu(g) {
+  if (!$("menu-" + g).hidden) { closeMenus(); return; }
+  if (menuOf(tool) !== g) setTool(lastPick[g]);          // the first tap picks the one you used last; the pop-up lets you change it
+  openMenu(g);
 }
 function refreshEraseIcon() {                            // the Erase button shows the current shape with an X inside
   const svg = document.querySelector('.tool[data-tool="erase"] svg');
@@ -947,13 +1105,13 @@ refreshEraseIcon();
 $("tools").addEventListener("click", e => {
   const b = e.target.closest(".tool[data-tool]");
   if (!b) return;
-  if (b.dataset.tool === "shapes") toggleShapeMenu(); else selectTool(b.dataset.tool);
+  if (b.dataset.tool in MENUS) toggleMenu(b.dataset.tool); else selectTool(b.dataset.tool);
 });
-$("shapeMenu").addEventListener("click", e => { const b = e.target.closest(".tool[data-tool]"); if (b) selectTool(b.dataset.tool); });
-document.addEventListener("pointerdown", e => {          // tapping anywhere else closes the pop-up
-  if (!$("shapeMenu").hidden && !e.target.closest('#shapeMenu, .tool[data-tool="shapes"]')) closeShapeMenu();
+$("dock").addEventListener("click", e => { const b = e.target.closest(".popmenu .tool[data-tool]"); if (b) selectTool(b.dataset.tool); });
+document.addEventListener("pointerdown", e => {          // tapping anywhere else closes a pop-up
+  if (!e.target.closest(".popmenu, #tools")) closeMenus();
 }, true);
-$("tools").addEventListener("scroll", closeShapeMenu);
+$("tools").addEventListener("scroll", closeMenus);
 
 const SHAPES = ["sphere", "cone", "box", "bowl", "emitter", "trash"];
 const KIND = { emitter: EMITTER, trash: DRAIN };
@@ -962,6 +1120,7 @@ function updateLabel() {
   if (tool === "pour" || tool === "emitter") s += material === WATER ? " · water" : " · sand";
   if (tool === "erase") s += " · " + eraseShape + " · tap again";
   if (SHAPES.includes(tool) || tool === "erase" || tool === "pen" || tool === "wall") s += " · size " + ctl.size;
+  if (CREATURE_TYPES[tool]) s += ` · tap to add (${sand.creatures.length}/${MAX_CREATURES})`;
   if (tool === "belt") s += " · drag the way it carries";
   if (tool === "ramp") {
     if (dragStart) {                                     // live readout while dragging
@@ -995,10 +1154,10 @@ $("mWater").onclick = () => setMaterial(WATER);
 function sliderHtml(k) {
   const s = SLIDERS[k];
   return `<div class="slider"><div class="lab"><label for="s_${k}">${s.label}</label><output id="o_${k}"></output></div>` +
-    `<input type="range" id="s_${k}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}"></div>`;
+    `<input type="range" id="s_${k}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}" title="Double-click (or double-tap) to reset"></div>`;
 }
 $("sheet").innerHTML = `
-  <h2>Pour</h2>${sliderHtml("rate")}${sliderHtml("spread")}
+  <h2>Pour<button class="mini" id="bReset" title="Put every setting back to its default">Reset all</button></h2>${sliderHtml("rate")}${sliderHtml("spread")}
   <h2>Color</h2>
   <div class="row"><label for="sandColor">Sand</label><input type="color" id="sandColor" value="${sandHex}"></div>
   <div class="row"><label for="bgColor">Background</label><input type="color" id="bgColor" value="${bgHex}"></div>
@@ -1032,15 +1191,51 @@ $("grainSeg").addEventListener("click", e => {           // a different grain si
   toast(`Grain size: ${name}. Restarting the grid...`);
   setTimeout(() => location.reload(), 700);
 });
+function onDouble(el, fn) {                              // a double-click, or a double-tap on a touch screen
+  let last = 0, lx = 0, ly = 0;
+  el.addEventListener("dblclick", () => { fn(); last = 0; });
+  el.addEventListener("pointerup", e => {
+    if (e.pointerType === "mouse") return;               // a mouse has a real double-click
+    const now = performance.now();
+    if (now - last < 350 && Math.hypot(e.clientX - lx, e.clientY - ly) < 24) { fn(); last = 0; } else { last = now; lx = e.clientX; ly = e.clientY; }
+  });
+}
+const sliderShow = {};
+function resetSlider(k) {                                // one slider back to the value it started with
+  const s = SLIDERS[k];
+  ctl[k] = s.value; $("s_" + k).value = s.value; sliderShow[k]();
+}
 for (const k in SLIDERS) {
   const inp = $("s_" + k), out = $("o_" + k), s = SLIDERS[k];
   const show = () => { out.textContent = s.int ? ctl[k] : ctl[k].toFixed(2); };
   show();
+  sliderShow[k] = show;
   inp.addEventListener("input", () => { ctl[k] = +inp.value; show(); });
+  onDouble(inp, () => { resetSlider(k); toast(`${s.label} reset to ${s.int ? s.value : s.value.toFixed(2)}`); });
 }
 $("sandColor").addEventListener("input", e => { sandHex = e.target.value; });
 $("bgColor").addEventListener("input", e => { bgHex = e.target.value; board.style.backgroundColor = bgHex; });
 board.style.backgroundColor = bgHex;
+
+// ---- reset: every setting back to how the page started (not your scene, drawing, background picture or grain size) ----
+function resetSize() { ctl.size = DEFAULT_SIZE; $("sizeRange").value = DEFAULT_SIZE; $("sizeOut").textContent = DEFAULT_SIZE; updateLabel(); }
+onDouble($("sizeRange"), () => { resetSize(); toast("Size reset to " + DEFAULT_SIZE); });
+function resetAll() {
+  for (const k in SLIDERS) resetSlider(k);
+  resetSize();
+  sandHex = DEFAULT_SAND; $("sandColor").value = DEFAULT_SAND;
+  bgHex = DEFAULT_BG; $("bgColor").value = DEFAULT_BG; board.style.backgroundColor = DEFAULT_BG;
+  penColor = "#ffffff"; $("penColor").value = penColor;
+  setMaterial(SAND);
+  if (fx.trails) toggleFx("trails");
+  if (fx.sparkle) toggleFx("sparkle");
+  while (fx.mirror > 1) cycleMirror();
+  snapMode = 0; $("bSnap").textContent = "Snap: off"; $("bSnap").classList.remove("on");
+  eraseShape = "sphere"; refreshEraseIcon();
+  updateLabel();
+  toast("All settings reset to default");
+}
+$("bReset").onclick = resetAll;
 
 // ---- background picture: shown behind the drawing and the sand (the page forgets it when reloaded) ----
 let bgImg = null, bgUrl = null;
@@ -1247,10 +1442,11 @@ const toB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s +=
 const fromB64 = (s, Type) => { const bin = atob(s), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
 function saveScene() {
   try {
-    const kinds = sand.grid.map(k => (k === IN_AIR || k === STACKING ? EMPTY : k));
+    const kinds = sand.grid.map(k => (k === IN_AIR || k === STACKING || k === CREATURE ? EMPTY : k));
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       w: W, h: H, kinds: toB64(kinds), colors: toB64(new Uint8Array(sand.colors.buffer)),
       emitters: [...sand.emitters], conveyors: [...sand.conveyors],
+      critters: sand.creatures.map(c => ({ t: c.type, x: c.x, y: c.y, d: c.dir })),
       ink: strokes.map(st => ({ c: st.c, w: st.w, p: st.p.map(v => Math.round(v * 10) / 10) })),
     }));
     toast("Saved");
@@ -1266,6 +1462,11 @@ function loadScene() {
   s.colors = fromB64(data.colors, Uint32Array);
   s.emitters = new Map(data.emitters);
   s.conveyors = new Map(data.conveyors);
+  for (const cr of data.critters || []) {                // put the critters back where they were
+    if (!CREATURE_TYPES[cr.t] || !s.bodyFree(cr.t, cr.x, cr.y)) continue;
+    const c = { type: cr.t, x: cr.x, y: cr.y, dir: cr.d, mode: "rest", timer: 20, vy: 0, bury: 0, frame: 0, shake: 0, age: 0 };
+    s.creatures.push(c); s.setBody(c);
+  }
   for (let i = 0; i < s.grid.length; i++) if (s.grid[i] === DRAIN) s.drains.add(i);
   sand = s; moving = dragStart = null; cancelSelection();
   strokes = data.ink || []; redrawInk();
@@ -1308,6 +1509,13 @@ $("bSnap").onclick = () => {
 function readMods(e) { mods.shift = e.shiftKey; mods.ctrl = e.ctrlKey; }
 
 function place(cx, cy) {
+  if (CREATURE_TYPES[tool]) {                            // a critter: it drops from where you tapped
+    let added = 0;
+    for (const mx of mirroredXs(cx)) if (sand.addCreature(tool, mx, cy)) added++;
+    if (!added) toast(sand.creatures.length >= MAX_CREATURES ? "That's plenty of critters" : "No room there");
+    updateLabel();
+    return;
+  }
   if (tool === "emitter") {                              // remembers what it pours (null = follow the rainbow)
     const prop = material === WATER ? [WATER, THEME.water] : [SAND, ctl.hue === 0 ? hexToRgb(sandHex) : null];
     for (const mx of mirroredXs(cx)) sand.addSolid(at(mx, cy, "emitter", ctl.size), EMITTER, prop);
@@ -1383,7 +1591,7 @@ addEventListener("keydown", e => {
     else if (k === "z") { e.preventDefault(); undoStroke(); }
     return;
   }
-  if (k === "escape") { cancelSelection(); closeShapeMenu(); }
+  if (k === "escape") { cancelSelection(); closeMenus(); }
   else if (k === "c" && selection) copySelection();
   else if ((k === "delete" || k === "backspace") && selection) deleteSelection();
   else if (k === "v" && clipboard) startPasting();
@@ -1401,7 +1609,7 @@ addEventListener("keydown", e => {
 });
 
 // ---- per-step simulation + rainbow ----
-let hueDrift = 0, beltPhase = 0, frameNo = 0;
+let hueDrift = 0, beltPhase = 0, frameNo = 0, stepNo = 0;
 function liveSand() {
   const base = hexToRgb(sandHex);
   if (ctl.hue === 0) return base;
@@ -1424,13 +1632,31 @@ function simStep() {
   if (holding && tool === "pour") {
     for (const mx of mirroredXs(cur.x)) sand.pour(mx, cur.y, ctl.rate, live[material], ctl.spread, material === WATER ? 0.06 : ctl.shade, material);
   } else if (holding && tool === "erase") {
-    for (const mx of mirroredXs(cur.x)) sand.removeSolid(at(mx, cur.y, eraseShape, Math.max(2, ctl.size >> 1)));
+    for (const mx of mirroredXs(cur.x)) {
+      const cells = at(mx, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
+      sand.removeSolid(cells);
+      sand.removeCreaturesIn(cells);                     // the eraser removes critters too
+    }
   }
   sand.runEmitters(ctl.flow, live, ctl.shade);
   sand.step();
+  if (++stepNo % 4 === 0) sand.stepCreatures();          // critters think 30 times a second
 }
 
 // ---- drawing ----
+const CRITTER_COLORS = { g: pack(47, 143, 58), G: pack(134, 224, 122), k: pack(26, 26, 26), w: pack(244, 244, 244),
+  p: pack(255, 143, 176), y: pack(255, 216, 74), o: pack(255, 140, 26) };
+function drawCreature(c) {
+  const t = CREATURE_TYPES[c.type];
+  const bob = c.mode === "walk" && c.frame ? -1 : 0;     // a little hop in time with its steps
+  const shake = c.shake > 0 ? (c.shake & 1 ? 1 : -1) : 0;   // wiggles when it is shaking sand off
+  for (let dy = 0; dy < t.h; dy++) for (let dx = 0; dx < t.w; dx++) {
+    const ch = t.rows[dy][c.dir < 0 ? t.w - 1 - dx : dx];
+    if (ch === ".") continue;
+    const x = c.x + dx + shake, y = c.y + dy + bob;
+    if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = CRITTER_COLORS[ch];
+  }
+}
 function objectColor(i, k) {
   if (k === EMITTER) {
     const e = sand.emitters.get(i) || [SAND, null], x = i % W;
@@ -1479,6 +1705,10 @@ function previewCells() {                                // translucent ghost of
   if (!cur.over) return [];
   let cells = [];
   if (SHAPES.includes(tool)) cells = at(cur.x, cur.y, tool, ctl.size);
+  else if (CREATURE_TYPES[tool]) {                       // the critter's silhouette, centred on the pointer
+    const t = CREATURE_TYPES[tool];
+    cells = t.mask.map(([dx, dy]) => [cur.x - (t.w >> 1) + dx, cur.y - (t.h >> 1) + dy]);
+  }
   else if (tool === "erase") cells = at(cur.x, cur.y, eraseShape, Math.max(2, ctl.size >> 1));
   else if (tool === "pen") cells = at(cur.x, cur.y, "sphere", Math.max(1, Math.round(penWidth() / 2)));
   else if (tool === "wall") cells = at(cur.x, cur.y, "sphere", wallRadius());
@@ -1497,6 +1727,7 @@ function render(clean = false) {                         // clean = leave out th
     else if (k >= SOLID && k <= CONVEYOR) buf[i] = objectColor(i, k);
   }
   if (fx.sparkle) for (let i = 0; i < buf.length; i++) if (sparkA[i]) { const k = grid[i]; if (k === STATIC || k === STILL_WATER) buf[i] = blend(buf[i], sparkC[i], sparkA[i]); }
+  for (const c of sand.creatures) drawCreature(c);
   for (const g of sand.grains) buf[trunc(g.y) * W + trunc(g.x)] = g.color;
   if (fx.mirror > 1 && !clean) {                         // dashed lines where the strips meet
     for (const seam of MIRROR_EDGES[fx.mirror].slice(1, -1)) for (let y = 0; y < H; y++) if ((y >> 2) % 2 === 0 && seam < W) buf[y * W + seam] = SEAM;
