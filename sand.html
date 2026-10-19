@@ -1960,7 +1960,7 @@ let textMode = "solid", textScale = 2, hollow = false;   // the Text tool's sett
 let laserMode = "hold";                                  // the Laser tool: "hold" fires while pressed, "turret" leaves a beam behind, "dots" leaves a dot shooter
 let laserWidth = 1, laserColor = "#ff2446", laserRgb = [255, 36, 70];
 let devAngle = 90, devSpin = 0, emitPush = 0, fanSpeed = 5;   // the angle (degrees, 90 = down), spin (degrees a second) and power for the next emitter / fan, or for the device picked with Adjust
-let devSize = 1, shapeDestructible = false;               // a fan's size, and whether new shapes can be destroyed by fire and acid
+let devSize = 1, shapeDestructible = true;               // a fan's size, and whether new shapes can be destroyed by fire and acid
 let selDev = null;                                       // the device the Adjust tool picked: {type: "fan" | "laser" | "emitter", ref, cx, cy}
 let shapeHex = "#7aa2ff", shapeColored = false;          // new shapes are grey unless a colour has been chosen
 const SHAPE_PAINT = ["sphere", "cone", "box", "bowl", "ramp", "wall"];
@@ -2091,12 +2091,12 @@ function refreshMenuIcon(g) {                            // a menu button shows 
   if (svg) svg.innerHTML = ICONS[lastPick[g]];
 }
 function closeMenus() { document.querySelectorAll(".popmenu").forEach(m => { m.hidden = true; }); }
-function openMenu(g) {                                   // float the pop-up just above its button
+function openMenu(g) {                                   // float the pop-up above its button, and above the rows of controls too so it never covers them
   closeMenus();
   const menu = $("menu-" + g), b = document.querySelector(`.tool[data-tool="${g}"]`).getBoundingClientRect(), d = $("dock").getBoundingClientRect();
   menu.hidden = false;
   menu.style.left = Math.min(Math.max(b.left - d.left + b.width / 2 - menu.offsetWidth / 2, 0), d.width - menu.offsetWidth) + "px";
-  menu.style.bottom = (d.bottom - b.top + 8) + "px";
+  menu.style.bottom = (d.height + 8) + "px";
 }
 function toggleMenu(g) {
   if (!$("menu-" + g).hidden) { closeMenus(); return; }
@@ -2521,7 +2521,7 @@ function resetAll() {
   hollow = false; syncHollowUi();
   textMode = "solid"; textScale = 2; syncTextUi();
   devAngle = 90; devSpin = 0; emitPush = 0; fanSpeed = 5; devSize = 1; selDev = null;
-  shapeDestructible = false; syncDestructUi();
+  shapeDestructible = true; syncDestructUi(); decorDestructible = true; syncDecorDestructUi();
   laserWidth = 1; laserColor = "#ff2446"; laserRgb = hexToRgb(laserColor); laserMode = "hold";
   $("laserModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === "hold"));
   shapeHex = "#7aa2ff"; $("shapeColor").value = shapeHex; setShapeColored(false);
@@ -3444,7 +3444,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 setTool("pour");
-syncDecorDestructUi();
+syncDecorDestructUi(); syncDestructUi();
 updateStats();                                            // draw the status bar right away
 requestAnimationFrame(frame);
 // ==== END APP ====
