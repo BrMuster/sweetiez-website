@@ -3262,6 +3262,7 @@ function drawLasers() {
 }
 const PRINTER_BODY = pack(104, 88, 150);
 function drawPrinters() {                                // a small violet box with a lens pointing the way the text will leave
+  if (tool !== "adjust" && tool !== "move" && tool !== "erase") return;   // hidden otherwise, so no dot is left sitting on the text; it shows when you need to pick, move or erase one
   for (const t of sand.printers) {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) plot(t.x + dx, t.y + dy, PRINTER_BODY);
     plot(t.x + Math.round(Math.cos(t.ang) * 2), t.y + Math.round(Math.sin(t.ang) * 2), FAN_BLADE);
