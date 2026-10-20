@@ -19,11 +19,20 @@
   .card { padding: 1rem 1.2rem; background: var(--panel); border-radius: 6px; display: grid; gap: .8rem; }
   .controls { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; align-items: center; }
   select, input[type=text] { font: inherit; padding: .4rem .6rem; color: var(--text); background: #0e141b; border: 1px solid var(--line); border-radius: 4px; }
-  input[type=text] { width: 11rem; } input.unit { width: 6rem; }
+  input[type=text] { width: 11rem; } input.unit { width: 6rem; } input.pct { width: 3.6rem; text-align: right; }
+  input[type=checkbox] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+  td.cross { white-space: normal; text-align: left; }
   .series { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
   .series label, .controls label { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; }
   .controls label.txt { cursor: default; }
-  .series input[type=text] { width: 9rem; padding: .2rem .4rem; } .series input[type=text]:last-child { width: 5rem; }
+  .prsel { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); }
+  .series input[type=text] { width: 9rem; padding: .2rem .4rem; }
+  .specbox { display: grid; gap: .2rem; }
+  .specrow { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
+  .specrow input[type=text] { width: 6.5rem; } .specrow input.pct { width: 4.5rem; }
+  .specrow button { padding: .3rem .6rem; } .specrow button:hover { background: #ff5a7a40; }
+  .specline { width: 34px; height: 0; border-top: 3px solid #fff; } .specline.avg { border-top-style: dotted; }
+  td.pass { color: #4cd964; font-weight: 700; } td.fail { color: #ff5a7a; font-weight: 700; }
   .chip { display: inline-flex; gap: .4rem; align-items: center; padding: .2rem .3rem .2rem .7rem; background: #ffffff0d; border-radius: 4px; }
   .chip button { padding: .1rem .5rem; }
   #printHead, #printImg, #printLegend, #notesPrint { display: none; }
@@ -49,6 +58,7 @@
     #app caption { display: none; }
     #notesBox { break-inside: avoid; color: #000; }
     #notes, .screenonly { display: none !important; }
+    #app td.pass, #app td.fail { color: #000; }
     #notesPrint { display: block; white-space: pre-wrap; min-height: 5rem; border: 1px solid #888; padding: .5rem; color: #000; }
   }
   .sw { width: 12px; height: 12px; border-radius: 2px; }
@@ -98,6 +108,9 @@
         <select id="style"><option value="line">Straight</option><option value="step">Step</option><option value="dots">Points only</option></select>
       </label>
       <label><input type="checkbox" id="pts"> Show points</label>
+      <label>Decimals
+        <select id="dec"><option value="2">2</option><option value="1">1</option><option value="0">0</option></select>
+      </label>
     </div>
     <div class="controls">
       <label class="txt">Title <input type="text" id="title" placeholder="Chart title"></label>
@@ -106,8 +119,20 @@
       <label class="txt">X unit <input type="text" id="xunit" class="unit" placeholder="e.g. s"></label>
       <label class="txt">Y label <input type="text" id="ylab" placeholder="e.g. Temperature"></label>
       <label class="txt">Y unit <input type="text" id="yunit" class="unit" placeholder="e.g. °C"></label>
+      <label class="txt">X min <input type="text" id="xmin" class="unit" placeholder="auto"></label>
+      <label class="txt">X max <input type="text" id="xmax" class="unit" placeholder="auto"></label>
       <label class="txt">Y min <input type="text" id="ymin" class="unit" placeholder="auto"></label>
       <label class="txt">Y max <input type="text" id="ymax" class="unit" placeholder="auto"></label>
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" id="m1"> Mark <input type="text" id="lv1" class="pct" value="50" aria-label="First level, percent of peak">% points</label>
+      <label><input type="checkbox" id="m2"> Mark <input type="text" id="lv2" class="pct" value="5" aria-label="Second level, percent of peak">% points</label>
+      <span class="hint">Percent of the highest value shown on the graph. Zoom in to measure a different peak.</span>
+    </div>
+    <div class="specbox">
+      <div class="bar"><b>Specifications</b><button type="button" id="addspec">+ Add spec</button>
+        <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
+      <div id="specRows"></div>
     </div>
     <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
     <div class="series" id="series"></div>
@@ -119,11 +144,16 @@
       <button id="clear" disabled>Clear range</button>
       <button id="clearall" disabled>Clear all ranges</button>
       <button id="reset">Reset view</button>
+      <label class="prsel">On the report, ranges are
+        <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
+      </label>
       <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print report</button>
       <button id="png">Download PNG</button>
       <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
     </div>
     <div class="tbl keep"><table id="stats"></table></div>
+    <div class="tbl keep" id="specTblBox" hidden><table id="specTbl"></table></div>
+    <div class="tbl keep" id="edgeBox" hidden><table id="edges"></table></div>
     <div id="notesBox" class="keep">
       <label for="notes"><b>Notes</b> <span class="hint screenonly">(typed here, printed with the report)</span></label>
       <textarea id="notes" rows="3" placeholder="Operator, sample ID, conditions, observations…"></textarea>
@@ -5204,7 +5234,7 @@ function ingest(text, fname = "data.csv") {     // load the main scan (this repl
   cols.forEach((c, i) => { if (c.kind !== "text") $("xsel").add(new Option(c.name, i)); });
   const xi = cols[0].kind !== "text" ? 0 : -1;
   $("xsel").value = xi;
-  for (const id of ["title", "spec", "ylab", "xunit", "yunit", "ymin", "ymax"]) $(id).value = "";
+  for (const id of ["title", "spec", "ylab", "xunit", "yunit", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   say(n.toLocaleString() + " rows, " + cols.length + " columns loaded."); $("app").hidden = false;
   setX(xi, true);
 }
@@ -5221,6 +5251,12 @@ function addOverlay(text, fname) {              // put another scan on the same 
 }
 
 // ---------- 2. CHOOSE X AND Y ----------
+function baseView() {                           // the full view, with any typed X min / X max taking over
+  const v = fullView(), a = readIn($("xmin").value), b = readIn($("xmax").value);
+  if (isFinite(a)) v.a = a; if (isFinite(b)) v.b = b;
+  if (v.b <= v.a) v.b = v.a + 1;
+  return v;
+}
 function fullView() {                           // wide enough to show every loaded scan
   let a = Infinity, b = -Infinity;
   for (const f of files) for (const v of f.X) if (Number.isFinite(v)) { if (v < a) a = v; if (v > b) b = v; }
@@ -5246,7 +5282,7 @@ function renderFiles() {
   });
 }
 function rebuild(first, newDs) {                // redo the series list for every loaded scan
-  view = fullView(); hov = null;
+  view = baseView(); hov = null;
   const prev = new Set([...document.querySelectorAll("#series input:checked")].map(e => e.value));
   $("series").innerHTML = ""; let k = 0;
   files.forEach(ds => {
@@ -5259,12 +5295,11 @@ function rebuild(first, newDs) {                // redo the series list for ever
       l.innerHTML = '<input type="checkbox"><span class="sw"></span>';
       l.firstChild.value = key; l.firstChild.checked = on; l.dataset.color = color; l._s = { c, ds };
       l.querySelector(".sw").style.background = color;
-      const nm = document.createElement("input"), sp = document.createElement("input");
-      nm.type = sp.type = "text"; nm.value = c.label ?? dispName(c); nm.placeholder = dispName(c); sp.value = c.spec ?? ""; sp.placeholder = "Spec value"; sp.title = "Optional number: draws a dashed line at this value";
-      nm.setAttribute("aria-label", "Name for " + c.name); sp.setAttribute("aria-label", "Specification value for " + c.name);
+      const nm = document.createElement("input");
+      nm.type = "text"; nm.value = c.label ?? dispName(c); nm.placeholder = dispName(c);
+      nm.setAttribute("aria-label", "Name for " + c.name);
       nm.oninput = () => { c.label = nm.value.trim(); draw(); };                 // blank falls back to the default name
-      sp.oninput = () => { c.spec = sp.value; draw(); };
-      l.append(nm, sp);
+      l.append(nm);
       l.firstChild.onchange = draw; $("series").append(l);
     });
   });
@@ -5273,12 +5308,14 @@ function rebuild(first, newDs) {                // redo the series list for ever
   renderFiles(); draw();
 }
 const active = () => [...document.querySelectorAll("#series label")].filter(l => l.firstChild.checked)
-  .map(l => { const { c, ds } = l._s, sp = c.spec === undefined || String(c.spec).trim() === "" ? NaN : Number(c.spec);
-              return { c, X: ds.X, n: ds.n, color: l.dataset.color, name: dispName(c), spec: sp }; });
+  .map(l => { const { c, ds } = l._s;
+              return { c, X: ds.X, n: ds.n, color: l.dataset.color, name: dispName(c) }; });
 
 // ---------- 3. FORMATTING AND AXIS TICKS ----------
-const fmt = v => !isFinite(v) ? "–" : (Math.abs(v) >= 1e5 || (v !== 0 && Math.abs(v) < 1e-3)) ? v.toExponential(3) : String(+v.toPrecision(6));
-const fx = (v, span) => xkind !== "date" ? fmt(v) : span === undefined ? new Date(v).toLocaleString()
+const dec = () => +$("dec").value;              // decimal places picked in the Decimals menu (2, 1 or 0)
+const fmt = v => !isFinite(v) ? "–" : (Math.abs(v) >= 1e5 || (v !== 0 && Math.abs(v) < 1e-3)) ? v.toExponential(dec()) : v.toFixed(dec());
+const fx = (v, span) => xkind !== "date" ? (span === undefined ? fmt(v) : String(+v.toPrecision(6))) :   // axis ticks (span given) stay plain round numbers
+  span === undefined ? new Date(v).toLocaleString()
   : span > 3 * 864e5 ? new Date(v).toLocaleDateString([], { month: "short", day: "numeric" })
   : new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: span < 6e5 ? "2-digit" : undefined });
 const xU = () => xkind !== "date" && $("xunit").value.trim() ? " " + $("xunit").value.trim() : "";   // unit text for numbers
@@ -5302,6 +5339,83 @@ function ticks(a, b, cnt) {                     // "nice" round tick positions (
   return out;
 }
 
+// ---------- 3b. EDGE POINTS (e.g. 50% and 5% of peak) ----------
+const levels = () => [["m1", "lv1"], ["m2", "lv2"]]               // the percentages that are switched on, e.g. [50, 5]
+  .map(([box, txt], li) => ({ on: $(box).checked, p: Number($(txt).value), li }))
+  .filter(l => l.on && l.p > 0 && l.p < 100);
+function edgePts(s, pct) {                       // find where series s crosses pct% of its peak, inside the current view
+  let pk = -Infinity, pkx;
+  for (let i = 0; i < s.n; i++) {                // step 1: the peak (highest value on screen)
+    const x = s.X[i], y = s.c.v[i];
+    if (x >= view.a && x <= view.b && isFinite(y) && y > pk) { pk = y; pkx = x; }
+  }
+  if (!(pk > 0)) return null;
+  const thr = pk * pct / 100, pts = [];          // step 2: the threshold, e.g. 50% of 92.1 = 46.05
+  let x0 = NaN, y0 = NaN;
+  for (let i = 0; i < s.n; i++) {                // step 3: walk the curve and catch every time it steps over the threshold
+    const x = s.X[i], y = s.c.v[i];
+    if (!(x >= view.a && x <= view.b) || !isFinite(y)) continue;
+    if (isFinite(y0) && ((y0 < thr && y >= thr) || (y0 >= thr && y < thr)))
+      pts.push({ x: x0 + (thr - y0) / (y - y0) * (x - x0), up: y > y0 });   // straight-line interpolation between the two rows
+    x0 = x; y0 = y;
+  }
+  return { pk, pkx, thr, pts };
+}
+
+// ---------- 3c. SPECIFICATIONS (wavelength range + T or R limit, absolute or average) ----------
+let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }  (a, b, v kept as typed text)
+const specOK = sp => [sp.a, sp.b, sp.v].every(t => String(t).trim() !== "" && isFinite(Number(t)));
+const specName = sp => sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : " abs");
+function renderSpecs() {                         // one row of fields per spec
+  const box = $("specRows"); box.innerHTML = "";
+  specs.forEach((sp, k) => {
+    const row = document.createElement("div"); row.className = "specrow";
+    const txt = (key, ph, cls) => { const i = document.createElement("input"); i.type = "text"; i.value = sp[key]; i.placeholder = ph; if (cls) i.className = cls;
+      i.setAttribute("aria-label", "Spec " + (k + 1) + " " + ph); i.oninput = () => { sp[key] = i.value; draw(); }; return i; };
+    const pick = (key, opts, label) => { const s = document.createElement("select"); s.setAttribute("aria-label", "Spec " + (k + 1) + " " + label);
+      opts.forEach(([v, t]) => s.add(new Option(t, v))); s.value = sp[key]; s.onchange = () => { sp[key] = s.value; line.className = "specline " + sp.kind; draw(); }; return s; };
+    const span = t => { const e = document.createElement("span"); e.className = "hint"; e.textContent = t; return e; };
+    const line = document.createElement("i"); line.className = "specline " + sp.kind; line.title = "How this spec is drawn";
+    const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this spec"; del.setAttribute("aria-label", "Remove spec " + (k + 1));
+    del.onclick = () => { specs.splice(k, 1); renderSpecs(); draw(); };
+    row.append(txt("a", "From"), span("to"), txt("b", "To"), span($("xunit").value.trim() || ""),
+      pick("meas", [["T", "T"], ["R", "R"]], "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
+      txt("v", "Value", "pct"), span($("yunit").value.trim() || ""),
+      pick("kind", [["abs", "Absolute"], ["avg", "Average"]], "type"), line, del);
+    box.append(row);
+  });
+  $("specTblBox").hidden = !specs.some(specOK);
+}
+function checkSpec(sp, s) {                      // measure one series against one spec: the worst point (absolute) or the average
+  const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b), v = +sp.v;
+  let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
+  for (let i = 0; i < s.n; i++) {
+    const x = s.X[i], y = s.c.v[i];
+    if (!(x >= a && x <= b) || !isFinite(y)) continue;
+    cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
+  }
+  if (!cnt) return null;
+  const got = sp.kind === "avg" ? sum / cnt : sp.op === "ge" ? mn : mx;
+  return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max",
+           pass: sp.op === "ge" ? got >= v : got <= v, margin: got - v };
+}
+function specTable(S) {
+  const t = $("specTbl"); t.innerHTML = "";
+  const ok = specs.filter(specOK); $("specTblBox").hidden = !ok.length || !S.length; if ($("specTblBox").hidden) return;
+  t.createCaption().textContent = "Specification check";
+  const addRow = (cells, tag) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); return tr; };
+  addRow(["Spec", "Range", "Series", "Measured", "At", "Margin", "Result"], "th");
+  ok.forEach(sp => S.forEach((s, si) => {
+    const r = checkSpec(sp, s), a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
+    const cells = [si ? "" : specName(sp), si ? "" : fx(a) + " – " + xs(b), s.name];
+    const tr = addRow(r ? [...cells, r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), r.pass ? "PASS" : "FAIL"]
+                        : [...cells, "no data in range", "–", "–", "–"], "td");
+    tr.children[2].style.color = s.color;
+    if (r) { const res = tr.lastChild; res.className = r.pass ? "pass" : "fail"; }
+  }));
+}
+$("addspec").onclick = () => { specs.push({ a: "", b: "", meas: "T", op: "ge", v: "", kind: "abs" }); renderSpecs(); $("specRows").lastChild.firstChild.focus(); };
+
 // ---------- 4. DRAW THE GRAPH ----------
 function render() {
   if (!view || !cv.clientWidth) return;                                 // nothing to draw while the canvas is hidden (e.g. mid-print)
@@ -5316,7 +5430,7 @@ function render() {
     const x = s.X[i], y = ty(s.c.v[i]);
     if (x >= view.a && x <= view.b && isFinite(y)) { vis++; if (y < lo) lo = y; if (y > hi) hi = y; }
   }
-  for (const s of S) { const y = ty(s.spec); if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
+  for (const sp of specs) { const y = specOK(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
   if (lo === Infinity) { lo = 0; hi = 1; } else if (hi === lo) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * .06; lo -= pad; hi += pad;
   const fixed = id => { const s = $(id).value.trim(); return s === "" ? NaN : ty(Number(s)); };   // typed Y limits override auto-scaling
@@ -5378,17 +5492,42 @@ function render() {
       }
     }
   }
-  for (const s of S) {                                                 // dashed specification lines
-    const y = ty(s.spec); if (!isFinite(y)) continue;
-    ctx.strokeStyle = ctx.fillStyle = s.color; ctx.lineWidth = 1.5; ctx.setLineDash([8, 5]);
-    ctx.beginPath(); ctx.moveTo(L, py(y)); ctx.lineTo(L + pw, py(y)); ctx.stroke(); ctx.setLineDash([]);
-    ctx.font = "12px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText("Spec " + s.name + ": " + ys(s.spec), L + pw - 6, py(y) - 3);
+  for (const sp of specs) {                                            // specifications: solid = absolute, dotted = average
+    if (!specOK(sp)) continue;
+    const yv = ty(+sp.v); if (!isFinite(yv)) continue;
+    const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = sp.op === "ge" ? -1 : 1;   // ticks point to the passing side
+    ctx.strokeStyle = ctx.fillStyle = P.title; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.setLineDash(sp.kind === "avg" ? [0.1, 6] : []);
+    ctx.beginPath(); ctx.moveTo(x0, Y); ctx.lineTo(x1, Y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, Y); ctx.lineTo(x0, Y + up * 9); ctx.moveTo(x1, Y); ctx.lineTo(x1, Y + up * 9); ctx.stroke();
+    ctx.lineCap = "butt"; ctx.font = "600 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = up < 0 ? "bottom" : "top";
+    const cx = Math.min(Math.max((Math.max(x0, L) + Math.min(x1, L + pw)) / 2, L + 60), L + pw - 60);
+    ctx.fillText(specName(sp), cx, Y + up * 6);
   }
+  for (const { p, li } of levels()) for (const s of S) {               // edge points: faint dashed level line + a marker at each crossing
+    const e = edgePts(s, p); if (!e) continue;
+    const yl = ty(e.thr); if (!isFinite(yl)) continue;
+    const Y = py(yl);
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1; ctx.globalAlpha = .5; ctx.setLineDash(li ? [2, 4] : [6, 4]);
+    ctx.beginPath(); ctx.moveTo(L, Y); ctx.lineTo(L + pw, Y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.font = "600 12px system-ui"; ctx.textBaseline = "bottom";
+    for (const c of e.pts) {
+      const Xc = px(c.x);
+      ctx.beginPath(); ctx.arc(Xc, Y, 4.5, 0, 7);
+      if (li === 0) { ctx.fillStyle = s.color; ctx.fill(); }          // first level: solid dot
+      else { ctx.fillStyle = P.bg; ctx.fill(); ctx.lineWidth = 2; ctx.stroke(); }   // second level: hollow ring
+      if (e.pts.length <= 6) {                                         // label it, on the outside of the edge so it doesn't sit on the curve
+        ctx.fillStyle = s.color; ctx.textAlign = c.up ? "right" : "left";
+        ctx.fillText(p + "%  " + xs(c.x), Xc + (c.up ? -8 : 8), Y - 4);
+      }
+    }
+  }
+  const rmode = light ? $("prshade").value : "shade";                   // the printed report can shade, outline, or skip the ranges
   ranges.forEach((r, k) => {                                           // the highlighted ranges, numbered
-    if (!r) return;
+    if (!r || rmode === "none") return;
     const x0 = px(r.a), x1 = px(r.b);
-    ctx.fillStyle = RC[k] + "2e"; ctx.fillRect(x0, T, x1 - x0, ph);
-    ctx.strokeStyle = RC[k]; ctx.lineWidth = k === cur ? 2.5 : 1; ctx.strokeRect(x0, T, x1 - x0, ph);
+    if (rmode === "shade") { ctx.fillStyle = RC[k] + "2e"; ctx.fillRect(x0, T, x1 - x0, ph); }
+    ctx.strokeStyle = RC[k]; ctx.lineWidth = light ? 1.5 : k === cur ? 2.5 : 1; ctx.strokeRect(x0, T, x1 - x0, ph);
     ctx.fillStyle = RC[k]; ctx.font = "bold 12px system-ui"; ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(k + 1, Math.max(x0, L) + 5, T + 4);
   });
@@ -5418,7 +5557,23 @@ function render() {
     }
   }
 }
-const draw = () => { render(); stats(active()); };
+const draw = () => { const S = active(); render(); stats(S); specTable(S); edges(S); };
+function edges(S) {                              // the Edge points table under the stats table
+  const L = levels(), t = $("edges"); t.innerHTML = "";
+  $("edgeBox").hidden = !L.length || !S.length || !view; if ($("edgeBox").hidden) return;
+  t.createCaption().textContent = "Edge points (percent of the peak in the current view)";
+  const addRow = (cells, tag, color) => { const tr = t.insertRow();
+    cells.forEach((v, i) => { const c = document.createElement(tag); c.textContent = v; if (tag === "td" && i === 5) c.className = "cross"; tr.append(c); });
+    if (color) tr.firstChild.style.color = color; };
+  addRow(["Series", "Peak", "Peak at", "Level", "Threshold", "Crossings", "First to last"], "th");
+  for (const s of S) L.forEach(({ p }, j) => {
+    const e = edgePts(s, p);
+    if (!e) return addRow([j ? "" : s.name, "–", "–", p + "%", "–", "no positive peak", "–"], "td", s.color);
+    const list = e.pts.slice(0, 8).map(c => xs(c.x) + (c.up ? " ↑" : " ↓")).join(",  ") + (e.pts.length > 8 ? "  +" + (e.pts.length - 8) + " more" : "");
+    const span = e.pts.length > 1 ? fmt(e.pts.at(-1).x - e.pts[0].x) + xU() : "–";   // at 50% this is the FWHM
+    addRow([j ? "" : s.name, j ? "" : ys(e.pk), j ? "" : xs(e.pkx), p + "%", ys(e.thr), list || "none in view", span], "td", s.color);
+  });
+}
 let raf = 0, wantFull = false;                  // redraw at most once per frame while the mouse moves
 const redraw = full => { wantFull = wantFull || full; if (!raf) raf = requestAnimationFrame(() => { raf = 0; const f = wantFull; wantFull = false; f ? draw() : render(); }); };
 
@@ -5455,9 +5610,9 @@ function stats(S) {
   $("clearall").disabled = !ranges.some(Boolean);
   const t = $("stats"); t.innerHTML = "";
   if ($("spec").value.trim()) t.createCaption().textContent = "Specification: " + $("spec").value.trim();
-  const addRow = (cells, tag, color) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); });
+  const addRow = (cells, tag, color) => { const tr = t.insertRow(); cells.forEach((v, i) => { const c = document.createElement(tag); c.textContent = v; if (i === 2) c.className = "screenonly"; tr.append(c); });
                                           if (color) tr.firstChild.style.color = color; };
-  addRow(["Range", "Series", "Points", "Min", "Min at", "Max", "Max at", "Average", "Spec"], "th");
+  addRow(["Range", "Series", "Points", "Min", "Min at", "Max", "Max at", "Average"], "th");
   const groups = ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
   for (const { r, k } of groups) {
     const label = (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b);
@@ -5469,8 +5624,7 @@ function stats(S) {
         cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
       }
       const first = si ? "" : label;
-      const spec = isFinite(s.spec) ? ys(s.spec) : "–";
-      addRow(cnt ? [first, s.name, cnt.toLocaleString(), ys(mn), xs(xa), ys(mx), xs(xb), ys(sum / cnt), spec] : [first, s.name, 0, "–", "–", "–", "–", "–", spec],
+      addRow(cnt ? [first, s.name, cnt.toLocaleString(), ys(mn), xs(xa), ys(mx), xs(xb), ys(sum / cnt)] : [first, s.name, 0, "–", "–", "–", "–", "–"],
              "td", k < 0 ? "#fff" : RC[k]);
     });
   }
@@ -5505,9 +5659,11 @@ cv.addEventListener("pointerdown", e => {
 $("zoom").onclick = () => zoomTo(cur);
 $("clear").onclick = () => { ranges[cur] = null; draw(); };
 $("clearall").onclick = () => { ranges = Array(6).fill(null); draw(); };
-$("reset").onclick = () => { view = fullView(); draw(); };
+$("reset").onclick = () => { view = baseView(); draw(); };
+for (const id of ["xmin", "xmax"]) $(id).addEventListener("input", () => { if (view) { view = baseView(); draw(); } });   // typed X limits apply right away
 $("xsel").onchange = () => setX(+$("xsel").value);
-for (const id of ["log", "style", "pts", "title", "spec", "xlab", "xunit", "ylab", "yunit", "ymin", "ymax"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
+$("xunit").addEventListener("change", renderSpecs); $("yunit").addEventListener("change", renderSpecs);
+for (const id of ["log", "style", "pts", "title", "spec", "xlab", "xunit", "ylab", "yunit", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
 addEventListener("resize", draw);
 
 // ---------- 7. SAVING ----------
@@ -5554,7 +5710,8 @@ $("demo").onclick = e => {                       // the Andover 1064HC10 filter 
   e.preventDefault(); ingest($("sampledata").textContent, "1064HC10_sample.csv");
   $("title").value = "Andover 1064HC10 transmission";
   $("xlab").value = "Wavelength"; $("xunit").value = "nm"; $("ylab").value = "Transmission"; $("yunit").value = "%";
-  $("log").checked = false; $("ymin").value = "0"; $("ymax").value = "100"; draw();
+  $("log").checked = false; $("ymin").value = "0"; $("ymax").value = "100";   if (!specs.length) { specs = [{ a: "1062", b: "1066", meas: "T", op: "ge", v: "90", kind: "abs" }, { a: "400", b: "1040", meas: "T", op: "le", v: "1", kind: "avg" }]; renderSpecs(); }
+  draw();
 };
 </script>
 </body>
