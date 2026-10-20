@@ -263,7 +263,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
     <div class="slider" id="dPowerBox"><div class="lab"><span id="dPowerLab">Push</span><output id="dPowerOut"></output></div><input type="range" id="dPower" min="0" max="8" step="0.5" value="0" aria-label="Power"></div>
   </div>
   <div class="quick wrap" id="textRow" hidden>
-    <input type="text" id="textInput" maxlength="40" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
+    <input type="text" id="textInput" maxlength="40" value="TEXT" placeholder="Type your text, then tap the sand" aria-label="Text to place" autocomplete="off" spellcheck="false">
     <input type="color" id="textColor" value="#ffd84a" aria-label="Text colour">
     <button class="btn decorDestruct" title="Whether fire, acid and lasers can destroy barrier text">Destructible: on</button>
     <button class="btn" id="textStamp" title="Fill in the current date and time (tap again to cycle: date and time, time, date)">Timestamp</button>
@@ -1614,10 +1614,10 @@ class Sand {
   /** o: cells ([dx, dy] offsets from the text's centre), text, scale, kind (SAND / WATER / FLAME), acid, rgb, push, spin. */
   addPrinter(x, y, ang, o) {
     if (this.printers.length >= MAX_PRINTERS || !o.cells || !o.cells.length) return false;
-    let ext = 0;
-    for (const [dx, dy] of o.cells) ext = Math.max(ext, Math.abs(dx), Math.abs(dy));
+    let extX = 0, extY = 0;                              // how far the text reaches sideways and up/down from its centre
+    for (const [dx, dy] of o.cells) { extX = Math.max(extX, Math.abs(dx)); extY = Math.max(extY, Math.abs(dy)); }
     this.printers.push({ x, y, ang, spin: o.spin || 0, push: o.push || 0, cells: o.cells, text: o.text || "", scale: o.scale || 1,
-      kind: o.kind === undefined ? SAND : o.kind, acid: !!o.acid, rgb: o.rgb || [230, 200, 120], ext, timer: 10, every: o.every || 0 });
+      kind: o.kind === undefined ? SAND : o.kind, acid: !!o.acid, rgb: o.rgb || [230, 200, 120], extX, extY, timer: 10, every: o.every || 0 });
     return true;
   }
   stepPrinters(flow) {
@@ -1627,7 +1627,8 @@ class Sand {
       if (p.spin) p.ang += p.spin * SPIN_STEP;
       if (--p.timer > 0) continue;
       p.timer = p.every || Math.round(20 + 20 / Math.max(flow, 0.05));   // the Emitter flow slider sets how often a line of text comes out (unless the shooter has its own pace)
-      const c = Math.cos(p.ang), s = Math.sin(p.ang), cx = Math.round(p.x + c * (p.ext + 3)), cy = Math.round(p.y + s * (p.ext + 3));
+      const c = Math.cos(p.ang), s = Math.sin(p.ang);
+      const cx = Math.round(p.x), cy = Math.round(p.y);   // the text starts centred on the printer, exactly where the cursor preview showed it, then travels the way it points
       let made = 0;
       for (const [dx, dy] of p.cells) {                  // every letter pixel starts side by side and travels the same way, so the words stay readable
         const gx = cx + dx, gy = cy + dy;
@@ -2082,10 +2083,9 @@ function setTool(t) {
   if (t !== "adjust" && selDev) selDev = null;           // leaving Adjust lets go of the device
   syncDevUi();
   $("bHollow").hidden = !HOLLOWABLE.includes(t);         // solid or hollow, for the shapes that can be either
-  $("matSeg").hidden = t === "pen" || isCreature || isScenery || (isText && textMode !== "emitter" && textMode !== "shoots") || t === "fire" || t === "laser" || t === "fan" || t === "adjust" || t === "recolor";
+  $("matSeg").hidden = t === "pen" || isCreature || isScenery || t === "fire" || t === "laser" || t === "fan" || t === "adjust" || t === "recolor";
   $("sizeBox").hidden = t === "linepour" || isCreature ||isScenery || isText || t === "laser" || t === "fan" || t === "adjust" || t === "recolor";
-  updateLabel();
-}
+  updateLabel();}
 function refreshMenuIcon(g) {                            // a menu button shows the tool you picked from it last
   const svg = document.querySelector(`.tool[data-tool="${g}"] svg`);
   if (svg) svg.innerHTML = ICONS[lastPick[g]];
@@ -2303,7 +2303,7 @@ function aimSelected(x, y) {                             // while dragging with 
   adjActive = true;
   const dx = x - selDev.cx, dy = y - selDev.cy;
   if (Math.hypot(dx, dy) < 2) return;
-  devAngle = norm360(Math.atan2(dy, dx) * 180 / Math.PI);
+  devAngle = norm360((mods.shift ? snapRad(Math.atan2(dy, dx)) : Math.atan2(dy, dx)) * 180 / Math.PI);
   applyToDevice("angle"); syncDevUi();
 }
 function selectionAlive() {
@@ -2458,6 +2458,21 @@ function syncTextUi() {                                  // the Text tool's cont
 }
 $("textModeSeg").addEventListener("click", e => { const m = e.target.dataset.m; if (m) { textMode = m; syncTextUi(); } });
 $("textScaleSeg").addEventListener("click", e => { const v = +e.target.dataset.s; if (v) { textScale = v; syncTextUi(); } });
+
+// Mouse wheel over the sand: scroll up = bigger, down = smaller. Text goes 1x to 50x; the other tools use the Size slider's range.
+const TEXT_SCALE_MAX = 50;
+$("stage").addEventListener("wheel", e => {
+  const dir = e.deltaY < 0 ? 1 : -1;
+  if (tool === "text") {
+    textScale = Math.min(Math.max(textScale + dir, 1), TEXT_SCALE_MAX);
+    $("textScaleSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.s === textScale));
+  } else if (SHAPES.includes(tool) || ["erase", "pen", "wall", "fire"].includes(tool)) {
+    ctl.size = Math.min(Math.max(ctl.size + dir, +$("sizeRange").min), +$("sizeRange").max);
+    $("sizeRange").value = ctl.size; $("sizeOut").textContent = ctl.size;
+  } else return;                                          // this tool has no size: let the page scroll as usual
+  e.preventDefault();
+  updateLabel();
+}, { passive: false });
 function syncHollowUi() { $("bHollow").textContent = hollow ? "Hollow" : "Solid"; $("bHollow").classList.toggle("on", hollow); updateLabel(); }
 $("bHollow").onclick = () => { hollow = !hollow; syncHollowUi(); };
 
@@ -2661,9 +2676,14 @@ let movingDev = null, moveOff = [0, 0];                 // the Move tool draggin
 let moving = null, moveAnchor = null, dragStart = null, holding = false, stamping = false;
 let laserDrag = null, fanDrag = null;                    // the Laser / Fan tool while pressed: where it starts (it aims at the pointer)
 const fireRadius = () => Math.max(2, Math.round(ctl.size / 2));
-const laserAim = (from, to) => (Math.hypot(to.x - from.x, to.y - from.y) < 2 ? devAngle * Math.PI / 180 : Math.atan2(to.y - from.y, to.x - from.x));   // no drag: the Angle slider
+const snapRad = a => { const step = ANGLE_SNAP * Math.PI / 180; return Math.round(a / step) * step; };   // Shift: round an angle to the nearest 5 degrees
+const laserAim = (from, to) => {                          // no drag: the Angle slider
+  if (Math.hypot(to.x - from.x, to.y - from.y) < 2) return devAngle * Math.PI / 180;
+  const a = Math.atan2(to.y - from.y, to.x - from.x);
+  return mods.shift ? snapRad(a) : a;
+};
 function clearSand() { sand.clearSand(); toast("Sand cleared"); }
-function clearAll() { sand = new Sand(W, H); resetStats(); moving = dragStart = null; cancelSelection(); toast("Cleared"); }
+function clearAll() { sand = new Sand(W, H); strokes = []; redrawInk(); resetStats(); moving = dragStart = null; cancelSelection(); toast("Cleared"); }
 function flipWorld() { sand.flip(); sand.wakeAll(); moving = dragStart = null; cancelSelection(); toast("Flipped!"); }
 
 // ---- selection: copy / delete / paste ----
@@ -3367,6 +3387,7 @@ function previewCells() {                                // translucent ghost of
   else if (tool === "recolor") cells = at(cur.x, cur.y, "sphere", 1);
   else if (tool === "ramp") cells = dragStart ? lineCells(dragStart[0], dragStart[1], ...rampEnd(dragStart, cur.x, cur.y)) : [[cur.x, cur.y]];
   else if (tool === "pour" && shiftPour) cells = lineCells(shiftPour.x0, shiftPour.y0, ...clampCell(cur.x, cur.y));
+  else if (tool === "pour") cells = at(cur.x, cur.y, "sphere", Math.max(2, Math.round(ctl.spread * 1.5)));   // roughly how wide the stream fans out (it follows the Spread slider)
   else if (tool === "linepour" || tool === "trash") cells = dragStart ? lineCells(dragStart[0], dragStart[1], ...clampCell(cur.x, cur.y)) : [[cur.x, cur.y]];
   else if (tool === "belt") cells = dragStart ? beltCells(dragStart[0], cur.x, dragStart[1]) : beltCells(cur.x, cur.x, cur.y);
   if (fx.mirror > 1 && !moving) cells = cells.flatMap(([x, y]) => mirroredXs(x).map(mx => [mx, y]));
@@ -3413,7 +3434,12 @@ function render(clean = false) {                         // clean = leave out th
   const ghost = clean ? [] : previewCells();
   if (ghost.length) {
     const col = P(tool === "erase" ? THEME.danger : THEME.accent);
-    for (const [x, y] of ghost) if (x >= 0 && x < W && y >= 0 && y < H) buf[y * W + x] = over(buf[y * W + x], col, 105);
+    const inGhost = new Set();
+    for (const [x, y] of ghost) if (x >= 0 && x < W && y >= 0 && y < H) inGhost.add(y * W + x);
+    for (const i of inGhost) {                           // the fill is faint; cells on the edge of the shape get a stronger outline
+      const x = i % W, edge = !inGhost.has(i - 1) || !inGhost.has(i + 1) || !inGhost.has(i - W) || !inGhost.has(i + W) || x === 0 || x === W - 1;
+      buf[i] = over(buf[i], col, edge ? 230 : 105);
+    }
   }
   ctx.putImageData(img, 0, 0);
 }
