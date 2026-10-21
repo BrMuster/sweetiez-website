@@ -60,8 +60,12 @@
 
   /* Falling Pixels banner: a screenshot of the game itself (the title is poured out of water over sand). The <h1> stays in the page for screen readers and Edit mode, just hidden. */
   .hero.logo { background: #0a0a0e url("falling-pixels-hero.png") center 30% / cover no-repeat; background-blend-mode: normal; }
-  /* Make Graph banner: a drawn spectrum (three filter curves, the FWHM bracket and the title), same treatment as the Falling Pixels one. */
-  .hero.plotbg { background: #0e141b url("plot-hero.jpg") center 30% / cover no-repeat; background-blend-mode: normal; }
+  /* Filter banner: a drawn spectrum (three filter curves, spec lines, the half-max bracket and the title), same treatment as the Falling Pixels one. */
+  .hero.plotbg { background: #0e141b url("plot-hero.jpg") center top / cover no-repeat; background-blend-mode: normal;
+                 height: clamp(280px, calc((100vw - 690px) * .2917), 440px); }   /* tall enough to show the whole picture, without shrinking the width */
+  /* Filter banner and its see-through bar line up with the Activity card: same left edge, and the right column (340px + gaps) is left clear */
+  .hero.plotbg, .hero.plotbg + .bar { margin-left: 1.5rem; margin-right: calc(340px + 3rem); }
+  .hero.plotbg { margin-top: 1.5rem; }
   .hero.plotbg h1, .hero.logo h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   /* 6. ACTION BAR: big green button + small label/value stat blocks */
@@ -119,6 +123,8 @@
     .layout { grid-template-columns: 1fr; }
     .side { max-height: 40vh; }
     .cols { grid-template-columns: 1fr; padding: 1rem; }
+    .hero.plotbg, .hero.plotbg + .bar { margin-left: 1rem; margin-right: 1rem; }
+    .hero.plotbg { height: clamp(200px, calc((100vw - 2rem) * .2917), 300px); }
   }
 </style>
 </head>
@@ -139,7 +145,7 @@
         <li data-page="draw.html"><button><i style="--c:#9775fa"></i><span>Draw</span></button></li>
         <!-- <li data-page="links.html"><button><i style="--c:#4dabf7"></i><span>Link</span></button></li> -->
         <li data-page="mouse.html"><button><i style="--c:#e0a030"></i><span>mouse</span></button></li>
-        <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Make Graph</span></button></li>
+        <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Filter</span></button></li>
         <li data-page="sand.html"><button><i style="--c:#ff5a5a"></i><span>Falling Pixels</span></button></li>
         <li class="dim" data-page="earlysuppers.html"><button><i style="--c:#d6336c"></i><span>Early Suppers</span></button></li>
         <li class="dim" data-page="slothy.html"><button><i style="--c:#4dabf7"></i><span>Slothy and Friends</span></button></li>
@@ -220,7 +226,7 @@ function randomStats() {
         "Shift data moves every curve in X (nm) or Y (%). Click in any number box and use the mouse wheel to change it (Shift is x10, Alt is x0.1).",
         "Specs can now be Absolute, Average or Best Effort (a green dotted line). The range table lets you choose which of Min, Max and Average to show.",
         "CSV files with notes above or below the data, like Cary spectrometer exports, are now cropped automatically to just the numbers, and the page tells you what it skipped.",
-        "New banner for Make Graph on this page: a spectrum with the half-max bracket drawn right in it." ] }
+        "The page is now called Filter, with a new banner: a spectrum of three filters with spec lines and the half-max bracket drawn right in it." ] }
     ],
     "sand.html": [
       { date: "October 19, 2026", title: "Mouse-wheel sizing, cursor outline and easier text", notes: [
@@ -296,7 +302,7 @@ function randomStats() {
     document.getElementById("title").textContent = li.querySelector("span").textContent;
     const page = li.dataset.page;                     // e.g. data-page="board/" in the HTML
     document.querySelector(".hero").classList.toggle("logo", page === "sand.html");   // Falling Pixels gets its logo banner
-    document.querySelector(".hero").classList.toggle("plotbg", page === "plot.html"); // Make Graph gets its spectrum banner
+    document.querySelector(".hero").classList.toggle("plotbg", page === "plot.html"); // Filter gets its spectrum banner
     renderUpdates(page);
     if (page) { play.href = page; play.classList.remove("off"); play.removeAttribute("aria-disabled"); }
     else      { play.removeAttribute("href"); play.classList.add("off"); play.setAttribute("aria-disabled", "true"); }
