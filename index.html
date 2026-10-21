@@ -208,6 +208,16 @@ function randomStats() {
 }
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
+    "plot.html": [
+      { date: "October 20, 2026", title: "Chart-first layout, zoom box, shift data and Tx/Rx", notes: [
+        "The chart now sits at the very top of the page and is about 50% bigger, with larger text for the title, axes and labels.",
+        "X is always Wavelength (nm). The Y axis follows a new Scan type choice, Transmission or Reflection, and series are named Tx or Rx to match. The log Y axis, Y unit and sample data outside 1050 to 1080 nm are gone.",
+        "X min/max and Y min/max sit right around the chart. Right-click and drag draws a zoom box that zooms both X and Y; Reset view puts it back.",
+        "Hold Shift while dragging a range to snap it to whole nanometers.",
+        "New Shift data section moves every curve in X (nm) or Y (%), and the tables follow.",
+        "Click in any number box and use the mouse wheel to change it. Shift is x10, Alt is x0.1.",
+        "The % points are now clearly percent of the max Transmission or Reflection, and the range table lets you choose which of Min, Min at, Max, Max at and Average to show." ] }
+    ],
     "sand.html": [
       { date: "October 19, 2026", title: "Mouse-wheel sizing, cursor outline and easier text", notes: [
         "Scroll the mouse wheel over the sandbox to resize: text goes from 1x up to 50x, and shapes, erase, pen, wall and fire use the Size slider's range.",
