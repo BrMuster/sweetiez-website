@@ -31,7 +31,7 @@
   .specrow { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
   .specrow input[type=text] { width: 6.5rem; } .specrow input.pct { width: 4.5rem; }
   .specrow button { padding: .3rem .6rem; } .specrow button:hover { background: #ff5a7a40; }
-  .specline { width: 34px; height: 0; border-top: 3px solid #fff; } .specline.avg { border-top-style: dotted; }
+  .specline { width: 34px; height: 0; border-top: 3px solid #fff; } .specline.avg { border-top-style: dotted; } .specline.best { border-top-style: dotted; border-top-color: #4cd964; }
   td.pass { color: #4cd964; font-weight: 700; } td.fail { color: #ff5a7a; font-weight: 700; }
   .chip { display: inline-flex; gap: .4rem; align-items: center; padding: .2rem .3rem .2rem .7rem; background: #ffffff0d; border-radius: 4px; }
   .chip button { padding: .1rem .5rem; }
@@ -61,12 +61,21 @@
     #app td.pass, #app td.fail { color: #000; }
     #notesPrint { display: block; white-space: pre-wrap; min-height: 5rem; border: 1px solid #888; padding: .5rem; color: #000; }
   }
+  .tips { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1.1rem; font-size: .82rem; color: var(--muted); }
+  .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; margin-right: .35rem; }
+  .tipx { padding: .1rem .55rem; font-size: .8rem; background: transparent; color: var(--muted); }
+  .tips .tipx { margin-left: auto; } #tipsShow { justify-self: start; }
+  .tabs { display: flex; flex-wrap: wrap; gap: .3rem; border-bottom: 1px solid var(--line); }
+  .tab { background: transparent; border-radius: 4px 4px 0 0; padding: .5rem 1.1rem; color: var(--muted); border-bottom: 3px solid transparent; }
+  .tab.on, .tab.on:hover:not(:disabled) { color: #fff; background: #ffffff0d; border-bottom-color: var(--accent); }
+  .panel { display: grid; gap: .8rem; }
   .meas { display: inline-flex; gap: .4rem 1rem; align-items: center; flex-wrap: wrap; }
   .plotwrap { display: grid; grid-template-columns: 6.2rem 1fr; gap: .4rem .5rem; }
   .plotwrap input { width: 100%; min-width: 0; }
   .ylim { display: flex; flex-direction: column; justify-content: space-between; }
   .xlim { grid-column: 2; display: flex; justify-content: space-between; }
   .xlim input { width: 6rem; }
+  .lim { display: grid; gap: .15rem; color: var(--muted); font-size: .8rem; cursor: default; }
   .sw { width: 12px; height: 12px; border-radius: 2px; }
   canvas { width: 100%; height: 630px; display: block; background: #0e141b; border-radius: 4px; cursor: crosshair; touch-action: none; }
   .bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
@@ -99,78 +108,135 @@
     <div id="printHead" class="keep"><h2 id="printTitle"></h2><p id="printStamp"></p><p id="printFiles"></p><p id="printSpec"></p></div>
     <img id="printImg" class="keep" alt="Graph of your data">
     <div id="printLegend" class="keep"></div>
-    <div class="plotwrap">
-      <div class="ylim">
-        <input type="text" id="ymax" class="unit" placeholder="Y max" aria-label="Y max">
-        <input type="text" id="ymin" class="unit" placeholder="Y min" aria-label="Y min">
+    <div class="plotwrap" id="plotwrap">
+      <div class="ylim" id="ylim">
+        <label class="lim">Y max <input type="text" id="ymax" class="unit" placeholder="auto"></label>
+        <label class="lim">Y min <input type="text" id="ymin" class="unit" placeholder="auto"></label>
       </div>
       <canvas id="cv" aria-label="Graph of your data"></canvas>
-      <div class="xlim">
-        <input type="text" id="xmin" class="unit" placeholder="X min" aria-label="X min">
-        <input type="text" id="xmax" class="unit" placeholder="X max" aria-label="X max">
+      <div class="xlim" id="xlim">
+        <label class="lim">X min <input type="text" id="xmin" class="unit" placeholder="auto"></label>
+        <label class="lim">X max <input type="text" id="xmax" class="unit" placeholder="auto"></label>
       </div>
     </div>
-    <div class="controls">
-      <label>Line style
-        <select id="style"><option value="line">Straight</option><option value="step">Step</option><option value="dots">Points only</option></select>
-      </label>
-      <label><input type="checkbox" id="pts"> Show points</label>
-      <label>Decimals
-        <select id="dec"><option value="2">2</option><option value="1">1</option><option value="0">0</option></select>
-      </label>
+    <div class="tips" id="tips">
+      <span><b>Drag</b> mark a range</span>
+      <span><b>Shift + drag</b> snap to whole nm</span>
+      <span><b>Right-drag</b> zoom box (X and Y)</span>
+      <span><b>Double-click</b> reset view</span>
+      <span><b>Click a range band</b> zoom to it</span>
+      <span><b>Scroll</b> in a number box to nudge it</span>
+      <button type="button" class="tipx" id="tipsHide" title="Hide these tips" aria-label="Hide tips">✕</button>
     </div>
-    <div class="controls">
-      <label class="txt">Title <input type="text" id="title" placeholder="Chart title"></label>
-      <label class="txt">Specs <input type="text" id="spec" placeholder="e.g. Pressure must stay below 5 mTorr" style="width:22rem;max-width:100%"></label>
-      <span class="meas">Scan type
-        <label><input type="radio" name="meas" id="kT" checked> Transmission</label>
-        <label><input type="radio" name="meas" id="kR"> Reflection</label>
-      </span>
+    <button type="button" class="tipx" id="tipsShow" hidden>Show tips</button>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" role="tab" data-tab="data">Data</button>
+      <button type="button" class="tab" role="tab" data-tab="display">Display</button>
+      <button type="button" class="tab" role="tab" data-tab="ranges">Ranges</button>
+      <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
+      <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
+      <button type="button" class="tab" role="tab" data-tab="export">Export</button>
     </div>
-    <div class="controls">
-      <b>Shift data</b>
-      <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
-      <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
-      <button type="button" id="shreset">Reset shift</button>
-      <span class="hint">Moves every curve by this amount, + or -. The file itself is not changed.</span>
+
+    <div class="panel" data-tab="data" hidden>
+      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
+      <div class="series" id="series"></div>
+      <div class="controls">
+        <b>Shift data</b>
+        <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
+        <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
+        <button type="button" id="shreset">Reset shift</button>
+        <span class="hint">Moves every curve by this amount, + or -. The file itself is not changed.</span>
+      </div>
     </div>
-    <div class="controls">
-      <label><input type="checkbox" id="m1"> Mark <input type="text" id="lv1" class="pct" value="50" aria-label="First level, percent of max">% of max points</label>
-      <label><input type="checkbox" id="m2"> Mark <input type="text" id="lv2" class="pct" value="5" aria-label="Second level, percent of max">% of max points</label>
-      <span class="hint">Percent of the max <span class="mname">Transmission</span> shown on the graph. Zoom in to measure a different peak.</span>
+
+    <div class="panel" data-tab="display" hidden>
+      <div class="controls">
+        <label class="txt">Title <input type="text" id="title" placeholder="Chart title"></label>
+        <span class="meas">Scan type
+          <label><input type="radio" name="meas" id="kT" checked> Transmission</label>
+          <label><input type="radio" name="meas" id="kR"> Reflection</label>
+        </span>
+      </div>
+      <div class="controls">
+        <label>Line style
+          <select id="style"><option value="line">Straight</option><option value="step">Step</option><option value="dots">Points only</option></select>
+        </label>
+        <label><input type="checkbox" id="pts"> Show points</label>
+        <label>Decimals
+          <select id="dec"><option value="2">2</option><option value="1">1</option><option value="0">0</option></select>
+        </label>
+      </div>
+      <div class="controls">
+        <label class="txt">Specs note <input type="text" id="spec" placeholder="e.g. Pressure must stay below 5 mTorr" style="width:22rem;max-width:100%"></label>
+        <span class="hint">Printed under the title.</span>
+      </div>
     </div>
-    <div class="specbox">
-      <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
-        <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
-      <div id="specRows"></div>
+
+    <div class="panel" data-tab="ranges">
+      <div class="bar" id="slots"></div>
+      <div class="typed" id="typed" aria-label="Type range coordinates"></div>
+      <div class="bar">
+        <button id="zoom" disabled>Zoom to range</button>
+        <button id="clear" disabled>Clear range</button>
+        <button id="clearall" disabled>Clear all ranges</button>
+        <button id="reset">Reset view</button>
+      </div>
+      <div class="controls">
+        <b>Show for each range</b>
+        <label><input type="checkbox" id="cMin"> Min</label>
+        <label><input type="checkbox" id="cMinAt"> Min at</label>
+        <label><input type="checkbox" id="cMax" checked> Max</label>
+        <label><input type="checkbox" id="cMaxAt"> Max at</label>
+        <label><input type="checkbox" id="cAvg" checked> Average</label>
+      </div>
     </div>
-    <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
-    <div class="series" id="series"></div>
-    <div class="bar" id="slots"></div>
-    <div class="typed" id="typed" aria-label="Type range coordinates"></div>
-    <div class="bar">
-      <button id="zoom" disabled>Zoom to range</button>
-      <button id="clear" disabled>Clear range</button>
-      <button id="clearall" disabled>Clear all ranges</button>
-      <button id="reset">Reset view</button>
-      <label class="prsel">On the report, ranges are
-        <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
-      </label>
-      <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print report</button>
-      <button id="png">Download PNG</button>
-      <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
+
+    <div class="panel" data-tab="specs" hidden>
+      <div class="specbox">
+        <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
+          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
+        <div id="specRows"></div>
+      </div>
     </div>
-    <div class="controls">
-      <b>Show for each range</b>
-      <label><input type="checkbox" id="cMin"> Min</label>
-      <label><input type="checkbox" id="cMinAt"> Min at</label>
-      <label><input type="checkbox" id="cMax" checked> Max</label>
-      <label><input type="checkbox" id="cMaxAt"> Max at</label>
-      <label><input type="checkbox" id="cAvg" checked> Average</label>
+
+    <div class="panel" data-tab="filter" hidden>
+      <div class="controls">
+        <b>Filter type</b>
+        <label><input type="radio" name="ftype" id="fNone" checked> None</label>
+        <label><input type="radio" name="ftype" id="fBand"> Bandpass</label>
+        <label><input type="radio" name="ftype" id="fLwp"> LWP</label>
+        <label><input type="radio" name="ftype" id="fSwp"> SWP</label>
+        <label><input type="radio" name="ftype" id="fAr"> AR</label>
+        <label><input type="radio" name="ftype" id="fNotch"> Notch</label>
+      </div>
+      <div class="controls"><span class="hint" id="fhint"></span></div>
+      <div class="controls" id="bandOpts" hidden>
+        <label><input type="checkbox" id="fShow" checked> Draw the measurement on the chart</label>
+      </div>
+      <div class="controls">
+        <b>Percent-of-max marks</b>
+        <label><input type="checkbox" id="m1"> Mark <input type="text" id="lv1" class="pct" value="50" aria-label="First level, percent of max">% of max points</label>
+        <label><input type="checkbox" id="m2"> Mark <input type="text" id="lv2" class="pct" value="5" aria-label="Second level, percent of max">% of max points</label>
+        <span class="hint">Percent of the max <span class="mname">Transmission</span> shown on the graph. Zoom in to measure a different peak.</span>
+      </div>
+    </div>
+
+    <div class="panel" data-tab="export" hidden>
+      <div class="bar">
+        <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print report</button>
+        <button id="png">Download PNG</button>
+        <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
+        <label class="prsel">On the report, ranges are
+          <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
+        </label>
+      </div>
     </div>
     <div class="tbl keep"><table id="stats"></table></div>
     <div class="tbl keep" id="specTblBox" hidden><table id="specTbl"></table></div>
     <div class="tbl keep" id="edgeBox" hidden><table id="edges"></table></div>
+    <div class="tbl keep" id="bandBox" hidden><table id="bandTbl"></table></div>
     <div id="notesBox" class="keep">
       <label for="notes"><b>Notes</b> <span class="hint screenonly">(typed here, printed with the report)</span></label>
       <textarea id="notes" rows="3" placeholder="Operator, sample ID, conditions, observations…"></textarea>
@@ -354,14 +420,13 @@ const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
 const COLORS = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6", "#e8d44d", "#ff8c42"];
 const RC = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6"];   // one colour per range slot
-let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, ySaved = null;
+let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, ySaved = null, zoomed = false, clean = false;   // zoomed / clean: drive the faint "double-click to reset" hint
 let ranges = Array(6).fill(null), cur = 0, hov = null, drag = false, light = false;   // light = black-on-white drawing for printing
 
 // ---------- 1. READ THE FILE ----------
 function parseCSV(text) {                       // handles quotes like "a, b" and picks the delimiter
   text = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
-  const first = text.split("\n", 1)[0];
-  const d = [",", "\t", ";"].map(c => [c, first.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const d = [",", "\t", ";"].map(c => [c, text.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];   // the file's most common delimiter
   const rows = []; let row = [], f = "", q = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
@@ -378,18 +443,27 @@ function parseCSV(text) {                       // handles quotes like "a, b" an
 let files = [], uid = 0;                         // files[0] is the main scan, any others are overlays
 const shortName = s => s.replace(/\.[^.]*$/, "");
 const abbr = () => $("kR").checked ? "Rx" : "Tx";                 // series are called Tx or Rx to match the Scan type
-const dispName = c => c.label || (files.length > 1 ? shortName(c.f) + ": " : "") + c.name.replace(/^[TR]x(?=\W|$)/i, abbr());   // overlays are told apart by file name
+const dispName = c => c.label || (files.length > 1 ? shortName(c.f) + ": " : "") + c.name.replace(/^%\s*[TR]x?(?=\W|$)/i, abbr() + " (%)").replace(/^[TR]x?(?=\W|$)/i, abbr());   // overlays are told apart by file name
 
 function readFile(text, fname) {                // turn CSV text into columns; returns null (and says why) if it can't
   const rows = parseCSV(text);
   if (rows.length < 2) { say("I couldn't find data rows in " + fname + "."); return null; }
   const isText = c => c.trim() !== "" && isNaN(Number(c));
-  let start = -1;                                // skip any notes at the top: data starts at the first run of 5 all-number rows
-  for (let i = 0; i < rows.length - 1 && start < 0; i++) if (rows.slice(i, i + 5).every(r => r.every(c => c.trim() !== "" && !isNaN(Number(c))))) start = i;
+  const isData = r => { const f = r.map(c => c.trim()).filter(c => c !== ""); return f.length >= 2 && f.every(c => !isNaN(Number(c))); };   // numbers only; blank cells are fine
+  let start = -1, len = 0;                       // the data is the longest unbroken run of number rows; notes above and below it are cropped away
+  for (let i = 0; i < rows.length;) {
+    if (!isData(rows[i])) { i++; continue; }
+    let j = i; while (j < rows.length && isData(rows[j])) j++;
+    if (j - i > len) { len = j - i; start = i; }
+    i = j;
+  }
+  if (len < 3) start = -1;
   let hd, body;
-  if (start >= 0) { body = rows.slice(start); hd = start > 0 && rows[start - 1].some(isText) ? rows[start - 1] : null; }
+  if (start >= 0) { body = rows.slice(start, start + len); hd = start > 0 && rows[start - 1].some(isText) ? rows[start - 1] : null; }
   else { const hasHead = rows[0].some(isText); hd = hasHead ? rows[0] : null; body = hasHead ? rows.slice(1) : rows; }
-  const head = body[0].map((_, i) => hd && (hd[i] ?? "").trim() ? hd[i].trim() : "Column " + (i + 1));
+  const cropped = start >= 0 ? { top: start - (hd ? 1 : 0), bottom: rows.length - start - len } : { top: 0, bottom: 0 };   // lines of notes that were skipped (the column-name row isn't counted)
+  const width = Math.max(...body.map(r => r.length));
+  const head = Array.from({ length: width }, (_, i) => hd && (hd[i] ?? "").trim() ? hd[i].trim() : "Column " + (i + 1));
   const cs = head.map((name, j) => {            // decide if each column is numbers, dates or text
     const raw = body.map(r => (r[j] ?? "").trim()), filled = raw.filter(s => s !== "").length || 1;
     const nums = raw.map(s => s === "" ? NaN : Number(s));
@@ -397,9 +471,9 @@ function readFile(text, fname) {                // turn CSV text into columns; r
     const dates = raw.map(s => s === "" ? NaN : Date.parse(s));
     if (dates.filter(Number.isFinite).length / filled >= .9) return { name, kind: "date", v: dates, raw, f: fname };
     return { name, kind: "text", raw, f: fname };
-  });
+  }).filter(c => c.raw.some(v => v !== ""));       // empty columns (a trailing comma on every row) are dropped
   if (!cs.some(c => c.kind !== "text")) { say("I couldn't find any numeric columns in " + fname + "."); return null; }
-  return { id: ++uid, fname, cols: cs, n: body.length, xi: -1, X: [], xkind: "num" };
+  return { id: ++uid, fname, cols: cs, n: body.length, xi: -1, X: [], xkind: "num", cropped };
 }
 
 function ingest(text, fname = "data.csv") {     // load the main scan (this replaces any overlays)
@@ -409,8 +483,9 @@ function ingest(text, fname = "data.csv") {     // load the main scan (this repl
   for (const id of ["title", "spec", "shx", "shy", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   ySaved = null;
   const yc = cols.find((c, i) => i !== xi && c.kind === "num");           // a column called Rx / Reflection switches the Scan type to Reflection
-  $("kR").checked = !!(yc && /^R(x)?(\W|$)|reflect/i.test(yc.name)); $("kT").checked = !$("kR").checked;
-  say(n.toLocaleString() + " rows, " + cols.length + " columns loaded."); $("app").hidden = false;
+  $("kR").checked = !!(yc && /^(%\s*)?R(x)?(\W|$)|reflect/i.test(yc.name)); $("kT").checked = !$("kR").checked;
+  const cr = ds.cropped, note = cr.top + cr.bottom ? " Skipped " + [cr.top && cr.top + " header", cr.bottom && cr.bottom + " footer"].filter(Boolean).join(" and ") + " lines that weren't data." : "";
+  say(n.toLocaleString() + " rows, " + cols.length + " columns loaded." + note); $("app").hidden = false;
   setX(xi, true);
 }
 function addOverlay(text, fname) {              // put another scan on the same graph
@@ -456,7 +531,7 @@ function renderFiles() {
   });
 }
 function rebuild(first, newDs) {                // redo the series list for every loaded scan
-  view = baseView(); hov = null; lastShX = shX();
+  view = baseView(); zoomed = false; hov = null; lastShX = shX();
   const prev = new Set([...document.querySelectorAll("#series input:checked")].map(e => e.value));
   $("series").innerHTML = ""; let k = 0;
   files.forEach(ds => {
@@ -540,7 +615,7 @@ function edgePts(s, pct) {                       // find where series s crosses 
 // ---------- 3c. SPECIFICATIONS (wavelength range + T or R limit, absolute or average) ----------
 let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }  (a, b, v kept as typed text)
 const specOK = sp => [sp.a, sp.b, sp.v].every(t => String(t).trim() !== "" && isFinite(Number(t)));
-const specName = sp => sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : " abs");
+const specName = sp => sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
 function renderSpecs() {                         // one row of fields per spec
   const box = $("specRows"); box.innerHTML = "";
   specs.forEach((sp, k) => {
@@ -556,7 +631,7 @@ function renderSpecs() {                         // one row of fields per spec
     row.append(txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
       pick("meas", [["T", "T"], ["R", "R"]], "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
       txt("v", "Value", "pct"), span(YUNIT),
-      pick("kind", [["abs", "Absolute"], ["avg", "Average"]], "type"), line, del);
+      pick("kind", [["abs", "Absolute"], ["avg", "Average"], ["best", "Best Effort"]], "type"), line, del);
     box.append(row);
   });
   $("specTblBox").hidden = !specs.some(specOK);
@@ -572,7 +647,7 @@ function checkSpec(sp, s) {                      // measure one series against o
   if (!cnt) return null;
   const got = sp.kind === "avg" ? sum / cnt : sp.op === "ge" ? mn : mx;
   return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max",
-           pass: sp.op === "ge" ? got >= v : got <= v, margin: got - v };
+           pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v };   // best effort always passes
 }
 function specTable(S) {
   const t = $("specTbl"); t.innerHTML = "";
@@ -583,7 +658,7 @@ function specTable(S) {
   ok.forEach(sp => S.forEach((s, si) => {
     const r = checkSpec(sp, s), a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
     const cells = [si ? "" : specName(sp), si ? "" : fx(a) + " – " + xs(b), s.name];
-    const tr = addRow(r ? [...cells, r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), r.pass ? "PASS" : "FAIL"]
+    const tr = addRow(r ? [...cells, r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL"]
                         : [...cells, "no data in range", "–", "–", "–"], "td");
     tr.children[2].style.color = s.color;
     if (r) { const res = tr.lastChild; res.className = r.pass ? "pass" : "fail"; }
@@ -671,8 +746,8 @@ function render() {
     if (!specOK(sp)) continue;
     const yv = ty(+sp.v); if (!isFinite(yv)) continue;
     const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = sp.op === "ge" ? -1 : 1;   // ticks point to the passing side
-    ctx.strokeStyle = ctx.fillStyle = P.title; ctx.lineWidth = 2.5; ctx.lineCap = "round";
-    ctx.setLineDash(sp.kind === "avg" ? [0.1, 6] : []);
+    ctx.strokeStyle = ctx.fillStyle = sp.kind === "best" ? "#4cd964" : P.title; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.setLineDash(sp.kind === "avg" || sp.kind === "best" ? [0.1, 6] : []);
     ctx.beginPath(); ctx.moveTo(x0, Y); ctx.lineTo(x1, Y); ctx.stroke(); ctx.setLineDash([]);
     ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, Y); ctx.lineTo(x0, Y + up * 9); ctx.moveTo(x1, Y); ctx.lineTo(x1, Y + up * 9); ctx.stroke();
     ctx.lineCap = "butt"; ctx.font = "600 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = up < 0 ? "bottom" : "top";
@@ -706,6 +781,29 @@ function render() {
     ctx.fillStyle = RC[k]; ctx.font = "bold 14px system-ui"; ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(k + 1, Math.max(x0, L) + 5, T + 4);
   });
+  if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed or saved in the PNG
+    ctx.font = "italic 13px system-ui"; ctx.fillStyle = "#8f98a0b3"; ctx.textAlign = "right"; ctx.textBaseline = "top";
+    ctx.fillText("Double-click to reset view", L + pw - 8, T + 6);
+  }
+  const ft = ftype();
+  if ($("fShow").checked && ft !== "none" && ft !== "ar") for (const { r } of rangeGroups()) for (const s of S) {   // the measurement drawn on the chart
+    const b = ft === "notch" ? notch(s, r) : bandpass(s, r); if (!b) continue;
+    const Y = py(b.thr), one = ft === "lwp" ? b.lo : ft === "swp" ? b.hi : null;
+    ctx.strokeStyle = ctx.fillStyle = s.color; ctx.font = "600 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    if (ft === "lwp" || ft === "swp") {                                // one edge: a dashed line and a dot on the 50% point
+      if (one === null) continue;
+      const Xe = px(one);
+      ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Xe, T); ctx.lineTo(Xe, T + ph); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(Xe, Y, 5, 0, 7); ctx.fill();
+      ctx.fillText((ft === "lwp" ? "Cut-on " : "Cut-off ") + fmt(one) + " nm", Xe, T + ph - 6);
+    } else {                                                           // bandpass or notch: the width line and the center line
+      if (b.bw === null) continue;
+      const X0 = px(b.lo), X1 = px(b.hi), Xc = px(b.cwl);
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X0, Y); ctx.lineTo(X1, Y); ctx.moveTo(X0, Y - 7); ctx.lineTo(X0, Y + 7); ctx.moveTo(X1, Y - 7); ctx.lineTo(X1, Y + 7); ctx.stroke();
+      ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Xc, T); ctx.lineTo(Xc, T + ph); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillText((ft === "notch" ? "Width " : "FWHM ") + fmt(b.bw) + " nm", Xc, Y - 10); ctx.fillText("CWL " + fmt(b.cwl) + " nm", Xc, T + ph - 6);
+    }
+  }
   if (zbox) {                                                          // the right-drag zoom box
     const bx0 = px(Math.min(zbox.x0, zbox.x1)), bx1 = px(Math.max(zbox.x0, zbox.x1)), by0 = py(Math.max(zbox.y0, zbox.y1)), by1 = py(Math.min(zbox.y0, zbox.y1));
     ctx.fillStyle = "#ffffff1a"; ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
@@ -737,9 +835,73 @@ function render() {
     }
   }
 }
+// ---------- 3d. FILTER TYPES (Bandpass, LWP, SWP, AR, Notch) ----------
+const ftype = () => (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
+const rangeGroups = () => ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
+function rangeStats(s, r) {                      // count, average, and the lowest / highest point of series s inside range r
+  const o = { cnt: 0, sum: 0, mn: Infinity, mx: -Infinity, imn: -1, imx: -1 };
+  for (let i = 0; i < s.n; i++) {
+    const x = s.X[i], y = s.c.v[i];
+    if (!(x >= r.a && x <= r.b) || !isFinite(y)) continue;
+    o.cnt++; o.sum += y; if (y < o.mn) { o.mn = y; o.imn = i; } if (y > o.mx) { o.mx = y; o.imx = i; }
+  }
+  o.avg = o.cnt ? o.sum / o.cnt : NaN; o.xmn = s.X[o.imn]; o.xmx = s.X[o.imx];
+  return o;
+}
+function crossFrom(s, r, i0, thr, dir, above) {  // walk from row i0 until the curve goes above (or below) thr; null if the range ends first
+  for (let i = i0 + dir; i >= 0 && i < s.n; i += dir) {
+    const x = s.X[i], y = s.c.v[i];
+    if (!(x >= r.a && x <= r.b) || !isFinite(y)) return null;
+    if (above ? y > thr : y < thr) { const x0 = s.X[i - dir], y0 = s.c.v[i - dir]; return x0 + (thr - y0) / (y - y0) * (x - x0); }
+  }
+  return null;
+}
+function bandpass(s, r) {                        // the peak, then outward to where the curve falls below half of it (also gives LWP / SWP edges)
+  const st = rangeStats(s, r); if (!(st.mx > 0)) return null;
+  const thr = st.mx / 2, asc = s.X[s.n - 1] >= s.X[0];
+  const lo = crossFrom(s, r, st.imx, thr, asc ? -1 : 1, false), hi = crossFrom(s, r, st.imx, thr, asc ? 1 : -1, false), both = lo !== null && hi !== null;
+  return { pk: st.mx, pkx: st.xmx, thr, lo, hi, cwl: both ? (lo + hi) / 2 : null, bw: both ? hi - lo : null };
+}
+function notch(s, r) {                           // the dip, then outward to where the curve climbs back above halfway between dip and baseline
+  const st = rangeStats(s, r); if (!st.cnt || !(st.mx > st.mn)) return null;
+  const thr = (st.mx + st.mn) / 2, asc = s.X[s.n - 1] >= s.X[0];
+  const lo = crossFrom(s, r, st.imn, thr, asc ? -1 : 1, true), hi = crossFrom(s, r, st.imn, thr, asc ? 1 : -1, true), both = lo !== null && hi !== null;
+  return { base: st.mx, dip: st.mn, dipx: st.xmn, thr, lo, hi, cwl: both ? (lo + hi) / 2 : null, bw: both ? hi - lo : null, od: st.mn > 0 ? -Math.log10(st.mn / 100) : null };
+}
+const FHINT = {
+  none: "Pick a filter type to get measurements that fit it, inside each range you mark (or the whole view if none).",
+  band: "Bandpass: Center W/L, bandwidth (full width at half max), max and the 50% points.",
+  lwp: "Long-wave pass: the cut-on is the 50% point of the max on the short-wavelength side, plus the max and average.",
+  swp: "Short-wave pass: the cut-off is the 50% point of the max on the long-wavelength side, plus the max and average.",
+  ar: "Anti-reflection: average, worst case (max) and best case (min) in each range. Choosing AR switches the Scan type to Reflection.",
+  notch: "Notch: center and width (full width at half depth), the dip, the baseline and the optical density (OD) at the dip."
+};
+function filterTable(S) {                        // the results table under the other tables
+  const ft = ftype(), t = $("bandTbl"), m = $("kR").checked ? "R" : "T"; t.innerHTML = "";
+  $("fhint").textContent = FHINT[ft]; $("bandOpts").hidden = ft === "none" || ft === "ar";
+  $("bandBox").hidden = ft === "none" || !S.length || !view; if ($("bandBox").hidden) return;
+  const head = { band: ["Center W/L", "Bandwidth (FWHM)", "Max " + m + "%", "Max at", "50% low", "50% high"],
+                 lwp: ["Cut-on (50% point)", "Max " + m + "%", "Max at", "Average " + m + "%"], swp: ["Cut-off (50% point)", "Max " + m + "%", "Max at", "Average " + m + "%"],
+                 ar: ["Average " + m + "%", "Max " + m + "%", "Max at", "Min " + m + "%", "Min at"],
+                 notch: ["Center W/L", "Notch width (FWHM)", "Min " + m + "%", "Min at", "Baseline " + m + "%", "OD at min"] }[ft];
+  t.createCaption().textContent = { band: "Bandpass: the 50% points are half of the max " + measName(), lwp: "Long-wave pass: the cut-on is the 50% point of the max " + measName(),
+    swp: "Short-wave pass: the cut-off is the 50% point of the max " + measName(), ar: "Anti-reflection " + measName(),
+    notch: "Notch: width is measured halfway between the baseline and the dip" }[ft] + ", inside each range (the whole view if no range is marked)";
+  const addRow = (cells, tag, color) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); if (color) tr.firstChild.style.color = color; };
+  addRow(["Range", "Series", ...head], "th");
+  const edge = v => v === null ? "not in range" : xs(v), nm = v => v === null ? "–" : xs(v), w = v => v === null ? "–" : fmt(v) + xU();
+  for (const { r, k } of rangeGroups()) S.forEach((s, si) => {
+    const label = (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b); let c = null;
+    if (ft === "band") { const b = bandpass(s, r); c = b && [nm(b.cwl), w(b.bw), ys(b.pk), xs(b.pkx), edge(b.lo), edge(b.hi)]; }
+    else if (ft === "lwp" || ft === "swp") { const b = bandpass(s, r); c = b && [edge(ft === "lwp" ? b.lo : b.hi), ys(b.pk), xs(b.pkx), ys(rangeStats(s, r).avg)]; }
+    else if (ft === "ar") { const st = rangeStats(s, r); c = st.cnt ? [ys(st.avg), ys(st.mx), xs(st.xmx), ys(st.mn), xs(st.xmn)] : null; }
+    else { const n = notch(s, r); c = n && [nm(n.cwl), w(n.bw), ys(n.dip), xs(n.dipx), ys(n.base), n.od === null ? "–" : n.od.toFixed(2)]; }
+    addRow([si ? "" : label, s.name, ...(c || head.map(() => "–"))], "td", k < 0 ? "#fff" : RC[k]);
+  });
+}
 const draw = () => { document.querySelectorAll(".mname").forEach(e => e.textContent = measName());
   document.querySelectorAll("#series label").forEach(l => { const nm = l.querySelector("input[type=text]"), c = l._s.c;   // keep the name boxes in step with the Scan type
-    nm.placeholder = dispName(c); if (!c.label && nm !== document.activeElement) nm.value = dispName(c); }); const S = active(); render(); stats(S); specTable(S); edges(S); };
+    nm.placeholder = dispName(c); if (!c.label && nm !== document.activeElement) nm.value = dispName(c); }); const S = active(); render(); stats(S); specTable(S); edges(S); filterTable(S); };
 function edges(S) {                              // the Edge points table under the stats table
   const L = levels(), t = $("edges"); t.innerHTML = "";
   $("edgeBox").hidden = !L.length || !S.length || !view; if ($("edgeBox").hidden) return;
@@ -821,7 +983,7 @@ const bandAt = e => {                           // which range's band the pointe
   for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && x >= r.a && x <= r.b) return k; }
   return -1;
 };
-const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; draw(); };
+const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = true; draw(); };
 cv.addEventListener("pointermove", e => {
   if (drag) return;
   cv.style.cursor = bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
@@ -840,7 +1002,7 @@ function boxZoom(e) {                            // right-drag: zoom both X and 
     drag = false; const z = zbox; zbox = null;
     if (z && z.x0 !== z.x1 && z.y0 !== z.y1) {
       if (!ySaved) ySaved = [$("ymin").value, $("ymax").value];          // Reset view puts the old Y limits back
-      view = { a: Math.min(z.x0, z.x1), b: Math.max(z.x0, z.x1) };
+      view = { a: Math.min(z.x0, z.x1), b: Math.max(z.x0, z.x1) }; zoomed = true;
       $("ymin").value = yText(Math.min(z.y0, z.y1)); $("ymax").value = yText(Math.max(z.y0, z.y1)); draw();
     } else redraw(true); };
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
@@ -861,18 +1023,40 @@ cv.addEventListener("pointerdown", e => {
 $("zoom").onclick = () => zoomTo(cur);
 $("clear").onclick = () => { ranges[cur] = null; draw(); };
 $("clearall").onclick = () => { ranges = Array(6).fill(null); draw(); };
-$("reset").onclick = () => { if (ySaved) { [$("ymin").value, $("ymax").value] = ySaved; ySaved = null; } view = baseView(); draw(); };
-for (const id of ["xmin", "xmax"]) $(id).addEventListener("input", () => { if (view) { view = baseView(); draw(); } });   // typed X limits apply right away
-for (const id of ["cMin", "cMinAt", "cMax", "cMaxAt", "cAvg", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
+function resetView() {                           // Reset view button and double-click on the chart
+  if (ySaved) { [$("ymin").value, $("ymax").value] = ySaved; ySaved = null; }
+  view = baseView(); zoomed = false; draw();
+}
+$("reset").onclick = resetView;
+cv.addEventListener("dblclick", resetView);
+for (const id of ["xmin", "xmax"]) $(id).addEventListener("input", () => { if (view) { view = baseView(); zoomed = false; draw(); } });   // typed X limits apply right away
+for (const id of ["fNone", "fBand", "fLwp", "fSwp", "fAr", "fNotch", "fShow", "cMin", "cMinAt", "cMax", "cMaxAt", "cAvg", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
 let lastShX = 0;                                 // the X shift that the current view was built with
 const shifted = () => {                          // an unzoomed view re-fits the moved data; a zoomed view moves with it
   const now = shX(), wasFull = Math.abs(view.a - (baseView().a - now + lastShX)) < 1e-9 && Math.abs(view.b - (baseView().b - now + lastShX)) < 1e-9;
-  if (wasFull) view = baseView(); else view = { a: view.a + now - lastShX, b: view.b + now - lastShX };
+  if (wasFull) { view = baseView(); zoomed = false; } else view = { a: view.a + now - lastShX, b: view.b + now - lastShX };
   lastShX = now; draw();
 };
 for (const id of ["shx", "shy"]) $(id).addEventListener("input", () => { if (view) shifted(); });
 $("shreset").onclick = () => { $("shx").value = $("shy").value = ""; if (view) shifted(); };
 addEventListener("resize", draw);
+
+$("fAr").addEventListener("change", () => { if ($("fAr").checked) { $("kR").checked = true; $("kT").checked = false; draw(); } });   // AR coatings are measured as reflection
+
+// ---------- 6a. TABS ----------
+const TABS = [...document.querySelectorAll(".tab")];
+function showTab(id) {
+  TABS.forEach(b => { const on = b.dataset.tab === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+  document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.tab !== id);
+  $("xlim").style.visibility = $("ylim").style.visibility = id === "display" ? "" : "hidden";   // X and Y min / max only show on the Display tab (their space stays reserved so nothing shifts)
+  try { localStorage.setItem("plotTab", id); } catch (e) {}
+}
+TABS.forEach(b => b.onclick = () => showTab(b.dataset.tab));
+const showTips = on => { $("tips").hidden = !on; $("tipsShow").hidden = on; try { localStorage.setItem("plotTips", on ? "1" : "0"); } catch (e) {} };
+$("tipsHide").onclick = () => showTips(false); $("tipsShow").onclick = () => showTips(true);
+try { if (localStorage.getItem("plotTips") === "0") showTips(false); } catch (e) {}
+let tab0 = "ranges"; try { tab0 = localStorage.getItem("plotTab") || tab0; } catch (e) {}
+showTab(TABS.some(b => b.dataset.tab === tab0) ? tab0 : "ranges");
 
 // ---------- 6b. MOUSE WHEEL ON NUMBER FIELDS (click in the box first, then scroll) ----------
 const NUMBOX = "#xmin, #xmax, #ymin, #ymax, #shx, #shy, #lv1, #lv2, .specrow input, #typed input";
@@ -894,7 +1078,7 @@ addEventListener("wheel", e => {
 
 // ---------- 7. SAVING ----------
 const save = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
-$("png").onclick = () => { hov = null; render(); cv.toBlob(b => save(b, "plot.png")); };
+$("png").onclick = () => { hov = null; clean = true; render(); cv.toBlob(b => save(b, "plot.png")); clean = false; render(); };
 $("csv").onclick = () => {                       // every column, only the rows inside the active range (or the current view)
   const r = ranges[cur] || view, esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   const lines = [cols.map(c => esc(c.name)).join(",")];
