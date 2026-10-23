@@ -29,6 +29,8 @@
   .controls label.txt { cursor: default; }
   .prsel { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); }
   .series input[type=text] { width: 9rem; padding: .2rem .4rem; }
+  .series select { padding: .15rem .3rem; font-size: .85rem; }
+  .series input.swc { width: 20px; height: 20px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 3px; }
   .specbox { display: grid; gap: .2rem; }
   .specrow { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
   .specrow input[type=text] { width: 6.5rem; } .specrow input.pct { width: 4.5rem; }
@@ -135,7 +137,7 @@
   <h1>Plot a CSV</h1>
 
   <section id="app" class="card">
-    <div id="printHead" class="keep"><h2 id="printTitle"></h2><p id="printStamp"></p><p id="printFiles"></p><p id="printSpec"></p></div>
+    <div id="printHead" class="keep"><h2 id="printTitle"></h2><p id="printStamp"></p><p id="printFiles"></p><p id="printSpec"></p><p id="printCond"></p></div>
     <img id="printImg" class="keep" alt="Graph of your data">
     <div id="printLegend" class="keep"></div>
     <div class="plotrow">
@@ -352,7 +354,12 @@
     <div class="tbl keep" id="edgeBox" hidden><table id="edges"></table></div>
     <div class="tbl keep" id="bandBox" hidden><table id="bandTbl"></table></div>
     <div id="notesBox" class="keep">
-      <label for="notes"><b>Notes</b> <span class="hint screenonly">(typed here, printed with the report)</span></label>
+      <label for="notes"><b>Notes</b></label>
+      <div class="controls screenonly">
+        <label class="txt">Temperature <input type="text" id="tempC" class="unit" value="22" aria-label="Temperature in degrees Celsius"> °C</label>
+        <label class="txt">AOI <input type="text" id="aoi" class="unit" value="0" aria-label="Angle of incidence in degrees"> °</label>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent and the angle of incidence (AOI) it was taken at. They are labels only and do not move the data. Use the Modify tab to shift a scan. Both are printed under the title on the report. Leave a box empty to leave it off.">?</span>
+      </div>
       <textarea id="notes" rows="3" placeholder="Operator, sample ID, conditions, observations…"></textarea>
       <div id="notesPrint"></div>
     </div>
@@ -670,17 +677,24 @@ function rebuild(first, newDs) {                // redo the series list for ever
     let got = false;
     ds.cols.forEach((c, i) => {
       if (c.kind !== "num" || i === ds.xi) return;
-      const key = ds.id + ":" + i, color = COLORS[k++ % COLORS.length], isFirst = !got; got = true;
+      const key = ds.id + ":" + i, auto = COLORS[k++ % COLORS.length], color = c.col || auto, isFirst = !got; got = true;   // a curve you coloured keeps its place in the automatic sequence, so the others do not shift
       const on = first ? k === 1 : prev.has(key) || (ds === newDs && isFirst);
       const l = document.createElement("label");
-      l.innerHTML = '<input type="checkbox"><span class="sw"></span>';
+      l.innerHTML = '<input type="checkbox"><input type="color" class="swc" title="Curve color">';
       l.firstChild.value = key; l.firstChild.checked = on; l.dataset.color = color; l._s = { c, ds };
-      l.querySelector(".sw").style.background = color;
+      const cp = l.querySelector(".swc"); cp.value = color; cp.setAttribute("aria-label", "Color for " + c.name);
+      cp.oninput = () => { c.col = cp.value; l.dataset.color = cp.value; draw(); };                // pick any color for this curve
       const nm = document.createElement("input");
       nm.type = "text"; nm.value = c.label ?? dispName(c); nm.placeholder = dispName(c);
       nm.setAttribute("aria-label", "Name for " + c.name);
       nm.oninput = () => { c.label = nm.value.trim(); draw(); };                 // blank falls back to the default name
-      l.append(nm);
+      const lw = document.createElement("select"); lw.title = "Line thickness"; lw.setAttribute("aria-label", "Line thickness for " + c.name);
+      for (const v of [1, 1.5, 2, 3, 4, 6]) lw.add(new Option(v + " px", v));
+      lw.value = String(c.lw ?? 1.5); lw.onchange = () => { c.lw = +lw.value; draw(); };
+      const ld = document.createElement("select"); ld.title = "Line style"; ld.setAttribute("aria-label", "Line style for " + c.name);
+      for (const [v, t] of [["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"], ["dashdot", "Dash-dot"]]) ld.add(new Option(t, v));
+      ld.value = c.ld || "solid"; ld.onchange = () => { c.ld = ld.value; draw(); };
+      l.append(nm, lw, ld);
       l.firstChild.onchange = draw; $("series").append(l);
     });
   });
@@ -690,9 +704,9 @@ function rebuild(first, newDs) {                // redo the series list for ever
 }
 const active = () => [...document.querySelectorAll("#series label")].filter(l => l.firstChild.checked)
   .map(l => { const { c, ds } = l._s, sh = shiftedDs(ds), X = sh ? sh.X : ds.X;
-              if (!sh && !ds.smooths.length) return { c, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild };
+              if (!sh && !ds.smooths.length) return { c, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" };
               if (!c._pr || c._pr.stamp !== shiftStamp || c._pr.X !== X) c._pr = { stamp: shiftStamp, X, v: processedY(c, sh, X, ds.smooths) };   // shifted and smoothed copies are kept until something changes
-              return { c: { v: c._pr.v }, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild }; });
+              return { c: { v: c._pr.v }, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" }; });
 const shNum = id => { const v = Number($(id).value.trim()); return isFinite(v) ? v : 0; };
 let shiftStamp = 0;                              // bumps whenever any scan's shifts or smoothing change, so the moved copies are rebuilt
 // Each scan (files[i]) keeps its own lists. ds.shifts: one entry per "Shift it" click { a, b, dx, dy } (a..b is the X range moved, as shown on the graph when clicked; dx in nm, dy in %).
@@ -876,8 +890,9 @@ function render() {
   if (yl) { ctx.save(); ctx.translate(6, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "top"; ctx.fillText(yl, 0, 0); ctx.restore(); }
 
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip(); ctx.lineWidth = 1.5; ctx.lineJoin = "round";
+  const dashFor = (k, w) => k === "dashed" ? [w * 5 + 3, w * 3 + 2] : k === "dotted" ? [.1, w * 2.2 + 2.5] : k === "dashdot" ? [w * 5 + 3, w * 2 + 2, .1, w * 2 + 2] : [];
   for (const s of S) {
-    ctx.strokeStyle = s.color; ctx.beginPath();
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.lw; ctx.setLineDash(dashFor(s.ld, s.lw)); ctx.lineCap = s.ld === "dotted" || s.ld === "dashdot" ? "round" : "butt"; ctx.beginPath();
     if (style !== "dots" || vis > 3000) {
       if (vis <= pw * 3 * Math.max(1, S.length)) {                     // few points: connect them all
         let pen = false, prevY = 0;
@@ -906,6 +921,7 @@ function render() {
         ctx.beginPath(); ctx.arc(px(x), py(y), 2.5, 0, 7); ctx.fill();
       }
     }
+    ctx.setLineDash([]); ctx.lineCap = "butt";
   }
   for (const sp of specs) {                                            // specifications: solid = absolute, dotted = average
     if (!specOK(sp)) continue;
@@ -1496,6 +1512,8 @@ function preparePrint() {                        // fill in the print-only parts
   $("printStamp").textContent = "Printed " + new Date().toLocaleString();
   $("printFiles").textContent = "Data: " + files.map(f => f.fname).join(", ");
   $("printSpec").textContent = $("spec").value.trim() ? "Specs: " + $("spec").value.trim() : "";
+  const cond = [["Temperature", $("tempC").value, " °C"], ["AOI", $("aoi").value, "°"]].filter(c => c[1].trim() !== "").map(c => c[0] + ": " + c[1].trim() + c[2]);   // conditions the scan stands for
+  $("printCond").textContent = cond.join("     ");
   const lg = $("printLegend"); lg.innerHTML = "";
   for (const s of active()) {
     const sp = document.createElement("span"), sw = document.createElement("i");
@@ -1506,6 +1524,7 @@ function preparePrint() {                        // fill in the print-only parts
 }
 $("printbtn").onclick = () => { preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print()); };
 addEventListener("beforeprint", preparePrint);   // also covers Ctrl+P
+
 
 // ---------- 9. LOADING ----------
 const say = t => $("msg").textContent = t;
