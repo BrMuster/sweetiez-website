@@ -1,7 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src ws://localhost:* ws://127.0.0.1:*; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plot a CSV</title>
 <style>
@@ -61,10 +63,14 @@
     #app td.pass, #app td.fail { color: #000; }
     #notesPrint { display: block; white-space: pre-wrap; min-height: 5rem; border: 1px solid #888; padding: .5rem; color: #000; }
   }
-  .tips { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1.1rem; font-size: .82rem; color: var(--muted); }
-  .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; margin-right: .35rem; }
+  .plotrow { display: grid; grid-template-columns: 1fr 10.5rem; gap: .8rem; align-items: start; }   /* graph on the left, tips down the right */
+  body.modtab .plotrow { grid-template-columns: 20rem 1fr 10.5rem; }                              /* the Modify tab adds its controls down the far left */
+  .tips { display: flex; flex-direction: column; gap: .7rem; font-size: .82rem; color: var(--muted); }
+  .tips span { display: grid; justify-items: start; gap: .2rem; }
+  .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; }
   .tipx { padding: .1rem .55rem; font-size: .8rem; background: transparent; color: var(--muted); }
   .tips .tipx { margin-left: auto; } #tipsShow { justify-self: start; }
+  @media (max-width: 820px) { .plotrow, body.modtab .plotrow { grid-template-columns: 1fr; } .tips { flex-direction: row; flex-wrap: wrap; gap: .3rem 1.1rem; } .tips span { display: block; } .tips b { margin-right: .35rem; } }
   .tabs { display: flex; flex-wrap: wrap; gap: .3rem; border-bottom: 1px solid var(--line); }
   .tab { background: transparent; border-radius: 4px 4px 0 0; padding: .5rem 1.1rem; color: var(--muted); border-bottom: 3px solid transparent; }
   .tab.on, .tab.on:hover:not(:disabled) { color: #fff; background: #ffffff0d; border-bottom-color: var(--accent); }
@@ -74,20 +80,39 @@
   .plotwrap input { width: 100%; min-width: 0; }
   .ylim { display: flex; flex-direction: column; justify-content: space-between; }
   .xlim { grid-column: 2; display: flex; justify-content: space-between; }
-  .xlim input { width: 6rem; }
+  .xlim input { width: 6rem; } .xlim .lim { display: flex; align-items: center; gap: .4rem; }   /* label beside the box, so this row is one line tall */
   .lim { display: grid; gap: .15rem; color: var(--muted); font-size: .8rem; cursor: default; }
   .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .note { white-space: pre-line; color: var(--text); }
+  .modcol { display: grid; gap: .6rem; align-content: start; }
+  .modstack { display: grid; gap: .6rem; }                                                         /* shift box above smooth box */
+  #modfile { max-width: 10.5rem; }
+  .modcard { display: grid; gap: .45rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 6px; }
+  .modcard .controls { gap: .4rem .7rem; } .modcard input.unit { width: 4.2rem; padding: .35rem .5rem; } .modcard button { padding: .4rem .7rem; }
+  .help { position: relative; display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1px solid var(--muted); color: var(--muted); font-size: .8rem; font-weight: 600; cursor: help; }
+  .help:hover, .help:focus-visible { color: #fff; border-color: var(--accent); background: #1a9fff30; }
+  .help::after { content: attr(data-tip); position: absolute; z-index: 30; top: 1.9rem; left: 0; width: 22rem; max-width: 80vw; padding: .6rem .8rem; border-radius: 6px; border: 1px solid var(--line); background: #0e141b; color: var(--text);
+                 font-size: .85rem; font-weight: 400; line-height: 1.45; text-align: left; box-shadow: 0 8px 20px #000a; visibility: hidden; opacity: 0; transition: opacity .12s; pointer-events: none; }
+  .help:hover::after, .help:focus::after { visibility: visible; opacity: 1; }
   canvas { width: 100%; height: 630px; display: block; background: #0e141b; border-radius: 4px; cursor: crosshair; touch-action: none; }
   .bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
   .bar b { color: #fff; font-weight: 500; }
   button { font: inherit; padding: .45rem .9rem; color: var(--text); background: #ffffff14; border: 0; border-radius: 4px; cursor: pointer; transition: background .15s, transform .1s; }
   button:hover:not(:disabled) { background: #ffffff2b; } button:active:not(:disabled) { transform: scale(.97); }
   button:disabled { opacity: .4; cursor: not-allowed; }
-  .typed { display: grid; grid-template-columns: auto 1fr 1fr; gap: .4rem .6rem; align-items: center; }
+  .typed { display: grid; grid-template-columns: auto 8.5rem 8.5rem; gap: .4rem .6rem; align-items: center; justify-content: start; }   /* wide enough for a value like 1068.660745 */
+  .rangebar { justify-content: space-between; } .rangeact { margin-left: auto; justify-content: flex-end; }
   .typed input[type=text] { width: 100%; min-width: 0; }
   .typed b { font-weight: 600; }
   button.slot { border: 2px solid var(--c); padding: .3rem .8rem; background: transparent; }
   button.slot.set { background: #ffffff14; }
+  button.slot.off, button.slot.off:hover:not(:disabled) { opacity: .5; border-style: dashed; background: transparent; }   /* hidden on the graph */
+  .anpop { position: fixed; z-index: 50; width: 19rem; display: grid; gap: .5rem; padding: .8rem; background: #0e141b; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
+  .anpop textarea { width: 100%; font: inherit; padding: .4rem .6rem; color: var(--text); background: #16202d; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+  .anlist { display: grid; gap: .3rem; }
+  .anrow { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; padding: .35rem 0; border-top: 1px solid var(--line); }
+  .anrow .anxy { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 14rem; } .anrow .antxt { flex: 1; min-width: 8rem; white-space: pre-line; }
+  .anrow button { padding: .2rem .6rem; } .anrow button.del:hover { background: #ff5a7a40; }
   button.slot.on, button.slot.on:hover:not(:disabled) { background: var(--c); color: #0e141b; font-weight: 600; }
   :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .tbl { overflow-x: auto; }
@@ -108,6 +133,50 @@
     <div id="printHead" class="keep"><h2 id="printTitle"></h2><p id="printStamp"></p><p id="printFiles"></p><p id="printSpec"></p></div>
     <img id="printImg" class="keep" alt="Graph of your data">
     <div id="printLegend" class="keep"></div>
+    <div class="plotrow">
+    <div class="modcol" id="modcol" hidden>
+      <div class="controls">
+        <label class="txt"><b>Change</b> <select id="modfile" aria-label="Which CSV the shift and smooth buttons change"></select></label>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Each CSV keeps its own shifts and smoothing. Pick “All files” to change them together. Your files themselves are never changed.">?</span>
+      </div>
+      <div class="modstack">
+        <div class="modcard">
+          <div class="bar"><b>Shift data</b>
+            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the curve by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span></div>
+          <div class="controls">
+            <label class="txt">Range <input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"></label>
+            <label class="txt">to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</label>
+          </div>
+          <div class="controls">
+            <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
+            <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
+          </div>
+          <div class="bar">
+            <button type="button" id="shgo">Shift it</button>
+            <button type="button" id="shundo">Undo last</button>
+            <button type="button" id="shreset">Reset</button>
+          </div>
+          <span class="hint note" id="shtotal">No shift applied</span>
+        </div>
+        <div class="modcard">
+          <div class="bar"><b>Smooth data</b>
+            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Replaces each point with the average of its neighbours (a moving average). A wider width is smoother but rounds off sharp edges. Leave the range blank to smooth everything, or fill it in to smooth only a noisy part. Each click smooths again, on top of any shift.">?</span></div>
+          <div class="controls">
+            <label class="txt">Range <input type="text" id="smfrom" class="unit" placeholder="start" aria-label="Smooth only from this X value, in nm"></label>
+            <label class="txt">to <input type="text" id="smto" class="unit" placeholder="end" aria-label="Smooth only up to this X value, in nm"> nm</label>
+          </div>
+          <div class="controls">
+            <label class="txt">Width <input type="text" id="smw" class="unit" value="5" aria-label="Smoothing width in points"> points</label>
+          </div>
+          <div class="bar">
+            <button type="button" id="smgo">Smooth it</button>
+            <button type="button" id="smundo">Undo last</button>
+            <button type="button" id="smreset">Reset</button>
+          </div>
+          <span class="hint note" id="smnote">No smoothing applied</span>
+        </div>
+      </div>
+    </div>
     <div class="plotwrap" id="plotwrap">
       <div class="ylim" id="ylim">
         <label class="lim">Y max <input type="text" id="ymax" class="unit" placeholder="auto"></label>
@@ -119,21 +188,27 @@
         <label class="lim">X max <input type="text" id="xmax" class="unit" placeholder="auto"></label>
       </div>
     </div>
-    <div class="tips" id="tips">
-      <span><b>Drag</b> mark a range</span>
-      <span><b>Shift + drag</b> snap to whole nm</span>
-      <span><b>Right-drag</b> zoom box (X and Y)</span>
-      <span><b>Double-click</b> reset view</span>
-      <span><b>Click a range band</b> zoom to it</span>
-      <span><b>Scroll</b> in a number box to nudge it</span>
-      <button type="button" class="tipx" id="tipsHide" title="Hide these tips" aria-label="Hide tips">✕</button>
+    <div class="tipcol">
+      <div class="tips" id="tips">
+        <button type="button" class="tipx" id="tipsHide" title="Hide these tips" aria-label="Hide tips">✕</button>
+        <span><b>Drag</b> mark a range</span>
+        <span><b>Shift + drag</b> snap to whole nm</span>
+        <span><b>Right-drag</b> zoom box (X and Y)</span>
+        <span><b>Right-click</b> add or edit a note</span>
+        <span><b>Double-click</b> reset view</span>
+        <span><b>Click a range band</b> zoom to it</span>
+        <span><b>Scroll</b> in a number box to nudge it</span>
+      </div>
+      <button type="button" class="tipx" id="tipsShow" hidden>Show tips</button>
     </div>
-    <button type="button" class="tipx" id="tipsShow" hidden>Show tips</button>
+    </div>
 
     <div class="tabs" role="tablist">
       <button type="button" class="tab" role="tab" data-tab="data">Data</button>
+      <button type="button" class="tab" role="tab" data-tab="modify">Modify</button>
       <button type="button" class="tab" role="tab" data-tab="display">Display</button>
       <button type="button" class="tab" role="tab" data-tab="ranges">Ranges</button>
+      <button type="button" class="tab" role="tab" data-tab="annotate">Notes</button>
       <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
       <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
@@ -142,13 +217,6 @@
     <div class="panel" data-tab="data" hidden>
       <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
       <div class="series" id="series"></div>
-      <div class="controls">
-        <b>Shift data</b>
-        <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
-        <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
-        <button type="button" id="shreset">Reset shift</button>
-        <span class="hint">Moves every curve by this amount, + or -. The file itself is not changed.</span>
-      </div>
     </div>
 
     <div class="panel" data-tab="display" hidden>
@@ -175,14 +243,16 @@
     </div>
 
     <div class="panel" data-tab="ranges">
-      <div class="bar" id="slots"></div>
-      <div class="typed" id="typed" aria-label="Type range coordinates"></div>
-      <div class="bar">
-        <button id="zoom" disabled>Zoom to range</button>
-        <button id="clear" disabled>Clear range</button>
-        <button id="clearall" disabled>Clear all ranges</button>
-        <button id="reset">Reset view</button>
+      <div class="bar rangebar">
+        <div class="bar" id="slots"></div>
+        <div class="bar rangeact">
+          <button id="zoom" disabled>Zoom to range</button>
+          <button id="clear" disabled>Clear range</button>
+          <button id="clearall" disabled>Clear all ranges</button>
+          <button id="reset">Reset view</button>
+        </div>
       </div>
+      <div class="typed" id="typed" aria-label="Type range coordinates"></div>
       <div class="controls">
         <b>Show for each range</b>
         <label><input type="checkbox" id="cMin"> Min</label>
@@ -191,6 +261,17 @@
         <label><input type="checkbox" id="cMaxAt"> Max at</label>
         <label><input type="checkbox" id="cAvg" checked> Average</label>
       </div>
+    </div>
+
+    <div class="panel" data-tab="annotate" hidden>
+      <div class="controls">
+        <b>Annotations</b>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a point on the graph to add a note to it, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report and PNG.">?</span>
+        <label><input type="checkbox" id="anShow" checked> Show on the graph</label>
+        <label><input type="checkbox" id="anReport" checked> Include on the printed report and PNG</label>
+        <button type="button" id="anClear" disabled>Clear all</button>
+      </div>
+      <div class="anlist" id="anList"></div>
     </div>
 
     <div class="panel" data-tab="specs" hidden>
@@ -244,6 +325,17 @@
     </div>
     <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. With no range marked, the table covers everything currently shown. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
   </section>
+
+  <div class="anpop" id="anPop" role="dialog" aria-label="Annotation" hidden>
+    <textarea id="anText" rows="3" placeholder="Note text (Enter to save, Shift+Enter for a new line)"></textarea>
+    <label><input type="checkbox" id="anXY" checked> Add the X and Y values</label>
+    <span class="hint" id="anAt"></span>
+    <div class="bar">
+      <button type="button" id="anSave">Add</button>
+      <button type="button" id="anDel" hidden>Delete</button>
+      <button type="button" id="anCancel">Cancel</button>
+    </div>
+  </div>
 
   <label class="drop" id="drop">
     <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
@@ -421,7 +513,8 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const COLORS = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6", "#e8d44d", "#ff8c42"];
 const RC = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6"];   // one colour per range slot
 let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, ySaved = null, zoomed = false, clean = false;   // zoomed / clean: drive the faint "double-click to reset" hint
-let ranges = Array(6).fill(null), cur = 0, hov = null, drag = false, light = false;   // light = black-on-white drawing for printing
+let ranges = Array(6).fill(null), shown = Array(6).fill(true), cur = 0, hov = null, drag = false, light = false;   // shown[k]: range k is drawn on the graph
+let notes = [], nid = 0, noteBoxes = [];                  // annotations: { id, ax, ay (the point, in data units), ox, oy (label offset in pixels), text, xy }   // light = black-on-white drawing for printing
 
 // ---------- 1. READ THE FILE ----------
 function parseCSV(text) {                       // handles quotes like "a, b" and picks the delimiter
@@ -473,14 +566,15 @@ function readFile(text, fname) {                // turn CSV text into columns; r
     return { name, kind: "text", raw, f: fname };
   }).filter(c => c.raw.some(v => v !== ""));       // empty columns (a trailing comma on every row) are dropped
   if (!cs.some(c => c.kind !== "text")) { say("I couldn't find any numeric columns in " + fname + "."); return null; }
-  return { id: ++uid, fname, cols: cs, n: body.length, xi: -1, X: [], xkind: "num", cropped };
+  return { id: ++uid, fname, cols: cs, n: body.length, xi: -1, X: [], xkind: "num", cropped, shifts: [], smooths: [] };   // each scan keeps its own shifts and smoothing (see the Modify tab)
 }
 
 function ingest(text, fname = "data.csv") {     // load the main scan (this replaces any overlays)
   const ds = readFile(text, fname); if (!ds) return;
   files = [ds]; cols = ds.cols; n = ds.n;
   const xi = cols[0].kind !== "text" ? 0 : -1;   // X is always the first column (wavelength)
-  for (const id of ["title", "spec", "shx", "shy", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
+  for (const id of ["title", "spec", "shfrom", "shto", "shx", "shy", "smfrom", "smto", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
+  shiftStamp++; notes = []; noteBoxes = []; renderNotes();
   ySaved = null;
   const yc = cols.find((c, i) => i !== xi && c.kind === "num");           // a column called Rx / Reflection switches the Scan type to Reflection
   $("kR").checked = !!(yc && /^(%\s*)?R(x)?(\W|$)|reflect/i.test(yc.name)); $("kT").checked = !$("kR").checked;
@@ -509,7 +603,7 @@ function baseView() {                           // the full view, with any typed
 }
 function fullView() {                           // wide enough to show every loaded scan
   let a = Infinity, b = -Infinity;
-  for (const f of files) for (const v of f.X) if (Number.isFinite(v)) { if (v + shX() < a) a = v + shX(); if (v + shX() > b) b = v + shX(); }
+  for (const f of files) for (const v of (shiftedDs(f) || f).X) if (Number.isFinite(v)) { if (v < a) a = v; if (v > b) b = v; }
   return { a, b: b > a ? b : a + 1 };
 }
 function setX(xi, firstLoad) {                  // choose the main scan's X column
@@ -529,9 +623,10 @@ function renderFiles() {
               b.onclick = () => { files.splice(fi, 1); rebuild(false); }; chip.append(b); }
     box.append(chip);
   });
+  refreshModFile();
 }
 function rebuild(first, newDs) {                // redo the series list for every loaded scan
-  view = baseView(); zoomed = false; hov = null; lastShX = shX();
+  view = baseView(); zoomed = false; hov = null;
   const prev = new Set([...document.querySelectorAll("#series input:checked")].map(e => e.value));
   $("series").innerHTML = ""; let k = 0;
   files.forEach(ds => {
@@ -557,13 +652,46 @@ function rebuild(first, newDs) {                // redo the series list for ever
   renderFiles(); draw();
 }
 const active = () => [...document.querySelectorAll("#series label")].filter(l => l.firstChild.checked)
-  .map(l => { const { c, ds } = l._s, dx = shX(), dy = shY();
-              if (!dx && !dy) return { c, X: ds.X, n: ds.n, color: l.dataset.color, name: dispName(c) };
-              const key = dx + "|" + dy;                               // shifted copies are kept until the shift changes
-              if (!c._sh || c._sh.key !== key) c._sh = { key, v: c.v.map(v => v + dy), X: ds.X.map(v => v + dx) };
-              return { c: { v: c._sh.v }, X: c._sh.X, n: ds.n, color: l.dataset.color, name: dispName(c) }; });
+  .map(l => { const { c, ds } = l._s, sh = shiftedDs(ds), X = sh ? sh.X : ds.X;
+              if (!sh && !ds.smooths.length) return { c, X, n: ds.n, color: l.dataset.color, name: dispName(c) };
+              if (!c._pr || c._pr.stamp !== shiftStamp || c._pr.X !== X) c._pr = { stamp: shiftStamp, X, v: processedY(c, sh, X, ds.smooths) };   // shifted and smoothed copies are kept until something changes
+              return { c: { v: c._pr.v }, X, n: ds.n, color: l.dataset.color, name: dispName(c) }; });
 const shNum = id => { const v = Number($(id).value.trim()); return isFinite(v) ? v : 0; };
-const shX = () => shNum("shx"), shY = () => shNum("shy");        // how far the whole data set is moved (nm, %)
+let shiftStamp = 0;                              // bumps whenever any scan's shifts or smoothing change, so the moved copies are rebuilt
+// Each scan (files[i]) keeps its own lists. ds.shifts: one entry per "Shift it" click { a, b, dx, dy } (a..b is the X range moved, as shown on the graph when clicked; dx in nm, dy in %).
+// ds.smooths: one entry per "Smooth it" click { a, b, w } (w is the window in points, odd).
+const rnd = v => +v.toFixed(9);                  // so 1060.3 - 3 shows as 1057.3, not 1057.3000000000002
+function smoothed(v, X, smooths) {               // moving average, each click on top of the last; the window shrinks at the ends of the scan
+  for (const s of smooths) {
+    const h = s.w >> 1, out = Array.from(v);
+    for (let k = 0; k < v.length; k++) {
+      if (!(X[k] >= s.a && X[k] <= s.b) || !Number.isFinite(v[k])) continue;
+      let sum = 0, cnt = 0;
+      for (let j = Math.max(0, k - h), e = Math.min(v.length - 1, k + h); j <= e; j++) if (Number.isFinite(v[j])) { sum += v[j]; cnt++; }
+      out[k] = sum / cnt;
+    }
+    v = out;
+  }
+  return v;
+}
+function processedY(c, sh, X, smooths) {        // one column after every shift and smooth, in the same row order as X
+  const v = sh ? Array.from({ length: c.v.length }, (_, k) => { const y = c.v[sh.ord ? sh.ord[k] : k]; return sh.dy[k] ? rnd(y + sh.dy[k]) : y; }) : c.v;
+  return smoothed(v, X, smooths);
+}
+function shiftedDs(ds) {                         // null when nothing is shifted; else the moved X, the Y shift per point, and the row order if the pieces had to be re-sorted
+  const shifts = ds.shifts;
+  if (!shifts.length) return null;
+  if (ds._sh && ds._sh.src === ds.X && ds._sh.stamp === shiftStamp) return ds._sh;
+  const X0 = ds.X, n = ds.n, X = new Array(n), dy = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {                  // every click, in order, moves the points that sit inside its range at that moment
+    let x = X0[i];
+    for (const s of shifts) if (x >= s.a && x <= s.b) { x = rnd(x + s.dx); dy[i] += s.dy; }
+    X[i] = x;
+  }
+  const asc = X0[n - 1] >= X0[0]; let ord = null;
+  for (let i = 1; i < n; i++) if (asc ? X[i] < X[i - 1] : X[i] > X[i - 1]) { ord = Array.from({ length: n }, (_, k) => k).sort((p, q) => (asc ? X[p] - X[q] : X[q] - X[p]) || 0); break; }   // pieces moved by different amounts can overlap
+  return ds._sh = { src: X0, stamp: shiftStamp, X: ord ? ord.map(i => X[i]) : X, dy: ord ? ord.map(i => dy[i]) : dy, ord };
+}
 const measName = () => $("kR").checked ? "Reflection" : "Transmission";
 
 // ---------- 3. FORMATTING AND AXIS TICKS ----------
@@ -689,8 +817,8 @@ function render() {
   if (hi <= lo) hi = lo + 1;
   const px = x => L + (x - view.a) / (view.b - view.a) * pw, py = y => T + ph - (y - lo) / (hi - lo) * ph;
   G = { L, pw, W, T, ph, lo, hi };
-  const P = light ? { bg: "#fff", tick: "#444", grid: "#d5d5d5", label: "#000", title: "#000" }
-                  : { bg: "#0e141b", tick: "#8f98a0", grid: "#2a3a4d", label: "#c6d4df", title: "#fff" };
+  const P = light ? { bg: "#fff", tick: "#444", grid: "#d5d5d5", label: "#000", title: "#000", noteBg: "#fff", noteLine: "#444", noteText: "#000" }
+                  : { bg: "#0e141b", tick: "#8f98a0", grid: "#2a3a4d", label: "#c6d4df", title: "#fff", noteBg: "#16202df2", noteLine: "#f5a623", noteText: "#fff" };
   ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);                       // solid background so the PNG isn't see-through
   ctx.font = "15px system-ui"; ctx.lineWidth = 1;
   ctx.fillStyle = P.tick; ctx.strokeStyle = P.grid;
@@ -774,7 +902,7 @@ function render() {
   }
   const rmode = light ? $("prshade").value : "shade";                   // the printed report can shade, outline, or skip the ranges
   ranges.forEach((r, k) => {                                           // the highlighted ranges, numbered
-    if (!r || rmode === "none") return;
+    if (!r || rmode === "none" || !shown[k]) return;
     const x0 = px(r.a), x1 = px(r.b);
     if (rmode === "shade") { ctx.fillStyle = RC[k] + "2e"; ctx.fillRect(x0, T, x1 - x0, ph); }
     ctx.strokeStyle = RC[k]; ctx.lineWidth = light ? 1.5 : k === cur ? 2.5 : 1; ctx.strokeRect(x0, T, x1 - x0, ph);
@@ -810,6 +938,10 @@ function render() {
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0); ctx.setLineDash([]);
   }
   ctx.restore();
+
+  const wantNotes = light || clean ? $("anReport").checked : $("anShow").checked;     // the screen and the report each have their own on/off
+  const boxes = wantNotes ? drawNotes(P, W, H, px, py) : [];
+  if (!light && !clean) noteBoxes = boxes;
 
   if (hov !== null && !drag && S.length) {                            // hover readout: each series snaps to its own nearest row
     const bis = S.map(s => { let bi = -1, bd = Infinity;
@@ -924,8 +1056,13 @@ const redraw = full => { wantFull = wantFull || full; if (!raf) raf = requestAni
 // ---------- 5. MIN / MAX / AVERAGE FOR EACH RANGE ----------
 RC.forEach((c, k) => {
   const b = document.createElement("button"); b.type = "button"; b.className = "slot"; b.style.setProperty("--c", c);
-  b.onclick = () => { cur = k; draw(); }; $("slots").append(b);
+  b.title = "Click to show or hide this range on the graph";
+  b.onclick = () => { if (!ranges[k]) { cur = k; shown[k] = true; } else { shown[k] = !shown[k]; if (shown[k]) cur = k; } draw(); };   // an empty slot is just picked for the next drag; a set one switches on / off
+  $("slots").append(b);
 });
+{ const h = document.createElement("span"); h.className = "help"; h.tabIndex = 0; h.setAttribute("role", "note"); h.setAttribute("aria-label", "Help"); h.textContent = "?";
+  h.dataset.tip = "Drag on the graph to mark the highlighted (filled) range. Click a range button to show or hide its shading on the graph; a dashed button is hidden. Click a shaded band on the graph to zoom to it. Hidden ranges still appear in the tables below.";
+  $("slots").append(h); }
 const TI = RC.map((c, k) => {                    // typed From / To boxes, one pair per range
   const mk = ph => { const i = document.createElement("input"); i.type = "text"; i.placeholder = ph; i.setAttribute("aria-label", "Range " + (k + 1) + " " + ph); i.onchange = () => typed(k); return i; };
   const lab = document.createElement("b"); lab.textContent = "Range " + (k + 1); lab.style.color = c;
@@ -938,12 +1075,12 @@ function typed(k) {                              // apply what was typed into ra
   if (ia.value.trim() === "" && ib.value.trim() === "") ranges[k] = null;
   else if (isFinite(a) && isFinite(b) && a !== b) ranges[k] = { a: Math.min(a, b), b: Math.max(a, b) };
   else { for (const i of [ia, ib]) i.style.borderColor = "#ff5a7a"; return; }   // not usable yet: flag it, keep the old range
-  cur = k; draw();
+  cur = k; shown[k] = true; draw();
 }
 function stats(S) {
-  [...$("slots").children].forEach((b, k) => {
+  [...$("slots").querySelectorAll("button")].forEach((b, k) => {
     b.textContent = "Range " + (k + 1) + (ranges[k] ? " ●" : "");
-    b.classList.toggle("on", k === cur); b.classList.toggle("set", !!ranges[k]);
+    b.classList.toggle("on", k === cur && shown[k]); b.classList.toggle("set", !!ranges[k]); b.classList.toggle("off", !!ranges[k] && !shown[k]);
   });
   TI.forEach(([ia, ib], k) => {                  // keep the boxes in step with dragged ranges (never while you're typing in one)
     if (document.activeElement !== ia) ia.value = ranges[k] ? showIn(ranges[k].a) : "";
@@ -974,19 +1111,106 @@ function stats(S) {
   }
 }
 
+// ---------- 5c. ANNOTATIONS ----------
+const noteLines = nt => [...nt.text.split("\n").map(l => l.trim()).filter(Boolean), ...(nt.xy ? ["X " + xs(nt.ax) + "    Y " + ys(nt.ay)] : [])];
+function drawNotes(P, W, H, px, py) {           // each note: a dot on its point, a line, and a box you can drag. Returns where the boxes landed.
+  const out = [];
+  ctx.font = "14px system-ui"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  for (const nt of notes) {
+    const ax = px(nt.ax), ay = py(nt.ay), lines = noteLines(nt);
+    if (!lines.length || !(nt.ax >= view.a && nt.ax <= view.b) || ay < G.T - 1 || ay > G.T + G.ph + 1) continue;   // its point is off the screen
+    const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 18, h = lines.length * 19 + 10;
+    const bx = Math.min(Math.max(ax + nt.ox, 2), W - w - 2), by = Math.min(Math.max(ay + nt.oy, 2), H - h - 2);
+    const lx = Math.min(Math.max(ax, bx), bx + w), ly = Math.min(Math.max(ay, by), by + h);   // the line ends on the nearest spot of the box
+    ctx.strokeStyle = P.noteLine; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lx, ly); ctx.stroke();
+    ctx.fillStyle = P.noteBg; ctx.fillRect(bx, by, w, h); ctx.strokeRect(bx, by, w, h);
+    ctx.fillStyle = P.noteLine; ctx.beginPath(); ctx.arc(ax, ay, 4.5, 0, 7); ctx.fill(); ctx.strokeStyle = P.bg; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = P.noteText; lines.forEach((l, i) => ctx.fillText(l, bx + 9, by + 5 + 9.5 + i * 19));
+    out.push({ nt, bx, by, w, h, ax, ay });
+  }
+  return out;
+}
+const mouseXY = e => { const r = cv.getBoundingClientRect(); return { mx: e.clientX - r.left, my: e.clientY - r.top }; };
+const toPx = (x, y) => ({ x: G.L + (x - view.a) / (view.b - view.a) * G.pw, y: G.T + G.ph - (y - G.lo) / (G.hi - G.lo) * G.ph });
+function noteHit(e) {                           // the note under the pointer (its box or its dot), newest on top
+  if (!view || !noteBoxes.length) return null;
+  const { mx, my } = mouseXY(e);
+  for (let i = noteBoxes.length - 1; i >= 0; i--) { const b = noteBoxes[i];
+    if ((mx >= b.bx && mx <= b.bx + b.w && my >= b.by && my <= b.by + b.h) || Math.hypot(mx - b.ax, my - b.ay) <= 8) return b; }
+  return null;
+}
+function anchorAt(e) {                          // a data point close to the pointer if there is one, otherwise the exact spot clicked
+  const { mx, my } = mouseXY(e);
+  if (!view || mx < G.L || mx > G.L + G.pw || my < G.T || my > G.T + G.ph) return null;
+  let best = null, bd = 16;
+  for (const s of active()) for (let i = 0; i < s.n; i++) {
+    const x = s.X[i], y = s.c.v[i]; if (!(x >= view.a && x <= view.b) || !isFinite(y)) continue;
+    const p = toPx(x, y), d = Math.hypot(p.x - mx, p.y - my); if (d < bd) { bd = d; best = { ax: x, ay: y }; }
+  }
+  return best || { ax: view.a + (mx - G.L) / G.pw * (view.b - view.a), ay: G.hi - (my - G.T) / G.ph * (G.hi - G.lo) };
+}
+const rightClick = e => { const b = noteHit(e); if (b) return openNotePop(e, { note: b.nt }); const a = anchorAt(e); if (a) openNotePop(e, a); };
+function dragNote(e, b) {                       // left-drag a note: the box moves, the line follows
+  cv.setPointerCapture(e.pointerId); drag = true; hov = null;
+  const nt = b.nt, sx = e.clientX, sy = e.clientY, o0x = b.bx - b.ax, o0y = b.by - b.ay;
+  const move = ev => { nt.ox = o0x + ev.clientX - sx; nt.oy = o0y + ev.clientY - sy; redraw(); };
+  const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); drag = false; redraw(true); };
+  cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+}
+const pop = $("anPop"); let anTarget = null;    // { note } while editing one, { ax, ay } while adding a new one
+function openNotePop(e, target) {
+  anTarget = target; const nt = target.note, at = nt || target;
+  $("anText").value = nt ? nt.text : ""; $("anXY").checked = nt ? nt.xy : true;
+  $("anAt").textContent = "At  X " + xs(at.ax) + "   Y " + ys(at.ay);
+  $("anSave").textContent = nt ? "Save" : "Add"; $("anDel").hidden = !nt;
+  pop.hidden = false;
+  pop.style.left = Math.max(8, Math.min(e.clientX + 10, innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = Math.max(8, Math.min(e.clientY + 10, innerHeight - pop.offsetHeight - 8)) + "px";
+  $("anText").focus();
+}
+const closeNotePop = () => { pop.hidden = true; anTarget = null; };
+function saveNote() {
+  if (!anTarget) return;
+  const text = $("anText").value.trim(), xy = $("anXY").checked;
+  if (!text && !xy) return closeNotePop();      // nothing to show
+  if (anTarget.note) Object.assign(anTarget.note, { text, xy });
+  else { notes.push({ id: ++nid, ax: anTarget.ax, ay: anTarget.ay, ox: 40, oy: -50, text, xy }); $("anShow").checked = true; }
+  closeNotePop(); renderNotes(); redraw(true);
+}
+function deleteNote(nt) { notes = notes.filter(n => n !== nt); closeNotePop(); renderNotes(); redraw(true); }
+function renderNotes() {                        // the list on the Annotate tab
+  const box = $("anList"); box.innerHTML = ""; $("anClear").disabled = !notes.length;
+  if (!notes.length) { const p = document.createElement("span"); p.className = "hint"; p.textContent = "No annotations yet. Right-click the graph to add one."; box.append(p); return; }
+  for (const nt of notes) {
+    const row = document.createElement("div"); row.className = "anrow";
+    const xy = document.createElement("span"); xy.className = "anxy"; xy.textContent = "X " + xs(nt.ax) + "   Y " + ys(nt.ay);
+    const tx = document.createElement("span"); tx.className = "antxt"; tx.textContent = nt.text;
+    const ed = document.createElement("button"); ed.type = "button"; ed.textContent = "Edit"; ed.onclick = () => { const r = ed.getBoundingClientRect(); openNotePop({ clientX: r.left, clientY: r.bottom }, { note: nt }); };
+    const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "✕"; del.title = "Delete this note"; del.setAttribute("aria-label", "Delete note"); del.onclick = () => deleteNote(nt);
+    row.append(xy, tx, ed, del); box.append(row);
+  }
+}
+$("anSave").onclick = saveNote; $("anCancel").onclick = closeNotePop;
+$("anDel").onclick = () => { if (anTarget && anTarget.note) deleteNote(anTarget.note); };
+$("anClear").onclick = () => { notes = []; renderNotes(); redraw(true); };
+$("anText").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(); } });
+addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden) closeNotePop(); });
+addEventListener("pointerdown", e => { if (!pop.hidden && !pop.contains(e.target)) closeNotePop(); }, true);   // click anywhere else closes it
+renderNotes();
+
 // ---------- 6. DRAG TO SELECT, HOVER TO READ ----------
 const frac = e => (e.clientX - cv.getBoundingClientRect().left - G.L) / G.pw;
 const xAt = e => view.a + Math.min(1, Math.max(0, frac(e))) * (view.b - view.a);
 const bandAt = e => {                           // which range's band the pointer is over (-1 for none)
   const f = frac(e); if (f < 0 || f > 1) return -1;
   const x = view.a + f * (view.b - view.a);
-  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && x >= r.a && x <= r.b) return k; }
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && shown[k] && x >= r.a && x <= r.b) return k; }
   return -1;
 };
 const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = true; draw(); };
 cv.addEventListener("pointermove", e => {
   if (drag) return;
-  cv.style.cursor = bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
+  cv.style.cursor = noteHit(e) ? "move" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
   const f = frac(e); hov = f >= 0 && f <= 1 ? view.a + f * (view.b - view.a) : null; redraw();
 });
 cv.addEventListener("pointerleave", () => { hov = null; redraw(); });
@@ -1004,41 +1228,78 @@ function boxZoom(e) {                            // right-drag: zoom both X and 
       if (!ySaved) ySaved = [$("ymin").value, $("ymax").value];          // Reset view puts the old Y limits back
       view = { a: Math.min(z.x0, z.x1), b: Math.max(z.x0, z.x1) }; zoomed = true;
       $("ymin").value = yText(Math.min(z.y0, z.y1)); $("ymax").value = yText(Math.max(z.y0, z.y1)); draw();
-    } else redraw(true); };
+    } else { redraw(true); if (!moved) rightClick(e); } };           // a right-click that did not drag adds or edits a note
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 }
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (e.button === 2) return boxZoom(e);
   if (e.button !== 0) return;
+  const nh = noteHit(e); if (nh) return dragNote(e, nh);               // grab a note to move it
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
   const x0 = xAt(e), sx = e.clientX, hit = bandAt(e); let moved = false;
   const snap = (x, ev) => ev.shiftKey ? Math.round(x) : x;   // hold Shift: snap to whole nanometres
   const move = ev => { if (Math.abs(ev.clientX - sx) > 4) moved = true;
-    if (moved) { const a = snap(x0, ev), b = snap(xAt(ev), ev); if (a !== b) { ranges[cur] = { a: Math.min(a, b), b: Math.max(a, b) }; redraw(true); } } };
+    if (moved) { const a = snap(x0, ev), b = snap(xAt(ev), ev); if (a !== b) { ranges[cur] = { a: Math.min(a, b), b: Math.max(a, b) }; shown[cur] = true; redraw(true); } } };
   const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up);
     drag = false; if (!moved && hit >= 0) zoomTo(hit); else redraw(true); };   // a click (not a drag) on a band zooms to it
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 });
 $("zoom").onclick = () => zoomTo(cur);
 $("clear").onclick = () => { ranges[cur] = null; draw(); };
-$("clearall").onclick = () => { ranges = Array(6).fill(null); draw(); };
+$("clearall").onclick = () => { ranges = Array(6).fill(null); shown = Array(6).fill(true); draw(); };
 function resetView() {                           // Reset view button and double-click on the chart
   if (ySaved) { [$("ymin").value, $("ymax").value] = ySaved; ySaved = null; }
   view = baseView(); zoomed = false; draw();
 }
 $("reset").onclick = resetView;
-cv.addEventListener("dblclick", resetView);
+cv.addEventListener("dblclick", e => { const b = noteHit(e); b ? openNotePop(e, { note: b.nt }) : resetView(); });
 for (const id of ["xmin", "xmax"]) $(id).addEventListener("input", () => { if (view) { view = baseView(); zoomed = false; draw(); } });   // typed X limits apply right away
-for (const id of ["fNone", "fBand", "fLwp", "fSwp", "fAr", "fNotch", "fShow", "cMin", "cMinAt", "cMax", "cMaxAt", "cAvg", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
-let lastShX = 0;                                 // the X shift that the current view was built with
-const shifted = () => {                          // an unzoomed view re-fits the moved data; a zoomed view moves with it
-  const now = shX(), wasFull = Math.abs(view.a - (baseView().a - now + lastShX)) < 1e-9 && Math.abs(view.b - (baseView().b - now + lastShX)) < 1e-9;
-  if (wasFull) { view = baseView(); zoomed = false; } else view = { a: view.a + now - lastShX, b: view.b + now - lastShX };
-  lastShX = now; draw();
+for (const id of ["fNone", "fBand", "fLwp", "fSwp", "fAr", "fNotch", "fShow", "cMin", "cMinAt", "cMax", "cMaxAt", "cAvg", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec", "anShow", "anReport"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
+// ---------- 5b. MODIFY TAB: shift and smooth, per scan ----------
+let modSel = "all";                              // which scan the Modify buttons change: a scan's id, or "all" (only offered when several are loaded)
+const targets = () => modSel === "all" || files.length < 2 ? files : files.filter(f => f.id === +modSel);
+function refreshModFile() {                      // keep the "Change" menu in step with the loaded scans
+  const sel = $("modfile"); sel.innerHTML = "";
+  files.forEach((f, i) => sel.add(new Option(f.fname + (i ? "" : " (main)"), f.id)));
+  if (files.length > 1) sel.add(new Option("All files", "all"));
+  if (files.length < 2) modSel = String(files[0].id);
+  else if (modSel !== "all" && !files.some(f => f.id === +modSel)) modSel = "all";
+  sel.value = modSel; showShift(); showSmooth();
+}
+$("modfile").onchange = () => { modSel = $("modfile").value; showShift(); showSmooth(); };
+const shifted = (whole = 0) => {                // an unzoomed view re-fits the moved data; a zoomed view follows a whole-data X move and otherwise stays put
+  shiftStamp++; showShift();
+  if (view) { if (!zoomed) view = baseView(); else if (whole) view = { a: view.a + whole, b: view.b + whole }; draw(); }
 };
-for (const id of ["shx", "shy"]) $(id).addEventListener("input", () => { if (view) shifted(); });
-$("shreset").onclick = () => { $("shx").value = $("shy").value = ""; if (view) shifted(); };
+const isWhole = s => s.a === -Infinity && s.b === Infinity;
+const rangeText = s => { const f = v => +v.toFixed(6); return isWhole(s) ? "whole curve" : (s.a === -Infinity ? "up to " + f(s.b) : s.b === Infinity ? "from " + f(s.a) : f(s.a) + " to " + f(s.b)) + " nm"; };
+const noteFor = (list, none, head, text) => {   // one scan: a short line per click. All scans: one line per scan, so you can see what each has
+  const one = f => f[list].length ? head + f[list].map(text).join("  ·  ") : none;
+  const t = targets(); return t.length === 1 ? one(t[0]) : t.map(f => f.fname + " — " + one(f)).join("\n");
+};
+const showShift = () => { const f = v => +v.toFixed(6);
+  $("shtotal").textContent = noteFor("shifts", "No shift applied", "Shifts applied: ", s => rangeText(s) + ": " + [s.dx && "X " + f(s.dx) + " nm", s.dy && "Y " + f(s.dy) + " %"].filter(Boolean).join(", ")); };
+const showSmooth = () => { $("smnote").textContent = noteFor("smooths", "No smoothing applied", "Smoothing applied: ", s => rangeText(s) + ", width " + s.w); };
+const rangeIn = (a, b) => { a = readIn($(a).value); b = readIn($(b).value); if (isFinite(a) && isFinite(b) && a > b) [a, b] = [b, a]; return { a: isFinite(a) ? a : -Infinity, b: isFinite(b) ? b : Infinity }; };
+$("shgo").onclick = () => {
+  const r = rangeIn("shfrom", "shto"), dx = shNum("shx"), dy = shNum("shy"); if (!dx && !dy) return;
+  const s = { ...r, dx, dy }, t = targets(); t.forEach(f => f.shifts.push({ ...s }));
+  shifted(t.length === 1 && isWhole(s) ? dx : 0);
+};
+$("shundo").onclick = () => { const t = targets(), gone = t.map(f => f.shifts.pop()).filter(Boolean); if (gone.length) shifted(t.length === 1 && isWhole(gone[0]) ? -gone[0].dx : 0); };
+$("shreset").onclick = () => { for (const id of ["shfrom", "shto", "shx", "shy"]) $(id).value = ""; targets().forEach(f => f.shifts = []); shifted(); };
+
+const smoothed1 = () => { shiftStamp++; showSmooth(); if (view) draw(); };
+$("smgo").onclick = () => {
+  const r = rangeIn("smfrom", "smto");
+  let w = Math.round(Number($("smw").value.trim())); if (!isFinite(w)) w = 5;
+  w = Math.max(3, w); if (w % 2 === 0) w++;      // an odd window keeps each point centred
+  $("smw").value = w;
+  targets().forEach(f => f.smooths.push({ ...r, w })); smoothed1();
+};
+$("smundo").onclick = () => { if (targets().map(f => f.smooths.pop()).some(Boolean)) smoothed1(); };
+$("smreset").onclick = () => { for (const id of ["smfrom", "smto"]) $(id).value = ""; $("smw").value = "5"; targets().forEach(f => f.smooths = []); smoothed1(); };
 addEventListener("resize", draw);
 
 $("fAr").addEventListener("change", () => { if ($("fAr").checked) { $("kR").checked = true; $("kT").checked = false; draw(); } });   // AR coatings are measured as reflection
@@ -1048,6 +1309,7 @@ const TABS = [...document.querySelectorAll(".tab")];
 function showTab(id) {
   TABS.forEach(b => { const on = b.dataset.tab === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
   document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.tab !== id);
+  document.body.classList.toggle("modtab", id === "modify"); $("modcol").hidden = id !== "modify"; if (view) draw();   // the Modify tab puts its controls beside the graph, so redraw at the new size
   $("xlim").style.visibility = $("ylim").style.visibility = id === "display" ? "" : "hidden";   // X and Y min / max only show on the Display tab (their space stays reserved so nothing shifts)
   try { localStorage.setItem("plotTab", id); } catch (e) {}
 }
@@ -1059,7 +1321,7 @@ let tab0 = "ranges"; try { tab0 = localStorage.getItem("plotTab") || tab0; } cat
 showTab(TABS.some(b => b.dataset.tab === tab0) ? tab0 : "ranges");
 
 // ---------- 6b. MOUSE WHEEL ON NUMBER FIELDS (click in the box first, then scroll) ----------
-const NUMBOX = "#xmin, #xmax, #ymin, #ymax, #shx, #shy, #lv1, #lv2, .specrow input, #typed input";
+const NUMBOX = "#xmin, #xmax, #ymin, #ymax, #shfrom, #shto, #shx, #shy, #smfrom, #smto, #lv1, #lv2, .specrow input, #typed input";
 addEventListener("wheel", e => {
   const el = e.target;
   if (!(el instanceof HTMLInputElement) || el !== document.activeElement || !el.matches(NUMBOX)) return;   // only the box you clicked in, so page scrolling is safe
@@ -1082,8 +1344,14 @@ $("png").onclick = () => { hov = null; clean = true; render(); cv.toBlob(b => sa
 $("csv").onclick = () => {                       // every column, only the rows inside the active range (or the current view)
   const r = ranges[cur] || view, esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   const lines = [cols.map(c => esc(c.name)).join(",")];
-  const dx = shX(), dy = shY(), cell = (c, i) => c.kind === "num" && (dx || dy) ? String(c.v[i] + (c === cols[0] ? dx : dy)) : c.raw[i];   // shifted numbers are saved as shown
-  for (let i = 0; i < n; i++) if (X[i] + dx >= r.a && X[i] + dx <= r.b) lines.push(cols.map(c => esc(cell(c, i))).join(","));
+  const sh = shiftedDs(files[0]), XS = sh ? sh.X : X, edited = sh || files[0].smooths.length;
+  const PY = new Map(cols.filter(c => edited && c.kind === "num" && c !== cols[0]).map(c => [c, processedY(c, sh, XS, files[0].smooths)]));   // shifted and smoothed columns, as shown
+  const cell = (c, i, k) => {                    // edited numbers are saved as shown; untouched cells keep their original text
+    if (!edited || c.kind !== "num") return c.raw[i];
+    if (c === cols[0]) return XS[k] !== X[i] ? String(XS[k]) : c.raw[i];
+    const y = PY.get(c)[k]; return y !== c.v[i] ? String(rnd(y)) : c.raw[i];
+  };
+  for (let k = 0; k < n; k++) { const i = sh && sh.ord ? sh.ord[k] : k; if (XS[k] >= r.a && XS[k] <= r.b) lines.push(cols.map(c => esc(cell(c, i, k))).join(",")); }
   save(new Blob([lines.join("\n")], { type: "text/csv" }), "range.csv");
 };
 
@@ -1120,9 +1388,15 @@ $("drop").addEventListener("drop", e => { e.preventDefault(); $("drop").classLis
 $("demo").onclick = e => {                       // the Andover 1064HC10 filter scan, stored at the top of this page
   e.preventDefault(); ingest($("sampledata").textContent, "1064HC10_sample.csv");
   $("title").value = "Andover 1064HC10 transmission";
-  $("ymin").value = "0"; $("ymax").value = "100";   if (!specs.length) { specs = [{ a: "1062", b: "1066", meas: "T", op: "ge", v: "90", kind: "abs" }, { a: "400", b: "1040", meas: "T", op: "le", v: "1", kind: "avg" }]; renderSpecs(); }
+  $("ymin").value = "0"; $("ymax").value = "100";
   draw();
 };
 </script>
 </body>
 </html>
+
+
+
+
+
+
