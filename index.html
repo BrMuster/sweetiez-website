@@ -217,6 +217,14 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "plot.html": [
+      { date: "October 22, 2026", title: "Modify tab, annotations, smoothing and a tidier layout", notes: [
+        "New Modify tab: shift or smooth your data. Pick a range of wavelengths by dragging on the chart (the Range boxes fill in for you) to move or smooth only that part, for example just one edge of a bandpass.",
+        "Every CSV keeps its own shifts and smoothing, so overlays can be changed differently. Choose which file to change, or change them all at once. Each change can be undone, and your files themselves are never altered.",
+        "Smoothing averages each point with its neighbors, which cleans up noisy deep-UV scans and the rough spot where two shifted pieces meet.",
+        "Right-click a point on the chart (or any empty spot) to add a note. It can stamp the X and Y values, has a line you can drag to wherever you like, and can be shown or hidden on the printed report and PNG.",
+        "Click a Range button to show or hide that range's shading on the chart, so the graph stays easy on the eyes.",
+        "The tip strip now runs down the right side of the chart, the tab bar sits higher, the From / To boxes are a sensible size, and small ? icons hold the help text so it no longer takes up room.",
+        "The page also now has a security policy that stops anything from sending your data off the page." ] },
       { date: "October 20, 2026", title: "Tabs, filter types, tips and smarter CSV reading", notes: [
         "The chart now sits at the very top and is about 50% bigger with larger text. Everything else is grouped into tabs under it: Data, Display, Ranges, Specs, Filter and Export. The chart never moves when you switch tabs.",
         "X is always Wavelength (nm). A Scan type choice, Transmission or Reflection, sets the Y axis and names the series Tx or Rx. Y min/max and X min/max live on the Display tab.",
