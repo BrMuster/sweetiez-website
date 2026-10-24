@@ -217,6 +217,13 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "plot.html": [
+      { date: "October 24, 2026", title: "Draw lines and specs right on the graph, and a sharper printed report", notes: [
+        "Hold Ctrl, press on the graph, drag to the other end and let go to draw a line there. Pick on the Specs tab whether it is a solid line, a dashed line, or a spec (absolute, average or best effort).",
+        "A spec drawn this way is flat at the height where you started and shows up in the spec list, so you can fine-tune the numbers. Plain lines can be solid or dashed, and any line can be turned into a spec with one click.",
+        "Drawn lines print on the report too.",
+        "The graph on the printed report is now drawn much sharper, so the coloured lines no longer look blurry on paper.",
+        "When no range is marked, the report's table no longer prints the wavelengths the graph happens to show.",
+        "The Download PNG button is gone. Use Print report and save as PDF instead." ] },
       { date: "October 23, 2026", title: "A one-page report with your logo, plus a quick way to delete a range", notes: [
         "Each range on the graph now has a small X in its top-right corner. Click it and the range is gone, as quickly as you made it.",
         "Print report now asks for the details first: a title for the chart (leave it blank if you don't need one), Operator, Customer, AM #, P/N, S/N and Lot. It remembers the operator for next time.",

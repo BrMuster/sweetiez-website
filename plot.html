@@ -220,6 +220,7 @@
         <button type="button" class="tipx" id="tipsHide" title="Hide these tips" aria-label="Hide tips">✕</button>
         <span><b>Drag</b> mark a range</span>
         <span><b>Shift + drag</b> snap to whole nm</span>
+        <span><b>Ctrl + drag</b> draw a line or spec</span>
         <span><b>Right-drag</b> zoom box (X and Y)</span>
         <span><b>Right-click</b> a curve: add a note or remove it</span>
         <span><b>Drag a note's dot</b> slide it along the curve</span>
@@ -321,9 +322,9 @@
     <div class="panel" data-tab="annotate" hidden>
       <div class="controls">
         <b>Annotations</b>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a curve and choose Add a note here, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Drag the dot on the curve to slide the note along it, and its X and Y values update. Drag the corner of a note to make it wider or narrower and the text wraps; double-click the corner to go back to automatic width. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report and PNG.">?</span>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a curve and choose Add a note here, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Drag the dot on the curve to slide the note along it, and its X and Y values update. Drag the corner of a note to make it wider or narrower and the text wraps; double-click the corner to go back to automatic width. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report.">?</span>
         <label><input type="checkbox" id="anShow" checked> Show on the graph</label>
-        <label><input type="checkbox" id="anReport" checked> Include on the printed report and PNG</label>
+        <label><input type="checkbox" id="anReport" checked> Include on the printed report</label>
         <button type="button" id="anClear" disabled>Clear all</button>
       </div>
       <div class="anlist" id="anList"></div>
@@ -334,6 +335,16 @@
         <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
           <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
         <div id="specRows"></div>
+        <div class="bar"><b>Draw on the graph</b>
+          <label class="txt">Ctrl + drag draws
+            <select id="drawAs" aria-label="What Ctrl and drag on the graph draws">
+              <option value="solid">a solid line</option><option value="dash">a dashed line</option>
+              <option value="abs">a spec: absolute</option><option value="avg">a spec: average</option><option value="best">a spec: best effort</option>
+            </select></label>
+          <label class="txt">Spec passes
+            <select id="drawOp" aria-label="Which side of a drawn spec passes"><option value="ge">≥ at least</option><option value="le">≤ at most</option></select></label>
+          <span class="hint">Hold Ctrl, press on the graph, drag to the other end and let go. A spec is drawn flat at the height where you started, and it appears in the list above where you can fine-tune it. A plain line follows your mouse exactly and is not checked against the data.</span></div>
+        <div id="lineRows"></div>
       </div>
     </div>
 
@@ -362,7 +373,6 @@
     <div class="panel" data-tab="export" hidden>
       <div class="bar">
         <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print report</button>
-        <button id="png">Download PNG</button>
         <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
         <label class="prsel">On the report, ranges are
           <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
@@ -877,12 +887,29 @@ function specTable(S) {
     if (r) { const res = tr.lastChild; res.className = r.pass ? "pass" : "fail"; }
   }));
 }
+let lines = [], ldrag = null;                    // drawn lines: { x1, y1, x2, y2, dash }; ldrag is the one being dragged out right now (screen only)
+function renderLines() {                         // one row per drawn line, under the spec rows
+  const box = $("lineRows"); box.innerHTML = "";
+  lines.forEach((l, k) => {
+    const row = document.createElement("div"); row.className = "specrow";
+    const lab = document.createElement("span"); lab.className = "hint"; lab.textContent = "Line " + (k + 1) + ":  " + xs(l.x1) + ", " + ys(l.y1) + "  →  " + xs(l.x2) + ", " + ys(l.y2);
+    const st = document.createElement("select"); st.setAttribute("aria-label", "Line " + (k + 1) + " style"); st.add(new Option("Solid", "solid")); st.add(new Option("Dashed", "dash"));
+    st.value = l.dash ? "dash" : "solid"; st.onchange = () => { l.dash = st.value === "dash"; draw(); };
+    const mk = document.createElement("button"); mk.type = "button"; mk.textContent = "Make it a spec"; mk.title = "Turn this line into a spec (flat, at its average height)";
+    mk.onclick = () => { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText((l.y1 + l.y2) / 2), kind: "abs" });
+      lines.splice(k, 1); renderSpecs(); renderLines(); draw(); };
+    const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this line"; del.setAttribute("aria-label", "Remove line " + (k + 1));
+    del.onclick = () => { lines.splice(k, 1); renderLines(); draw(); };
+    row.append(lab, st, mk, del); box.append(row);
+  });
+}
 $("addspec").onclick = () => { specs.push({ a: "", b: "", meas: "T", op: "ge", v: "", kind: "abs" }); renderSpecs(); $("specRows").lastChild.firstChild.focus(); };
 
 // ---------- 4. DRAW THE GRAPH ----------
 function render() {
   if (!view || !cv.clientWidth) return;                                 // nothing to draw while the canvas is hidden (e.g. mid-print)
-  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const dpr = light ? Math.min(6, Math.max(devicePixelRatio || 1, 3, Math.ceil(2400 / W))) : devicePixelRatio || 1;   // the picture for paper is drawn extra sharp (about 300 dpi), not at screen size
   cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const title = light ? rpt.title || "" : $("title").value.trim(), xl = axisLabel("x"), yl = axisLabel("y");
   const L = light ? (yl ? 78 : 52) : yl ? 104 : 80, R = light ? 14 : 20, T = (title ? 44 : 14) + ($("spec").value.trim() ? 22 : 0), B = xl ? 70 : 42, pw = W - L - R, ph = H - T - B;
@@ -904,7 +931,7 @@ function render() {
   G = { L, pw, W, T, ph, lo, hi };
   const P = light ? { bg: "#fff", tick: "#444", grid: "#d5d5d5", label: "#000", title: "#000", noteBg: "#fff", noteLine: "#444", noteText: "#000" }
                   : { bg: "#0e141b", tick: "#8f98a0", grid: "#2a3a4d", label: "#c6d4df", title: "#fff", noteBg: "#16202df2", noteLine: "#f5a623", noteText: "#fff" };
-  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);                       // solid background so the PNG isn't see-through
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);                       // solid background so the printed picture isn't see-through
   ctx.font = "15px system-ui"; ctx.lineWidth = 1;
   ctx.fillStyle = P.tick; ctx.strokeStyle = P.grid;
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
@@ -969,6 +996,11 @@ function render() {
     const cx = Math.min(Math.max((Math.max(x0, L) + Math.min(x1, L + pw)) / 2, L + 60), L + pw - 60);
     ctx.fillText(specName(sp), cx, Y + up * 6);
   }
+  const seg = (l, c, w, dash) => { ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();   // drawn lines stay inside the plot area
+    ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.setLineDash(dash ? [9, 7] : []);
+    ctx.beginPath(); ctx.moveTo(px(l.x1), py(l.y1)); ctx.lineTo(px(l.x2), py(l.y2)); ctx.stroke(); ctx.restore(); };
+  for (const l of lines) seg(l, P.title, 2.5, l.dash);
+  if (ldrag && !light) seg(ldrag, "#f5a623", 2, true);                 // the line while you drag it out
   for (const { p, li } of levels()) for (const s of S) {               // edge points: faint dashed level line + a marker at each crossing
     const e = edgePts(s, p); if (!e) continue;
     const yl = ty(e.thr); if (!isFinite(yl)) continue;
@@ -1001,7 +1033,7 @@ function render() {
       ctx.moveTo(c.x - g, c.y - g); ctx.lineTo(c.x + g, c.y + g); ctx.moveTo(c.x + g, c.y - g); ctx.lineTo(c.x - g, c.y + g); ctx.stroke(); ctx.lineCap = "butt";
     }
   });
-  if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed or saved in the PNG
+  if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed
     ctx.font = "italic 13px system-ui"; ctx.fillStyle = "#8f98a0b3"; ctx.textAlign = "right"; ctx.textBaseline = "top";
     ctx.fillText("Double-click to reset view", L + pw - 8, T + 6);
   }
@@ -1423,11 +1455,29 @@ function boxZoom(e) {                            // right-drag: zoom both X and 
     } else { redraw(true); if (!moved) rightClick(e); } };           // a right-click that did not drag adds or edits a note
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 }
+function lineDraw(e) {                          // Ctrl + drag: draw a line (or a spec) from where you pressed to where you let go
+  cv.setPointerCapture(e.pointerId); drag = true; hov = null;
+  const as = $("drawAs").value, flat = as !== "solid" && as !== "dash", sx = e.clientX, sy = e.clientY;
+  const snap = (x, ev) => ev.shiftKey ? Math.round(x) : x;              // Shift: whole nanometres, as for ranges
+  const x0 = snap(xAt(e), e), y0 = yAt(e); let moved = false;
+  const at = ev => ({ x1: x0, y1: y0, x2: snap(xAt(ev), ev), y2: flat ? y0 : yAt(ev) });
+  const move = ev => { if (Math.abs(ev.clientX - sx) > 4 || Math.abs(ev.clientY - sy) > 4) moved = true; if (moved) { ldrag = at(ev); redraw(); } };
+  const up = ev => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up);
+    drag = false; ldrag = null; const l = at(ev);
+    if (moved && ev.type === "pointerup" && (l.x2 !== l.x1 || (!flat && l.y2 !== l.y1))) {
+      if (flat && l.x2 === l.x1) return redraw(true);
+      if (flat) { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText(l.y1), kind: as }); renderSpecs(); }
+      else { lines.push({ ...l, dash: as === "dash" }); renderLines(); }
+      draw();
+    } else redraw(true); };
+  cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+}
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (!view) return;
   if (e.button === 2) return boxZoom(e);
   if (e.button !== 0) return;
+  if (e.ctrlKey) return lineDraw(e);
   const xb = xBtnAt(e); if (xb >= 0) { ranges[xb] = null; shown[xb] = true; return draw(); }   // the X on a range removes it
   const nh = noteHit(e); if (nh) return dragNote(e, nh);               // grab a note to move it
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
@@ -1538,7 +1588,6 @@ addEventListener("wheel", e => {
 
 // ---------- 7. SAVING ----------
 const save = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
-$("png").onclick = () => { if (!view) return; hov = null; clean = true; render(); cv.toBlob(b => save(b, "plot.png")); clean = false; render(); };
 $("csv").onclick = () => {                       // every column, only the rows inside the active range (or the current view)
   if (!view) return;
   const r = ranges[cur] || view, esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -1571,7 +1620,8 @@ function preparePrint() {                        // fill in the print-only parts
   for (const tr of src.rows) {
     const isH = tr.cells[0].tagName === "TH", cells = [...tr.cells].map(c => c.textContent.replace(/\s*nm\b/g, "").replace(/\s+/g, " ").trim());
     if (oneSer) cells.splice(1, 1);
-    if (isH) cells[0] += " (" + XUNIT + ")"; else cells[0] = cells[0].replace(/^(#\d+|View)\s*/, "");
+    if (!ranges.some(Boolean)) cells[0] = "";                           // no range marked: don't print the wavelengths the graph happens to show
+    else if (isH) cells[0] += " (" + XUNIT + ")"; else cells[0] = cells[0].replace(/^(#\d+|View)\s*/, "");
     const row = pt.insertRow(); cells.forEach(v => { const c = document.createElement(isH ? "th" : "td"); c.textContent = v; row.append(c); });
   }
   const specLines = [...specs.filter(specOK).map(specName), ...($("spec").value.trim() ? [$("spec").value.trim()] : [])];   // spec text only; no pass / fail
