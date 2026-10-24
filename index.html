@@ -217,6 +217,14 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "plot.html": [
+      { date: "October 24, 2026", title: "A tidier report, a logo on the page and ruler marks on the graph", notes: [
+        "The Andover logo now sits at the top left of the plotter page.",
+        "The graph has small tick marks along both axes: one for every nanometre and every percent, with a longer one every 5. They space themselves out automatically when you zoom a long way in or out, and they print on the report too.",
+        "On the report, the filter results (CW/L, BW, Max T%, 50% low, 50% high) are now a short stacked list instead of a squeezed table. The percent-of-max table (level, threshold, crossings) is no longer printed.",
+        "The printed date and time moved to the top right of the report. You can switch it off in the Print Report window, and it remembers your choice.",
+        "Print Report now sits in the Export tab, next to the report options.",
+        "On the graph, the bandwidth label now says B/W and the center line no longer runs through the words.",
+        "The Max, Average and other boxes under Show for each range now start unticked." ] },
       { date: "October 24, 2026", title: "Draw lines and specs right on the graph, and a sharper printed report", notes: [
         "Hold Ctrl, press on the graph, drag to the other end and let go to draw a line there. Pick on the Specs tab whether it is a solid line, a dashed line, or a spec (absolute, average or best effort).",
         "A spec drawn this way is flat at the height where you started and shows up in the spec list, so you can fine-tune the numbers. Plain lines can be solid or dashed, and any line can be turned into a spec with one click.",
