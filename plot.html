@@ -39,20 +39,40 @@
   td.pass { color: #4cd964; font-weight: 700; } td.fail { color: #ff5a7a; font-weight: 700; }
   .chip { display: inline-flex; gap: .4rem; align-items: center; padding: .2rem .3rem .2rem .7rem; background: #ffffff0d; border-radius: 4px; }
   .chip button { padding: .1rem .5rem; }
-  #printHead, #printImg, #printLegend, #notesPrint { display: none; }
+  #printHead, #printImg, #printLegend, #notesPrint, #printFields, #printSpecBox, #printCond, #printStamp, #printStats { display: none; }
+  #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
+  .rptbg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000a; }
+  .rptdlg { width: 24rem; max-width: 92vw; display: grid; gap: .6rem; padding: 1rem 1.2rem; background: #16202d; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
+  .rptdlg h3 { font-weight: 500; color: #fff; } .rptdlg label { display: grid; grid-template-columns: 6rem 1fr; gap: .5rem; align-items: center; }
+  .rptdlg input[type=text] { width: 100%; min-width: 0; } .rptdlg .bar { justify-content: flex-end; }
   #notesBox { display: grid; gap: .4rem; }
   #notes { width: 100%; font: inherit; padding: .5rem .7rem; color: var(--text); background: #0e141b; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
   @media print {
-    @page { margin: 12mm; }
+    @page { size: letter landscape; margin: 0; }                        /* one landscape page: graph on the left, details down the right. No page margin also keeps the browser's own header and footer (date, page title, web address, page number) off the paper */
+    html, body { height: auto; overflow: hidden; }
+    #app { grid-template-columns: minmax(0, 1fr) 62mm; column-gap: 4mm; row-gap: 3mm; align-items: start; max-height: 200mm; overflow: hidden; }
+    #printHead, #printImg, #printLegend, #notesBox { grid-column: 1; }
+    #printHead { grid-column: 1 / -1; text-align: center; }
+    #sideCol { display: flex; flex-direction: column; gap: 3mm; grid-column: 2; grid-row: 2 / span 3; }
+    #printFields { display: block; font-size: 10px; }
+    #printFields .pfr { padding: 1mm 0; min-height: 9mm; border-top: 1px solid #bbb; } #printFields .pfr:first-child { border-top: 0; }
+    #printFields .two { display: flex; gap: 3mm; } #printFields .two > div { flex: 1; min-width: 0; }
+    #printFields .l { display: block; color: #444; } #printFields .v { display: block; color: #000; padding-left: 2mm; }
+    #printSpecBox { display: block; } #printSpecBox h3 { font-size: 10px; font-weight: 600; color: #333; border-bottom: 2px solid #000; padding-bottom: 1mm; margin-bottom: 1mm; }
+    #printSpec { font-size: 12px; font-weight: 600; color: #000; white-space: pre-line; }
+    #printCond, #printStamp { display: block; color: #222; font-size: 11px; text-align: right; } #printCond:empty { display: none; } #printCond { white-space: pre-line; }
+    #specTblBox { display: none !important; }                           /* the pass / fail table is not printed */
+    #stats { display: none; }                                           /* the report uses its own plain copy of the range table */
+    #printStats { display: table; }
+    #printStats th, #printStats td { padding: .15rem .2rem; } #printStats th:not(:first-child), #printStats td:not(:first-child) { text-align: right; white-space: nowrap; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { background: #fff; color: #000; padding: 0; font-size: 12px; }
+    body { background: #fff; color: #000; padding: 8mm 6mm; font-size: 12px; }
     main > *:not(#app) { display: none !important; }
     #app > *:not(.keep) { display: none !important; }
     .card { background: none; padding: 0; border-radius: 0; gap: .6rem; }
-    #printHead { display: block; border-bottom: 2px solid #000; padding-bottom: .4rem; }
-    #printHead h2 { font-size: 1.5rem; font-weight: 600; color: #000; }
-    #printHead p { color: #333; } #printHead p:empty { display: none; }
-    #printImg { display: block; width: 100%; height: auto; border: 1px solid #ccc; }
+    #printHead { display: block; border-bottom: 2px solid #000; padding-bottom: .2rem; }
+    #printLogo { display: block; height: 15mm; width: auto; margin-bottom: 3mm; }
+    #printImg { display: block; width: 100%; height: auto; max-height: 145mm; object-fit: contain; object-position: left top; border: 1px solid #ccc; }
     #printLegend { display: flex; flex-wrap: wrap; gap: .2rem 1.2rem; color: #000; }
     #printLegend span { display: inline-flex; align-items: center; gap: .4rem; }
     #app .tbl { overflow: visible; }
@@ -63,7 +83,7 @@
     #notesBox { break-inside: avoid; color: #000; }
     #notes, .screenonly { display: none !important; }
     #app td.pass, #app td.fail { color: #000; }
-    #notesPrint { display: block; white-space: pre-wrap; min-height: 5rem; border: 1px solid #888; padding: .5rem; color: #000; }
+    #notesPrint { display: block; white-space: pre-wrap; min-height: 3.5rem; border: 1px solid #888; padding: .4rem; color: #000; }
   }
   .plotrow { display: grid; grid-template-columns: 1fr 10.5rem; gap: .8rem; align-items: start; }   /* graph on the left, tips down the right */
   body.modtab .plotrow { grid-template-columns: 20rem 1fr 10.5rem; }                              /* the Modify tab adds its controls down the far left */
@@ -137,7 +157,7 @@
   <h1>Plot a CSV</h1>
 
   <section id="app" class="card">
-    <div id="printHead" class="keep"><h2 id="printTitle"></h2><p id="printStamp"></p><p id="printFiles"></p><p id="printSpec"></p><p id="printCond"></p></div>
+    <div id="printHead" class="keep"><img id="printLogo" alt="Andover Corporation" src="data:image/png;base64,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"></div>
     <img id="printImg" class="keep" alt="Graph of your data">
     <div id="printLegend" class="keep"></div>
     <div class="plotrow">
@@ -349,16 +369,22 @@
         </label>
       </div>
     </div>
-    <div class="tbl keep"><table id="stats"></table></div>
+    <div id="sideCol" class="keep">
+    <div id="printFields"></div>
+    <div id="printSpecBox" hidden><h3>SPEC</h3><p id="printSpec"></p></div>
+    <div class="tbl keep"><table id="stats"></table><table id="printStats"></table></div>
     <div class="tbl keep" id="specTblBox" hidden><table id="specTbl"></table></div>
     <div class="tbl keep" id="edgeBox" hidden><table id="edges"></table></div>
     <div class="tbl keep" id="bandBox" hidden><table id="bandTbl"></table></div>
+    <p id="printCond"></p><p id="printStamp"></p>
+    </div>
     <div id="notesBox" class="keep">
       <label for="notes"><b>Notes</b></label>
       <div class="controls screenonly">
         <label class="txt">Temperature <input type="text" id="tempC" class="unit" value="22" aria-label="Temperature in degrees Celsius"> °C</label>
         <label class="txt">AOI <input type="text" id="aoi" class="unit" value="0" aria-label="Angle of incidence in degrees"> °</label>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent and the angle of incidence (AOI) it was taken at. They are labels only and do not move the data. Use the Modify tab to shift a scan. Both are printed under the title on the report. Leave a box empty to leave it off.">?</span>
+        <label class="txt">Polarization <select id="pol" aria-label="Polarization"><option>Random</option><option>S-pol</option><option>P-pol</option></select></label>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent, the angle of incidence (AOI) it was taken at, and its polarization (Random unless the scan was S or P). They are labels only and do not move the data. Use the Modify tab to shift a scan. Both are printed under the title on the report. Leave a box empty to leave it off.">?</span>
       </div>
       <textarea id="notes" rows="3" placeholder="Operator, sample ID, conditions, observations…"></textarea>
       <div id="notesPrint"></div>
@@ -366,6 +392,14 @@
     <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. With no range marked, the table covers everything currently shown. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
   </section>
 
+  <div class="rptbg" id="rptDlg" hidden>
+    <div class="rptdlg" role="dialog" aria-label="Report details">
+      <h3>Report details</h3>
+      <div style="display:grid;gap:.15rem"><label>Title <input type="text" id="rptTitle" maxlength="80"></label><span class="hint" style="font-size:.8rem;margin-left:6.5rem">(leave blank if n/a)</span></div>
+      <div id="rptFields" style="display:grid;gap:.5rem"></div>
+      <div class="bar"><button type="button" id="rptCancel">Cancel</button><button type="button" id="rptGo">Print</button></div>
+    </div>
+  </div>
   <div class="ctxmenu" id="ctxMenu" role="menu" hidden></div>
   <div class="anpop" id="anPop" role="dialog" aria-label="Annotation" hidden>
     <textarea id="anText" rows="3" placeholder="Note text (Enter to save, Shift+Enter for a new line)"></textarea>
@@ -850,8 +884,8 @@ function render() {
   if (!view || !cv.clientWidth) return;                                 // nothing to draw while the canvas is hidden (e.g. mid-print)
   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
   cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const title = $("title").value.trim(), xl = axisLabel("x"), yl = axisLabel("y");
-  const L = yl ? 104 : 80, R = 20, T = (title ? 44 : 14) + ($("spec").value.trim() ? 22 : 0), B = xl ? 70 : 42, pw = W - L - R, ph = H - T - B;
+  const title = light ? rpt.title || "" : $("title").value.trim(), xl = axisLabel("x"), yl = axisLabel("y");
+  const L = light ? (yl ? 78 : 52) : yl ? 104 : 80, R = light ? 14 : 20, T = (title ? 44 : 14) + ($("spec").value.trim() ? 22 : 0), B = xl ? 70 : 42, pw = W - L - R, ph = H - T - B;
   const ty = v => v, S = active();
   const style = $("style").value, dots = $("pts").checked || style === "dots";
   let lo = Infinity, hi = -Infinity, vis = 0;
@@ -885,7 +919,7 @@ function render() {
   if (title) { ctx.font = "600 20px system-ui"; ctx.fillStyle = P.title; ctx.textBaseline = "top"; ctx.fillText(title, L + pw / 2, 8); }
   const specTxt = $("spec").value.trim();
   if (specTxt) { ctx.font = "14px system-ui"; ctx.fillStyle = P.tick; ctx.textBaseline = "top"; ctx.fillText("Spec: " + specTxt, L + pw / 2, title ? 34 : 8); }
-  ctx.font = "16px system-ui"; ctx.fillStyle = P.label;
+  ctx.font = "600 18px system-ui"; ctx.fillStyle = P.label;
   if (xl) { ctx.textBaseline = "bottom"; ctx.fillText(xl, L + pw / 2, H - 6); }
   if (yl) { ctx.save(); ctx.translate(6, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = "top"; ctx.fillText(yl, 0, 0); ctx.restore(); }
 
@@ -961,6 +995,11 @@ function render() {
     ctx.strokeStyle = RC[k]; ctx.lineWidth = light ? 1.5 : k === cur ? 2.5 : 1; ctx.strokeRect(x0, T, x1 - x0, ph);
     ctx.fillStyle = RC[k]; ctx.font = "bold 14px system-ui"; ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(k + 1, Math.max(x0, L) + 5, T + 4);
+    if (!light && !clean) {                                            // a small X at the top right: click it to remove this range
+      const c = xBtn(k), g = 4;
+      ctx.strokeStyle = RC[k]; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.beginPath();
+      ctx.moveTo(c.x - g, c.y - g); ctx.lineTo(c.x + g, c.y + g); ctx.moveTo(c.x + g, c.y - g); ctx.lineTo(c.x - g, c.y + g); ctx.stroke(); ctx.lineCap = "butt";
+    }
   });
   if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed or saved in the PNG
     ctx.font = "italic 13px system-ui"; ctx.fillStyle = "#8f98a0b3"; ctx.textAlign = "right"; ctx.textBaseline = "top";
@@ -1349,10 +1388,20 @@ const bandAt = e => {                           // which range's band the pointe
   for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && shown[k] && x >= r.a && x <= r.b) return k; }
   return -1;
 };
+function xBtn(k) {                              // centre of range k's little X, kept inside the plot area
+  const r = ranges[k], x1 = Math.min(G.L + G.pw, G.L + (r.b - view.a) / (view.b - view.a) * G.pw);
+  return { x: x1 - 13, y: G.T + 13 };
+}
+const xBtnAt = e => {                           // which range's X the pointer is over (-1 for none)
+  if (!view) return -1;
+  const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k]) continue; const c = xBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
+  return -1;
+};
 const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = true; draw(); };
 cv.addEventListener("pointermove", e => {
   if (drag || !view) return;
-  const nh = noteHit(e); cv.style.cursor = nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
+  const nh = noteHit(e); cv.style.cursor = nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : xBtnAt(e) >= 0 ? "pointer" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
   const f = frac(e); hov = f >= 0 && f <= 1 ? view.a + f * (view.b - view.a) : null; redraw();
 });
 cv.addEventListener("pointerleave", () => { hov = null; redraw(); });
@@ -1379,6 +1428,7 @@ cv.addEventListener("pointerdown", e => {
   if (!view) return;
   if (e.button === 2) return boxZoom(e);
   if (e.button !== 0) return;
+  const xb = xBtnAt(e); if (xb >= 0) { ranges[xb] = null; shown[xb] = true; return draw(); }   // the X on a range removes it
   const nh = noteHit(e); if (nh) return dragNote(e, nh);               // grab a note to move it
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
   const x0 = xAt(e), sx = e.clientX, hit = bandAt(e); let moved = false;
@@ -1508,13 +1558,27 @@ $("csv").onclick = () => {                       // every column, only the rows 
 function preparePrint() {                        // fill in the print-only parts: light graph picture, legend, date/time, notes
   if ($("app").hidden || !view) return;
   hov = null; light = true; render(); $("printImg").src = cv.toDataURL("image/png"); light = false; render();
-  $("printTitle").textContent = $("title").value.trim() || "Plot report";
   $("printStamp").textContent = "Printed " + new Date().toLocaleString();
-  $("printFiles").textContent = "Data: " + files.map(f => f.fname).join(", ");
-  $("printSpec").textContent = $("spec").value.trim() ? "Specs: " + $("spec").value.trim() : "";
-  const cond = [["Temperature", $("tempC").value, " °C"], ["AOI", $("aoi").value, "°"]].filter(c => c[1].trim() !== "").map(c => c[0] + ": " + c[1].trim() + c[2]);   // conditions the scan stands for
-  $("printCond").textContent = cond.join("     ");
-  const lg = $("printLegend"); lg.innerHTML = "";
+  const pf = $("printFields"); pf.innerHTML = "";                       // the yellow details box: the six typed fields, with the date after the operator
+  const cell = ([k, label]) => {
+    const d = document.createElement("div"), l = document.createElement("span"), v = document.createElement("span");
+    l.className = "l"; v.className = "v"; l.textContent = label + ":"; v.textContent = k === "date" ? new Date().toLocaleDateString() : rpt[k] || "";
+    d.append(l, v); return d;
+  };
+  const top = document.createElement("div"); top.className = "pfr two"; top.append(cell(RPT[0]), cell(["date", "Date"])); pf.append(top);   // Operator and Date share one row
+  for (const f of RPT.slice(1)) { const row = document.createElement("div"); row.className = "pfr"; row.append(cell(f)); pf.append(row); }
+  const src = $("stats"), pt = $("printStats"), oneSer = active().length < 2; pt.innerHTML = "";   // plain black range table: no #, no colour, "nm" once in the header
+  for (const tr of src.rows) {
+    const isH = tr.cells[0].tagName === "TH", cells = [...tr.cells].map(c => c.textContent.replace(/\s*nm\b/g, "").replace(/\s+/g, " ").trim());
+    if (oneSer) cells.splice(1, 1);
+    if (isH) cells[0] += " (" + XUNIT + ")"; else cells[0] = cells[0].replace(/^(#\d+|View)\s*/, "");
+    const row = pt.insertRow(); cells.forEach(v => { const c = document.createElement(isH ? "th" : "td"); c.textContent = v; row.append(c); });
+  }
+  const specLines = [...specs.filter(specOK).map(specName), ...($("spec").value.trim() ? [$("spec").value.trim()] : [])];   // spec text only; no pass / fail
+  $("printSpec").textContent = specLines.join("\n"); $("printSpecBox").hidden = !specLines.length;
+  const cond = [["Temperature", $("tempC").value, " °C"], ["AOI", $("aoi").value, "°"], ["Polarization", $("pol").value, ""]].filter(c => c[1].trim() !== "").map(c => c[0] + ": " + c[1].trim() + c[2]);   // conditions the scan stands for
+  $("printCond").textContent = cond.join("\n");
+  const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = active().length < 2;   // one scan is already named by the graph
   for (const s of active()) {
     const sp = document.createElement("span"), sw = document.createElement("i");
     sw.style.cssText = "width:14px;height:4px;display:inline-block;background:" + s.color;
@@ -1522,7 +1586,20 @@ function preparePrint() {                        // fill in the print-only parts
   }
   $("notesPrint").textContent = $("notes").value;
 }
-$("printbtn").onclick = () => { preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print()); };
+const RPT = [["op", "Operator"], ["cust", "Customer"], ["am", "AM #"], ["pn", "P/N"], ["sn", "S/N"], ["lot", "Lot"]];
+const rpt = {}; try { rpt.op = localStorage.getItem("plotOperator") || ""; } catch (e) {}   // only the operator is remembered; job numbers start blank so an old one never lands on a new report
+const RI = RPT.map(([k, label]) => { const l = document.createElement("label"), i = document.createElement("input"); i.type = "text"; i.maxLength = 60;
+  i.onkeydown = e => { if (e.key === "Enter") $("rptGo").click(); }; l.append(label, i); $("rptFields").append(l); return i; });
+const closeRpt = () => { $("rptDlg").hidden = true; };
+$("rptTitle").onkeydown = RI[0].onkeydown;
+$("printbtn").onclick = () => { $("rptTitle").value = rpt.title || ""; RI.forEach((i, n) => i.value = rpt[RPT[n][0]] || ""); $("rptDlg").hidden = false; $("rptTitle").focus(); };
+$("rptCancel").onclick = closeRpt;
+$("rptDlg").addEventListener("pointerdown", e => { if (e.target === $("rptDlg")) closeRpt(); });
+$("rptDlg").addEventListener("keydown", e => { if (e.key === "Escape") closeRpt(); });
+$("rptGo").onclick = () => {
+  rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); try { localStorage.setItem("plotOperator", rpt.op); } catch (e) {}
+  closeRpt(); preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print());
+};
 addEventListener("beforeprint", preparePrint);   // also covers Ctrl+P
 
 
