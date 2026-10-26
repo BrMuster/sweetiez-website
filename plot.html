@@ -40,6 +40,10 @@
   td.pass { color: #4cd964; font-weight: 700; } td.fail { color: #ff5a7a; font-weight: 700; }
   .chip { display: inline-flex; gap: .4rem; align-items: center; padding: .2rem .3rem .2rem .7rem; background: #ffffff0d; border-radius: 4px; }
   .chip button { padding: .1rem .5rem; }
+  .finder { display: grid; gap: .6rem; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+  .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
+  .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
+  .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #printHead, #printImg, #printLegend, #notesPrint, #printFields, #printSpecBox, #printCond, #printStamp, #printStats, #printBand { display: none; }
   #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
   .rptbg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000a; }
@@ -247,6 +251,7 @@
       <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
       <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
+      <button type="button" class="tab" role="tab" data-tab="play">Play</button>
     </div>
 
     <div class="panel" data-tab="data" hidden>
@@ -259,7 +264,28 @@
       </div>
       <p id="msg" class="hint" role="status"></p>
       <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
+      <div class="bar"><button type="button" id="serAll" title="Draw every curve">Check all</button><button type="button" id="serNone" title="Hide every curve">Uncheck all</button></div>
       <div class="series" id="series"></div>
+      <div class="finder">
+        <div class="bar"><b>Find scans in a folder</b>
+          <button type="button" id="fdOpen">Open a folder</button>
+          <input type="file" id="fdIn" webkitdirectory multiple hidden>
+          <span class="hint">…or drop a whole folder anywhere on this page. Nothing is uploaded; the files are read in your browser.</span></div>
+        <div class="bar">
+          <label class="txt">Type <select id="fdType"><option value="any">Any</option><option value="lwp" selected>Longpass</option><option value="swp">Shortpass</option><option value="bp">Bandpass</option><option value="ar">AR</option></select></label>
+          <label class="txt">Edge at <input type="text" id="fdPct" class="pct" value="5" aria-label="Edge level, percent of the scan's peak">% of peak</label>
+          <label class="txt" title="Longpass and shortpass: where the edge is. Bandpass and AR: the middle of the band.">position between <input type="text" id="fdA" class="unit" placeholder="start" aria-label="Edge no lower than this wavelength, in nm"></label>
+          <label class="txt">and <input type="text" id="fdB" class="unit" placeholder="end" aria-label="Edge no higher than this wavelength, in nm"> nm</label>
+          <label class="txt" title="Rejects scans with a leak: after the edge (before it, for a shortpass) the scan must stay above the edge level for this far. Leave blank to skip this check.">Stays above it for at least <input type="text" id="fdRun" class="unit" value="3000" aria-label="Minimum distance the scan stays above the edge level, in nm"> nm</label>
+        </div>
+        <p id="fdMsg" class="hint" role="status"></p>
+        <div class="bar" id="fdAct" hidden>
+          <button type="button" id="fdShow">Show checked on graph</button>
+          <button type="button" id="fdAll">Check all</button>
+          <button type="button" id="fdNone">Check none</button>
+        </div>
+        <div class="fdlist" id="fdList"></div>
+      </div>
     </div>
 
     <div class="panel" data-tab="library" hidden>
@@ -382,6 +408,27 @@
         </label>
         <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print Report</button>
       </div>
+    </div>
+    <div class="panel" data-tab="play" hidden>
+      <div class="bar"><label class="txt">Animation speed <select id="plSpeed" aria-label="Animation speed"><option value="1">Slow</option><option value="2" selected>Medium</option><option value="4">Fast</option></select></label></div>
+        <div class="bar"><b>Loop art</b>
+          <label class="txt">X waves <input type="text" id="liA" class="pct" value="3" aria-label="How many waves across (X)"></label>
+          <label class="txt">Y waves <input type="text" id="liB" class="pct" value="2" aria-label="How many waves up and down (Y)"></label>
+          <label class="txt">Twist <input type="text" id="liP" class="pct" value="90" aria-label="Phase shift in degrees"> °</label>
+          <label class="txt">Turns <input type="text" id="liN" class="pct" value="1" aria-label="How many times round the loop"></label>
+          <button type="button" id="liGo">Draw it</button>
+          <button type="button" id="liRnd" title="Pick random numbers and draw">Surprise me</button>
+          <button type="button" id="liAnim" title="Keep turning the twist">▶ Animate</button>
+          <button type="button" id="liAuto" title="Draw a new random loop every moment, like pressing Surprise me over and over">▶ Keep surprising</button></div>
+        <span class="hint">Replaces whatever is on the graph. Whole numbers close the loop; try 5 and 4, or 3 and 3 with a twist of 45.</span>
+      <div class="bar" style="margin-top:.8rem"><b>Moiré spirals</b>
+        <label class="txt">Rings <input type="text" id="moN" class="pct" value="20" aria-label="How many turns each spiral makes"></label>
+        <label class="txt">Shift <input type="text" id="moS" class="pct" value="4" aria-label="How far the second spiral is moved sideways, percent of the radius"> %</label>
+        <label class="txt">Second spiral <select id="moW" aria-label="Which way the second spiral winds"><option value="opp">winds the opposite way</option><option value="same">winds the same way</option></select></label>
+        <button type="button" id="moGo">Draw it</button>
+        <button type="button" id="moAnim" title="Slide the second spiral side to side">▶ Animate</button></div>
+      <span class="hint">Two thin spirals, one on top of the other. The ripples and star shapes you see are an illusion made by the overlap. Move the shift a little at a time.</span>
+      <p id="playMsg" class="hint" role="status"></p>
     </div>
     <div id="sideCol" class="keep">
     <div id="printFields"></div>
@@ -1698,7 +1745,212 @@ $("addcsv").onclick = () => (files.length ? $("file2") : $("file")).click();   /
 $("openbtn").onclick = () => $("file").click();
 $("file2").onchange = e => { openFiles(e.target.files, true); e.target.value = ""; };
 addEventListener("dragover", e => e.preventDefault());                              // allow dropping a file anywhere on the page
-addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files, false); });
+addEventListener("drop", e => {
+  e.preventDefault();
+  const ents = [...(e.dataTransfer.items || [])].map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);   // must be read now: the list is emptied once this handler returns
+  if (ents.some(en => en.isDirectory)) return folderDropped(ents);
+  if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files, false);
+});
+
+// ---------- 9b. FIND SCANS IN A FOLDER (filter by long/shortpass and where the edge falls) ----------
+let fdScans = [], fdHits = [];                   // fdScans: every scan read from the folder { name, text, x, y, pk }; fdHits: the ones that pass the filters
+const FD_EXT = /\.(csv|tsv|txt)$/i;
+async function walkEntry(en, out) {              // collect every file inside a dropped folder, subfolders too
+  if (en.isFile) await new Promise(r => en.file(f => { out.push(Object.assign(f, { fdPath: en.fullPath })); r(); }, r));
+  else if (en.isDirectory) {
+    const rd = en.createReader();
+    for (;;) { const batch = await new Promise(r => rd.readEntries(r, () => r([]))); if (!batch.length) break; for (const c of batch) await walkEntry(c, out); }   // readEntries hands back a few at a time
+  }
+}
+async function folderDropped(ents) { const out = []; for (const en of ents) await walkEntry(en, out); fdLoad(out); }
+function fdScan(text, name) {                    // wavelength and the first value column, sorted by wavelength; null if it isn't a scan
+  const rows = parseCSV(text).map(r => r.map(c => Number(c.trim()))).filter(r => r.length >= 2 && Number.isFinite(r[0]) && Number.isFinite(r[1]) && r[0] > 0);
+  if (rows.length < 10) return null;
+  rows.sort((a, b) => a[0] - b[0]);
+  const x = rows.map(r => r[0]), y = rows.map(r => r[1]);
+  let pk = -Infinity; for (const v of y) if (v > pk) pk = v;
+  return pk > 0 ? { name, x, y, pk } : null;
+}
+function fdEdge(s, pct) {                        // { type, edge }: longpass if low at the short end and high at the long end, shortpass the other way round
+  const m = Math.max(2, Math.round(s.y.length * .05)), avg = (a, b) => s.y.slice(a, b).reduce((p, v) => p + v, 0) / (b - a);
+  const lo = avg(0, m) / s.pk, hi = avg(s.y.length - m, s.y.length) / s.pk;
+  const thr = s.pk * pct / 100, pi = s.y.indexOf(s.pk), interior = pi > m && pi < s.y.length - m;
+  let mn = Infinity; for (const v of s.y) if (v < mn) mn = v;
+  mn /= s.pk;
+  const type = lo < .5 && hi > .5 ? "lwp" : lo > .5 && hi < .5 ? "swp"
+    : lo < .5 && hi < .5 && interior ? "bp"                  // low at both ends with the peak in between
+    : lo >= .5 && hi >= .5 && mn >= .5 ? "ar"                // never blocks anywhere: one broad high band
+    : "other";                                               // notch filters, noise, and anything else
+  if (type === "other") return { type, edge: null };
+  if (type === "bp") {                                       // band edges at the chosen level: first climb and last drop; the position is the middle of the band
+    let a = null, b = null;
+    for (let i = 1; i < s.y.length; i++) {
+      const y0 = s.y[i - 1], y1 = s.y[i], x0 = s.x[i - 1], x1 = s.x[i];
+      if (y0 < thr && y1 >= thr && a === null) a = x0 + (thr - y0) / (y1 - y0) * (x1 - x0);
+      if (y0 >= thr && y1 < thr) b = x0 + (thr - y0) / (y1 - y0) * (x1 - x0);
+    }
+    return a !== null && b !== null && b > a ? { type, edge: (a + b) / 2, from: a, to: b, level: pct } : { type, edge: null };
+  }
+  if (type === "ar") {                                       // the longest stretch at or above 90% of peak; the position is the middle of it
+    let best = null, st = -1;
+    for (let i = 0; i <= s.y.length; i++) {
+      const ok = i < s.y.length && s.y[i] >= s.pk * .9;
+      if (ok && st < 0) st = i;
+      if (!ok && st >= 0) { if (!best || s.x[i - 1] - s.x[st] > best[1] - best[0]) best = [s.x[st], s.x[i - 1]]; st = -1; }
+    }
+    return best ? { type, edge: (best[0] + best[1]) / 2, from: best[0], to: best[1], level: 90 } : { type, edge: null };
+  }
+  let edge = null, ei = 0;
+  for (let i = 1; i < s.y.length; i++) {         // longpass: first climb through the level; shortpass: last drop through it
+    const y0 = s.y[i - 1], y1 = s.y[i], up = y0 < thr && y1 >= thr, down = y0 >= thr && y1 < thr;
+    if ((type === "lwp" && up) || (type === "swp" && down)) { edge = s.x[i - 1] + (thr - y0) / (y1 - y0) * (s.x[i] - s.x[i - 1]); ei = i; if (type === "lwp") break; }
+  }
+  let run = 0;                                   // how far the scan stays at or above the level on the passing side, so a leak that dips back under it cuts the run short
+  if (edge !== null) {
+    if (type === "lwp") { let j = ei; while (j < s.y.length && s.y[j] >= thr) j++; run = s.x[j - 1] - edge; }
+    else { let j = ei - 1; while (j >= 0 && s.y[j] >= thr) j--; run = edge - s.x[j + 1]; }
+  }
+  return { type, edge, run };
+}
+async function fdLoad(list) {
+  list = [...list].filter(f => FD_EXT.test(f.name)); fdScans = [];
+  if (!list.length) return fdSay("No CSV, TSV or TXT files in that folder.");
+  showTab("data", false);
+  let bad = 0;
+  for (const [i, f] of list.entries()) {
+    if (i % 25 === 0) { fdSay("Reading " + (i + 1) + " of " + list.length + "…"); await new Promise(r => setTimeout(r)); }
+    const text = await f.text(), s = fdScan(text, (f.fdPath || f.webkitRelativePath || f.name).replace(/^\//, ""));
+    if (s) { s.text = text; s.file = f.name; fdScans.push(s); } else bad++;
+  }
+  fdFilter(bad);
+}
+function fdSay(t) { $("fdMsg").textContent = t; }
+function fdFilter(bad) {                         // apply Type, level and edge range to every scan read
+  const pct = Number($("fdPct").value), a = readIn($("fdA").value), b = readIn($("fdB").value), run = Number($("fdRun").value) || 0, want = $("fdType").value;
+  if (!(pct > 0 && pct < 100)) return fdSay("Edge level must be between 0 and 100.");
+  fdHits = [];
+  for (const s of fdScans) {
+    const r = fdEdge(s, pct);
+    if (want !== "any" && r.type !== want) continue;
+    if (r.edge === null && (isFinite(a) || isFinite(b))) continue;       // no edge found, so it can't be inside a range
+    if (isFinite(a) && r.edge < a) continue;
+    if (isFinite(b) && r.edge > b) continue;
+    if ((r.type === "lwp" || r.type === "swp") && r.edge !== null && run > 0 && r.run < run) continue;
+    fdHits.push({ s, r });
+  }
+  fdHits.sort((p, q) => (p.r.edge ?? 1e9) - (q.r.edge ?? 1e9));
+  const box = $("fdList"); box.innerHTML = "";
+  for (const h of fdHits) {
+    const l = document.createElement("label"), c = document.createElement("input"); c.type = "checkbox"; c.checked = true; h.box = c;
+    const t = { lwp: "longpass", swp: "shortpass", bp: "bandpass", ar: "AR" }[h.r.type] || "other";
+    const where = h.r.edge === null ? "" : h.r.from !== undefined ? " · " + h.r.level + "% from " + fmt(h.r.from) + " to " + fmt(h.r.to) + " nm" : " · " + pct + "% at " + fmt(h.r.edge) + " nm";
+    l.append(c, h.s.name, Object.assign(document.createElement("span"), { className: "fdinfo", textContent: t + where }));
+    box.append(l);
+  }
+  $("fdAct").hidden = !fdHits.length;
+  fdSay(fdScans.length + " scans read" + (bad ? " (" + bad + " files skipped: not scans)" : "") + ". " + fdHits.length + (fdHits.length === 1 ? " match." : " matches."));
+}
+const serCheck = on => { document.querySelectorAll("#series > label > input[type=checkbox]").forEach(c => c.checked = on); draw(); };
+$("serAll").onclick = () => serCheck(true);
+$("serNone").onclick = () => serCheck(false);
+for (const id of ["fdType", "fdPct", "fdA", "fdB", "fdRun"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, () => { if (fdScans.length) fdFilter(0); });
+$("fdOpen").onclick = () => $("fdIn").click();
+$("fdIn").onchange = e => { fdLoad(e.target.files); e.target.value = ""; };
+$("fdAll").onclick = () => fdHits.forEach(h => h.box.checked = true);
+$("fdNone").onclick = () => fdHits.forEach(h => h.box.checked = false);
+$("fdShow").onclick = () => {                    // first checked scan becomes the main scan, the rest are overlaid
+  const pick = fdHits.filter(h => h.box.checked);
+  if (!pick.length) return fdSay("Nothing is checked.");
+  pick.forEach((h, i) => (i ? addOverlay : ingest)(h.s.text, h.s.file));
+  fdSay("Showing " + pick.length + " scan" + (pick.length === 1 ? "" : "s") + " on the graph.");
+};
+
+// ---------- 9c. PLAY TAB: loop art and moiré spirals, drawn as ordinary curves, with optional animation ----------
+const playSay = t => $("playMsg").textContent = t;
+const playHW = () => 450 * (cv.clientHeight * .8) / (cv.clientWidth * .85);      // half-width in nm that makes a circle look round on screen (X span is 0 to 1000)
+function loopPts(a, b, phDeg, turns) {           // x = sin(a·t + twist), y = sin(b·t): one curve drawn in file order
+  const N = Math.min(2400, Math.floor(cv.clientWidth * 2.5)), hw = playHW(), ph = phDeg * Math.PI / 180, X = [], Y = [];   // few enough points that the plotter joins every one with a line
+  for (let i = 0; i <= N; i++) { const t = i / N * 2 * Math.PI * turns; X.push(500 + hw * Math.sin(a * t + ph)); Y.push(50 + 45 * Math.sin(b * t)); }
+  return { X, Ys: [Y] };
+}
+function moirePts(turns, shift, opp) {           // two spirals; the second is moved sideways and winds the other way (or the same way a little tighter). Blank cells keep them as separate curves
+  const N = Math.min(1500, Math.floor(cv.clientWidth * 1.5), Math.max(300, Math.round(turns * 40))), hw = playHW(), tau = 2 * Math.PI * turns, X = [], Y1 = [], Y2 = [];
+  for (let k = 0; k < 2; k++) for (let i = 0; i <= N; i++) {
+    const r = i / N, th = r * tau * (k && !opp ? 1.05 : 1) * (k && opp ? -1 : 1), y = 50 + 45 * r * Math.sin(th);
+    X.push(500 + hw * (r * Math.cos(th) + (k ? shift : 0))); Y1.push(k ? NaN : y); Y2.push(k ? y : NaN);
+  }
+  return { X, Ys: [Y1, Y2] };
+}
+let playName = "", playPts = null;               // the file name the Play tab last drew, and its numbers
+function playShow(name, pts, title, style) {     // a full redraw: build a CSV and load it like any other file
+  const lines = [["Wavelength", ...pts.Ys.map((_, j) => j ? "Tx " + (j + 1) + " (%)" : "Tx (%)")].join(",")];
+  pts.X.forEach((x, i) => lines.push([x.toFixed(2), ...pts.Ys.map(Y => Number.isFinite(Y[i]) ? Y[i].toFixed(3) : "")].join(",")));
+  ingest(lines.join("\n"), name); showTab("play", false);          // the first load would otherwise jump to your usual tab
+  if (style) files[0].cols.forEach(c => Object.assign(c, style));
+  document.querySelectorAll("#series > label > input[type=checkbox]").forEach(c => c.checked = true);
+  $("title").value = title; $("xmin").value = "0"; $("xmax").value = "1000"; $("ymin").value = "0"; $("ymax").value = "100";
+  rebuild(false); playName = name; playPts = pts;
+}
+function playFrame(name, pts, title, style) {    // an animation frame: change the numbers in place, which is much quicker than reloading
+  const ds = files[0];
+  if (files.length !== 1 || ds.fname !== name || ds.n !== pts.X.length) return playShow(name, pts, title, style);
+  for (let i = 0; i < pts.X.length; i++) ds.cols[0].v[i] = pts.X[i];
+  pts.Ys.forEach((Y, j) => { const v = ds.cols[j + 1].v; for (let i = 0; i < Y.length; i++) v[i] = Y[i]; });
+  playPts = pts; draw();
+}
+const loopIn = () => { const L = { a: Number($("liA").value), b: Number($("liB").value), ph: Number($("liP").value), turns: Number($("liN").value) };
+  return Object.values(L).every(Number.isFinite) && L.turns > 0 && (L.a || L.b) ? L : null; };
+const moireIn = () => { const M = { turns: Number($("moN").value), shift: Number($("moS").value) / 100, opp: $("moW").value === "opp" };
+  return M.turns > 0 && M.turns <= 60 && Number.isFinite(M.shift) ? M : null; };
+const LOOP_STYLE = null, MOIRE_STYLE = { col: "#e6edf3", lw: 1 };
+function loopArt() {
+  playStop(); const L = loopIn(); if (!L) return playSay("Loop art needs numbers: waves, twist and turns (more than 0).");
+  playShow("loop_art.csv", loopPts(L.a, L.b, L.ph, L.turns), "Loop art " + L.a + " : " + L.b, LOOP_STYLE);
+  playSay("Drew a " + L.a + " : " + L.b + " loop. Change the numbers and press Draw it again.");
+}
+function moire() {
+  playStop(); const M = moireIn(); if (!M) return playSay("Moiré needs rings between 1 and 60, and a number for the shift.");
+  playShow("moire.csv", moirePts(M.turns, M.shift, M.opp), "Moiré spirals", MOIRE_STYLE);
+  playSay("Drew two spirals " + (M.opp ? "winding opposite ways" : "winding the same way") + ". Try a different shift or more rings.");
+}
+function randomLoop() {
+  $("liA").value = 1 + Math.floor(Math.random() * 8); $("liB").value = 1 + Math.floor(Math.random() * 8);
+  $("liP").value = [0, 30, 45, 60, 90, 120][Math.floor(Math.random() * 6)]; $("liN").value = 1;
+  const L = loopIn(); playShow("loop_art.csv", loopPts(L.a, L.b, L.ph, L.turns), "Loop art " + L.a + " : " + L.b, LOOP_STYLE);
+}
+// animation: twist = the loop's twist keeps turning; surprise = a new random loop every moment; drift = the second spiral slides side to side
+const PLAY_BTNS = { twist: ["liAnim", "▶ Animate"], surprise: ["liAuto", "▶ Keep surprising"], drift: ["moAnim", "▶ Animate"] };
+let anim = null;
+const playLabels = () => { for (const [k, [id, t]] of Object.entries(PLAY_BTNS)) $(id).textContent = anim && anim.kind === k ? "■ Stop" : t; };
+function playStop() {
+  if (!anim) return;
+  cancelAnimationFrame(anim.id); anim = null; playLabels();
+  const ds = files[0];                           // the numbers moved while animating; bring the saved text in line so Export matches what you see
+  if (ds && files.length === 1 && ds.fname === playName) ds.cols.forEach(c => { c.raw = Array.from(c.v, v => Number.isFinite(v) ? String(+v.toFixed(3)) : ""); });
+}
+function playRun(kind) {
+  const was = anim && anim.kind === kind; playStop(); if (was) return;       // pressing the same button again stops it
+  const L = kind === "twist" ? loopIn() : null, M = kind === "drift" ? moireIn() : null;
+  if (kind === "twist" && !L) return playSay("Loop art needs numbers: waves, twist and turns (more than 0).");
+  if (kind === "drift" && !M) return playSay("Moiré needs rings between 1 and 60, and a number for the shift.");
+  const t0 = performance.now(); let last = -1e9, first = true;
+  anim = { kind, id: 0 }; playLabels();
+  const step = now => {
+    if (!anim || anim.kind !== kind) return;
+    const name = kind === "drift" ? "moire.csv" : "loop_art.csv", sp = Number($("plSpeed").value), t = (now - t0) / 1000;
+    if (!first && (files.length !== 1 || files[0].fname !== name)) return playStop();      // you loaded something else: let it go
+    if (kind === "surprise") { if (now - last > 1400 / sp) { last = now; randomLoop(); } }
+    else if (kind === "twist") { const ph = L.ph + t * 40 * sp; $("liP").value = String(Math.round(((ph % 360) + 360) % 360)); playFrame(name, loopPts(L.a, L.b, ph, L.turns), "Loop art " + L.a + " : " + L.b, LOOP_STYLE); }
+    else playFrame(name, moirePts(M.turns, M.shift + .06 * Math.sin(t * sp * .8), M.opp), "Moiré spirals", MOIRE_STYLE);
+    first = false; anim.id = requestAnimationFrame(step);
+  };
+  anim.id = requestAnimationFrame(step);
+}
+$("liGo").onclick = loopArt; $("moGo").onclick = moire;
+$("liRnd").onclick = () => { playStop(); randomLoop(); };
+$("liAnim").onclick = () => playRun("twist"); $("liAuto").onclick = () => playRun("surprise"); $("moAnim").onclick = () => playRun("drift");
+for (const id of ["liA", "liB", "liP", "liN"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") loopArt(); });
+for (const id of ["moN", "moS"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") moire(); });
 $("demo").onclick = e => {                       // the Andover 1064HC10 filter scan, stored at the top of this page
   e.preventDefault(); ingest($("sampledata").textContent, "1064HC10_sample.csv");
   $("title").value = "Andover 1064HC10 transmission";

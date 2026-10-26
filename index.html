@@ -217,6 +217,13 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "plot.html": [
+      { date: "October 25, 2026", title: "Find scans in a folder, and a new Play tab", notes: [
+        "Drop a whole folder on the page (or press Open a folder) and the plotter reads every scan in it. Pick Longpass, Shortpass, Bandpass or AR, choose the edge level (like 5% of peak) and a range in nm, and only the scans that fit are listed. Tick the ones you want and press Show checked on graph.",
+        "A longpass or shortpass can be required to stay above its edge level for a few thousand nm, which weeds out scans with a leak.",
+        "Nothing is uploaded: the files are read in your browser.",
+        "New Check all and Uncheck all buttons above the list of curves.",
+        "New Play tab, the last one on the right, with loop art (Lissajous curves) and moiré spirals drawn right on the graph.",
+        "Press Animate to make them move, or Keep surprising to get a new random loop every moment. Animation speed is Slow, Medium or Fast." ] },
       { date: "October 24, 2026", title: "A tidier report, a logo on the page and ruler marks on the graph", notes: [
         "The Andover logo now sits at the top left of the plotter page.",
         "The graph has small tick marks along both axes: one for every nanometre and every percent, with a longer one every 5. They space themselves out automatically when you zoom a long way in or out, and they print on the report too.",
