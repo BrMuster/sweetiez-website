@@ -65,7 +65,7 @@
     #printFields .l { display: block; color: #444; } #printFields .v { display: block; color: #000; padding-left: 2mm; }
     #printSpecBox { display: block; } #printSpecBox h3 { font-size: 10px; font-weight: 600; color: #333; border-bottom: 2px solid #000; padding-bottom: 1mm; margin-bottom: 1mm; }
     #printSpec { font-size: 12px; font-weight: 600; color: #000; white-space: pre-line; }
-    #printCond, #printStamp { display: block; color: #222; font-size: 11px; text-align: right; } #printCond:empty, #printStamp:empty { display: none; } #printHead { position: relative; } #printHead #printStamp { position: absolute; top: 0; right: 0; text-align: right; font-size: 10px; } #printCond { white-space: pre-line; }
+    #printCond, #printStamp { display: block; color: #222; font-size: 11px; text-align: right; } #printCond:empty, #printStamp:empty { display: none; } #printHead { position: relative; } #printHead #printStamp { position: absolute; top: 0; right: 0; text-align: right; font-size: 10px; } #printCond { display: flex; flex-direction: column; align-items: flex-end; } #printCond span.odd { font-weight: 700; color: #000; background: #ffe14d; padding: 0 3px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #specTblBox { display: none !important; }                           /* the pass / fail table is not printed */
     #stats { display: none; }                                           /* the report uses its own plain copy of the range table */
     #printStats { display: table; }
@@ -95,13 +95,12 @@
     #notesPrint { display: block; white-space: pre-wrap; min-height: 3.5rem; border: 1px solid #888; padding: .4rem; color: #000; }
   }
   .plotrow { display: grid; grid-template-columns: 1fr 10.5rem; gap: .8rem; align-items: start; }   /* graph on the left, tips down the right */
-  body.modtab .plotrow { grid-template-columns: 20rem 1fr 10.5rem; }                              /* the Modify tab adds its controls down the far left */
   .tips { display: flex; flex-direction: column; gap: .7rem; font-size: .82rem; color: var(--muted); }
   .tips span { display: grid; justify-items: start; gap: .2rem; }
   .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; }
   .tipx { padding: .1rem .55rem; font-size: .8rem; background: transparent; color: var(--muted); }
   .tips .tipx { margin-left: auto; } #tipsShow { justify-self: start; }
-  @media (max-width: 820px) { .plotrow, body.modtab .plotrow { grid-template-columns: 1fr; } .tips { flex-direction: row; flex-wrap: wrap; gap: .3rem 1.1rem; } .tips span { display: block; } .tips b { margin-right: .35rem; } }
+  @media (max-width: 820px) { .plotrow { grid-template-columns: 1fr; } .tips { flex-direction: row; flex-wrap: wrap; gap: .3rem 1.1rem; } .tips span { display: block; } .tips b { margin-right: .35rem; } }
   .tabs { display: flex; flex-wrap: wrap; gap: .3rem; border-bottom: 1px solid var(--line); }
   .tab { background: transparent; border-radius: 4px 4px 0 0; padding: .5rem 1.1rem; color: var(--muted); border-bottom: 3px solid transparent; }
   .tab.on, .tab.on:hover:not(:disabled) { color: #fff; background: #ffffff0d; border-bottom-color: var(--accent); }
@@ -115,8 +114,9 @@
   .lim { display: grid; gap: .15rem; color: var(--muted); font-size: .8rem; cursor: default; }
   .sw { width: 12px; height: 12px; border-radius: 2px; }
   .note { white-space: pre-line; color: var(--text); }
+  #tempC.odd, #aoi.odd, #pol.odd { border-color: #ffe14d; box-shadow: 0 0 0 1px #ffe14d; }   /* a changed condition is outlined on screen too */
   .modcol { display: grid; gap: .6rem; align-content: start; }
-  .modstack { display: grid; gap: .6rem; }                                                         /* shift box above smooth box */
+  .modstack { display: grid; gap: .6rem; }   /* shift row above smooth row, each on one line, under the graph */
   #modfile { max-width: 10.5rem; }
   .modcard { display: grid; gap: .45rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 6px; }
   .modcard .controls { gap: .4rem .7rem; } .modcard input.unit { width: 4.2rem; padding: .35rem .5rem; } .modcard button { padding: .4rem .7rem; }
@@ -169,49 +169,6 @@
     <img id="printImg" class="keep" alt="Graph of your data">
     <div id="printLegend" class="keep"></div>
     <div class="plotrow">
-    <div class="modcol" id="modcol" hidden>
-      <div class="controls">
-        <label class="txt"><b>Change</b> <select id="modfile" aria-label="Which CSV the shift and smooth buttons change"></select></label>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Each CSV keeps its own shifts and smoothing. Pick “All files” to change them together. Your files themselves are never changed.">?</span>
-      </div>
-      <div class="modstack">
-        <div class="modcard">
-          <div class="bar"><b>Shift data</b>
-            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the curve by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span></div>
-          <div class="controls">
-            <label class="txt">Range <input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"></label>
-            <label class="txt">to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</label>
-          </div>
-          <div class="controls">
-            <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
-            <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
-          </div>
-          <div class="bar">
-            <button type="button" id="shgo">Shift it</button>
-            <button type="button" id="shundo">Undo last</button>
-            <button type="button" id="shreset">Reset</button>
-          </div>
-          <span class="hint note" id="shtotal">No shift applied</span>
-        </div>
-        <div class="modcard">
-          <div class="bar"><b>Smooth data</b>
-            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Replaces each point with the average of its neighbours (a moving average). A wider width is smoother but rounds off sharp edges. Leave the range blank to smooth everything, or fill it in to smooth only a noisy part. Each click smooths again, on top of any shift.">?</span></div>
-          <div class="controls">
-            <label class="txt">Range <input type="text" id="smfrom" class="unit" placeholder="start" aria-label="Smooth only from this X value, in nm"></label>
-            <label class="txt">to <input type="text" id="smto" class="unit" placeholder="end" aria-label="Smooth only up to this X value, in nm"> nm</label>
-          </div>
-          <div class="controls">
-            <label class="txt">Width <input type="text" id="smw" class="unit" value="5" aria-label="Smoothing width in points"> points</label>
-          </div>
-          <div class="bar">
-            <button type="button" id="smgo">Smooth it</button>
-            <button type="button" id="smundo">Undo last</button>
-            <button type="button" id="smreset">Reset</button>
-          </div>
-          <span class="hint note" id="smnote">No smoothing applied</span>
-        </div>
-      </div>
-    </div>
     <div class="plotwrap" id="plotwrap">
       <div class="ylim" id="ylim">
         <label class="lim">Y max <input type="text" id="ymax" class="unit" placeholder="auto"></label>
@@ -252,6 +209,42 @@
       <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
       <button type="button" class="tab" role="tab" data-tab="play">Play</button>
+    </div>
+
+    <div class="panel" data-tab="modify" id="modcol" hidden>
+      <div class="controls">
+        <label class="txt"><b>Change</b> <select id="modfile" aria-label="Which CSV the shift and smooth buttons change"></select></label>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Each CSV keeps its own shifts and smoothing. Pick “All files” to change them together. Your files themselves are never changed.">?</span>
+      </div>
+      <div class="modstack">
+        <div class="modcard">
+          <div class="controls">
+            <b>Shift data</b>
+            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the curve by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span>
+            <label class="txt">Range <input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"></label>
+            <label class="txt">to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</label>
+            <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
+            <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
+            <button type="button" id="shgo">Shift it</button>
+            <button type="button" id="shreset">Reset</button>
+            <span class="hint note" id="shtotal">No shift applied</span>
+          </div>
+        </div>
+        <div class="modcard">
+          <div class="controls">
+            <b>Smooth data</b>
+            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Replaces each point with the average of its neighbours (a moving average). A wider width is smoother but rounds off sharp edges. Leave the range blank to smooth everything, or fill it in to smooth only a noisy part. Each click smooths again, on top of any shift.">?</span>
+            <label class="txt">Range <input type="text" id="smfrom" class="unit" placeholder="start" aria-label="Smooth only from this X value, in nm"></label>
+            <label class="txt">to <input type="text" id="smto" class="unit" placeholder="end" aria-label="Smooth only up to this X value, in nm"> nm</label>
+            <label class="txt">Width <input type="text" id="smw" class="unit" value="5" aria-label="Smoothing width in points"> points</label>
+            <button type="button" id="smgo">Smooth it</button>
+            <button type="button" id="smreset">Reset</button>
+            <span class="hint note" id="smnote">No smoothing applied</span>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
     </div>
 
     <div class="panel" data-tab="data" hidden>
@@ -364,6 +357,23 @@
       <div class="specbox">
         <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
           <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
+        <div class="bar" id="specSets">
+          <b>Saved sets</b>
+          <select id="specSetPick" aria-label="Load a saved set of specs"></select>
+          <button type="button" id="specSetLoad">Load</button>
+          <button type="button" id="specSetDel" title="Delete the chosen saved set">Delete</button>
+          <input type="text" id="specSetName" placeholder="part number or name" aria-label="Name for the set of specs" style="width:12rem">
+          <button type="button" id="specSetSave" title="Save the specs listed below under this name (same name replaces)">Save current specs</button>
+          <span class="hint" id="specSetNote">Saved in this browser only; nothing is uploaded.</span>
+        </div>
+        <div class="bar">
+          <b>CSV</b>
+          <button type="button" id="specCsvOut" title="Save the specs listed below as a CSV file">Save current specs as CSV</button>
+          <button type="button" id="specCsvAll" title="Save every saved set into one CSV file">Save all sets as CSV</button>
+          <button type="button" id="specCsvIn" title="Load specs from a CSV file made by this page (or in the same layout)">Load specs from CSV</button>
+          <input type="file" id="specCsvFile" accept=".csv,.txt,text/csv,text/plain" hidden>
+          <span class="hint">Columns: Set, From, To, Measure, Condition, Value, Type. One row per spec.</span>
+        </div>
         <div id="specRows"></div>
         <div class="bar"><b>Draw on the graph</b>
           <label class="txt">Ctrl + drag draws
@@ -900,6 +910,7 @@ function edgePts(s, pct) {                       // find where series s crosses 
 // ---------- 3c. SPECIFICATIONS (wavelength range + T or R limit, absolute or average) ----------
 let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }  (a, b, v kept as typed text)
 const specOK = sp => [sp.a, sp.b, sp.v].every(t => String(t).trim() !== "" && isFinite(Number(t)));
+const specShown = sp => sp.show !== false;       // the checkbox beside each spec; unchecked hides it from the graph, check table and print
 const specName = sp => sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
 function renderSpecs() {                         // one row of fields per spec
   const box = $("specRows"); box.innerHTML = "";
@@ -910,16 +921,18 @@ function renderSpecs() {                         // one row of fields per spec
     const pick = (key, opts, label) => { const s = document.createElement("select"); s.setAttribute("aria-label", "Spec " + (k + 1) + " " + label);
       opts.forEach(([v, t]) => s.add(new Option(t, v))); s.value = sp[key]; s.onchange = () => { sp[key] = s.value; line.className = "specline " + sp.kind; draw(); }; return s; };
     const span = t => { const e = document.createElement("span"); e.className = "hint"; e.textContent = t; return e; };
+    const vis = document.createElement("input"); vis.type = "checkbox"; vis.checked = specShown(sp); vis.title = "Show this spec on the graph";
+    vis.setAttribute("aria-label", "Show spec " + (k + 1)); vis.onchange = () => { sp.show = vis.checked; renderSpecs(); draw(); };
     const line = document.createElement("i"); line.className = "specline " + sp.kind; line.title = "How this spec is drawn";
     const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this spec"; del.setAttribute("aria-label", "Remove spec " + (k + 1));
     del.onclick = () => { specs.splice(k, 1); renderSpecs(); draw(); };
-    row.append(txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
+    row.append(vis, txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
       pick("meas", [["T", "T"], ["R", "R"]], "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
       txt("v", "Value", "pct"), span(YUNIT),
       pick("kind", [["abs", "Absolute"], ["avg", "Average"], ["best", "Best Effort"]], "type"), line, del);
     box.append(row);
   });
-  $("specTblBox").hidden = !specs.some(specOK);
+  $("specTblBox").hidden = !specs.some(sp => specOK(sp) && specShown(sp));
 }
 function checkSpec(sp, s) {                      // measure one series against one spec: the worst point (absolute) or the average
   const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b), v = +sp.v;
@@ -936,7 +949,7 @@ function checkSpec(sp, s) {                      // measure one series against o
 }
 function specTable(S) {
   const t = $("specTbl"); t.innerHTML = "";
-  const ok = specs.filter(specOK); $("specTblBox").hidden = !ok.length || !S.length; if ($("specTblBox").hidden) return;
+  const ok = specs.filter(sp => specOK(sp) && specShown(sp)); $("specTblBox").hidden = !ok.length || !S.length; if ($("specTblBox").hidden) return;
   t.createCaption().textContent = "Spec check";
   const addRow = (cells, tag) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); return tr; };
   addRow(["Spec", "Range", "Series", "Measured", "At", "Margin", "Result"], "th");
@@ -965,6 +978,68 @@ function renderLines() {                         // one row per drawn line, unde
     row.append(lab, st, mk, del); box.append(row);
   });
 }
+// saved spec sets: a named list of specs (say, one per part number) kept in this browser's localStorage and loaded in one click
+const SPECSETKEY = "plotSpecSets";
+const specSets = () => { try { return JSON.parse(localStorage.getItem(SPECSETKEY) || "{}"); } catch (e) { return {}; } };
+function fillSpecSets(pick) {
+  const all = specSets(), names = Object.keys(all).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), sel = $("specSetPick");
+  sel.innerHTML = ""; sel.add(new Option(names.length ? "Pick a saved set…" : "No saved sets yet", ""));
+  names.forEach(n => sel.add(new Option(n + " (" + all[n].length + ")", n))); if (pick) sel.value = pick;
+}
+$("specSetSave").onclick = () => {
+  const name = $("specSetName").value.trim() || $("specSetPick").value, ok = specs.filter(specOK);
+  if (!name) { $("specSetNote").textContent = "Type a part number or name first."; return; }
+  if (!ok.length) { $("specSetNote").textContent = "Add at least one complete spec first."; return; }
+  const all = specSets(), had = name in all; all[name] = ok.map(({ a, b, meas, op, v, kind }) => ({ a, b, meas, op, v, kind }));
+  try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) { $("specSetNote").textContent = "Couldn't save: this browser's storage is full or blocked."; return; }
+  fillSpecSets(name); $("specSetName").value = ""; $("specSetNote").textContent = (had ? "Replaced " : "Saved ") + name + " (" + ok.length + " spec" + (ok.length > 1 ? "s" : "") + ").";
+};
+$("specSetLoad").onclick = $("specSetPick").onchange = () => {
+  const name = $("specSetPick").value, set = specSets()[name]; if (!name || !set) return;
+  specs = set.map(sp => ({ ...sp })); renderSpecs(); draw(); $("specSetNote").textContent = "Loaded " + name + ".";
+};
+$("specSetDel").onclick = () => {
+  const name = $("specSetPick").value, all = specSets(); if (!name || !(name in all)) { $("specSetNote").textContent = "Pick a saved set to delete."; return; }
+  delete all[name]; try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) {} fillSpecSets(); $("specSetNote").textContent = "Deleted " + name + ".";
+};
+fillSpecSets();
+// spec CSV: Set, From, To, Measure (T/R), Condition (>= or <=), Value, Type (Absolute / Average / Best Effort) - one row per spec, easy to read from LabVIEW
+const KINDW = { abs: "Absolute", avg: "Average", best: "Best Effort" };
+function specCsv(sets) {
+  const esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s, out = ["Set,From,To,Measure,Condition,Value,Type"];
+  for (const [name, list] of sets) for (const sp of list) out.push([name, sp.a, sp.b, sp.meas, sp.op === "ge" ? ">=" : "<=", sp.v, KINDW[sp.kind] || "Absolute"].map(x => esc(String(x))).join(","));
+  return out.join("\r\n") + "\r\n";
+}
+const saveSpecCsv = (sets, fname) => save(new Blob([specCsv(sets)], { type: "text/csv" }), fname);
+$("specCsvOut").onclick = () => {
+  const ok = specs.filter(specOK); if (!ok.length) { $("specSetNote").textContent = "Add at least one complete spec first."; return; }
+  const asked = prompt("Name for this set of specs (used as the file name and the Set column):", $("specSetName").value.trim() || $("specSetPick").value || "");
+  if (asked === null) return;                                    // Cancel: nothing is saved
+  const name = asked.trim() || "Specs"; $("specSetName").value = name;
+  saveSpecCsv([[name, ok]], name.replace(/[\\/:*?"<>|]/g, "_") + " specs.csv");
+};
+$("specCsvAll").onclick = () => {
+  const all = Object.entries(specSets()); if (!all.length) { $("specSetNote").textContent = "No saved sets to save yet."; return; }
+  saveSpecCsv(all, "Saved specs.csv");
+};
+$("specCsvIn").onclick = () => $("specCsvFile").click();
+$("specCsvFile").onchange = async () => {
+  const f = $("specCsvFile").files[0]; $("specCsvFile").value = ""; if (!f) return;
+  const rows = parseCSV(await f.text()), head = (rows.shift() || []).map(h => h.trim().toLowerCase()), col = k => head.findIndex(h => h.startsWith(k));
+  const ix = { set: col("set"), a: col("from"), b: col("to"), meas: col("meas"), op: col("cond"), v: col("val"), kind: col("type") };
+  if (ix.a < 0 || ix.b < 0 || ix.v < 0) { $("specSetNote").textContent = "That file needs From, To and Value columns (see the layout beside the buttons)."; return; }
+  const get = (r, k) => ix[k] < 0 ? "" : (r[ix[k]] || "").trim(), sets = {};
+  for (const r of rows) {
+    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^r/i.test(get(r, "meas")) ? "R" : "T", op: /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
+                 kind: /avg|aver/i.test(get(r, "kind")) ? "avg" : /best/i.test(get(r, "kind")) ? "best" : "abs" };
+    if (!specOK(sp)) continue; (sets[get(r, "set") || shortName(f.name)] ||= []).push(sp);
+  }
+  const names = Object.keys(sets); if (!names.length) { $("specSetNote").textContent = "No usable spec rows found in that file."; return; }
+  const all = specSets(); Object.assign(all, sets);
+  try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) { $("specSetNote").textContent = "Couldn't save: this browser's storage is full or blocked."; return; }
+  fillSpecSets(names[0]); specs = sets[names[0]].map(sp => ({ ...sp })); renderSpecs(); draw();
+  $("specSetNote").textContent = "Loaded " + names[0] + (names.length > 1 ? " (and saved " + (names.length - 1) + " other set" + (names.length > 2 ? "s" : "") + " in the list)" : "") + ".";
+};
 $("addspec").onclick = () => { specs.push({ a: "", b: "", meas: "T", op: "ge", v: "", kind: "abs" }); renderSpecs(); $("specRows").lastChild.firstChild.focus(); };
 
 // ---------- 4. DRAW THE GRAPH ----------
@@ -982,7 +1057,7 @@ function render() {
     const x = s.X[i], y = ty(s.c.v[i]);
     if (x >= view.a && x <= view.b && isFinite(y)) { vis++; if (y < lo) lo = y; if (y > hi) hi = y; }
   }
-  for (const sp of specs) { const y = specOK(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
+  for (const sp of specs) { const y = specOK(sp) && specShown(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
   if (lo === Infinity) { lo = 0; hi = 1; } else if (hi === lo) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * .06; lo -= pad; hi += pad;
   const fixed = id => { const s = $(id).value.trim(); return s === "" ? NaN : ty(Number(s)); };   // typed Y limits override auto-scaling
@@ -1052,7 +1127,7 @@ function render() {
     ctx.setLineDash([]); ctx.lineCap = "butt";
   }
   for (const sp of specs) {                                            // specifications: solid = absolute, dotted = average
-    if (!specOK(sp)) continue;
+    if (!specOK(sp) || !specShown(sp)) continue;
     const yv = ty(+sp.v); if (!isFinite(yv)) continue;
     const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = sp.op === "ge" ? -1 : 1;   // ticks point to the passing side
     ctx.strokeStyle = ctx.fillStyle = sp.kind === "best" ? "#4cd964" : P.title; ctx.lineWidth = 2.5; ctx.lineCap = "round";
@@ -1601,7 +1676,6 @@ $("shgo").onclick = () => {
   const s = { ...r, dx, dy }, t = targets(); t.forEach(f => f.shifts.push({ ...s }));
   shifted(t.length === 1 && isWhole(s) ? dx : 0);
 };
-$("shundo").onclick = () => { const t = targets(), gone = t.map(f => f.shifts.pop()).filter(Boolean); if (gone.length) shifted(t.length === 1 && isWhole(gone[0]) ? -gone[0].dx : 0); };
 $("shreset").onclick = () => { for (const id of ["shfrom", "shto", "shx", "shy"]) $(id).value = ""; targets().forEach(f => f.shifts = []); shifted(); };
 
 const smoothed1 = () => { shiftStamp++; showSmooth(); if (view) draw(); };
@@ -1612,7 +1686,6 @@ $("smgo").onclick = () => {
   $("smw").value = w;
   targets().forEach(f => f.smooths.push({ ...r, w })); smoothed1();
 };
-$("smundo").onclick = () => { if (targets().map(f => f.smooths.pop()).some(Boolean)) smoothed1(); };
 $("smreset").onclick = () => { for (const id of ["smfrom", "smto"]) $(id).value = ""; $("smw").value = "5"; targets().forEach(f => f.smooths = []); smoothed1(); };
 addEventListener("resize", draw);
 
@@ -1623,7 +1696,7 @@ const TABS = [...document.querySelectorAll(".tab")];
 function showTab(id, remember = true) {
   TABS.forEach(b => { const on = b.dataset.tab === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
   document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.tab !== id);
-  document.body.classList.toggle("modtab", id === "modify"); $("modcol").hidden = id !== "modify"; draw();   // the Modify tab puts its controls beside the graph, so redraw at the new size
+  draw();
   $("xlim").style.visibility = $("ylim").style.visibility = id === "display" ? "" : "hidden";   // X and Y min / max only show on the Display tab (their space stays reserved so nothing shifts)
   if (remember) try { localStorage.setItem("plotTab", id); } catch (e) {}
 }
@@ -1693,10 +1766,14 @@ function preparePrint() {                        // fill in the print-only parts
     else if (isH) cells[0] += " (" + XUNIT + ")"; else cells[0] = cells[0].replace(/^(#\d+|View)\s*/, "");
     const row = pt.insertRow(); cells.forEach(v => { const c = document.createElement(isH ? "th" : "td"); c.textContent = v; row.append(c); });
   }
-  const specLines = [...specs.filter(specOK).map(specName), ...($("spec").value.trim() ? [$("spec").value.trim()] : [])];   // spec text only; no pass / fail
+  const specLines = [...specs.filter(sp => specOK(sp) && specShown(sp)).map(specName), ...($("spec").value.trim() ? [$("spec").value.trim()] : [])];   // spec text only; no pass / fail
   $("printSpec").textContent = specLines.join("\n"); $("printSpecBox").hidden = !specLines.length;
-  const cond = [["Temperature", $("tempC").value, " °C"], ["AOI", $("aoi").value, "°"], ["Polarization", $("pol").value, ""]].filter(c => c[1].trim() !== "").map(c => c[0] + ": " + c[1].trim() + c[2]);   // conditions the scan stands for
-  $("printCond").textContent = cond.join("\n");
+  const pc = $("printCond"); pc.innerHTML = "";                       // conditions the scan stands for; any that differ from the usual 22 °C / 0° / Random are highlighted
+  for (const [name, id, def, unit] of [["Temperature", "tempC", "22", " °C"], ["AOI", "aoi", "0", "°"], ["Polarization", "pol", "Random", ""]]) {
+    const v = $(id).value.trim(), odd = v !== "" && v.toLowerCase() !== def.toLowerCase() && !(isFinite(+v) && isFinite(+def) && +v === +def);
+    $(id).classList.toggle("odd", odd); if (v === "") continue;
+    const line = document.createElement("span"); line.textContent = name + ": " + v + unit; if (odd) line.className = "odd"; pc.append(line);
+  }
   const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = active().length < 2;   // one scan is already named by the graph
   for (const s of active()) {
     const sp = document.createElement("span"), sw = document.createElement("i");
@@ -1732,6 +1809,9 @@ $("rptGo").onclick = () => {
   rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); rpt.stamp = $("rptStamp").checked; try { localStorage.setItem("plotOperator", rpt.op); localStorage.setItem("plotStamp", rpt.stamp ? "1" : "0"); } catch (e) {}
   closeRpt(); preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print());
 };
+for (const id of ["tempC", "aoi", "pol"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, () => {   // outline a changed condition on screen right away
+  const v = $(id).value.trim(), def = { tempC: "22", aoi: "0", pol: "Random" }[id];
+  $(id).classList.toggle("odd", v !== "" && v.toLowerCase() !== def.toLowerCase() && !(isFinite(+v) && +v === +def)); });
 addEventListener("beforeprint", preparePrint);   // also covers Ctrl+P
 
 

@@ -217,6 +217,12 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "plot.html": [
+      { date: "October 26, 2026", title: "Saved spec sets, spec checkboxes and a tidier Modify tab", notes: [
+        "Save a group of specs under a part number on the Specs tab, then pick it from the Saved sets list to load it in one click. They are kept in your browser only; nothing is uploaded.",
+        "Specs can be saved to a CSV file (it asks you for a name first) and loaded back in later, so you can move them to another computer or share them.",
+        "Every spec now has a checkbox so you can hide it from the graph, the check table and the printed report without deleting it.",
+        "Temperature, AOI and Polarization are highlighted on the report whenever they are not the usual 22 °C, 0° and Random, so an unusual scan catches the eye.",
+        "On the Modify tab, Shift data and Smooth data now sit under the graph, each on one line, so you can watch the graph as you click. The Undo last buttons are gone; Reset still clears everything." ] },
       { date: "October 25, 2026", title: "Find scans in a folder, and a new Play tab", notes: [
         "Drop a whole folder on the page (or press Open a folder) and the plotter reads every scan in it. Pick Longpass, Shortpass, Bandpass or AR, choose the edge level (like 5% of peak) and a range in nm, and only the scans that fit are listed. Tick the ones you want and press Show checked on graph.",
         "A longpass or shortpass can be required to stay above its edge level for a few thousand nm, which weeds out scans with a leak.",
