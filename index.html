@@ -209,6 +209,11 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid.html": [
+      { date: "October 31, 2026", title: "Smaller particles and working tilt", notes: [
+        "New Particle size setting on the Liquids tab. Smaller particles make a smoother, finer liquid; the amount adjusts itself to keep the tank about half full, up to 3000 of each. Very small particles are slower, and the tank is shallower once that limit is reached.",
+        "Drop size is now called Drawn size: it only changes how big the dots look, not the physics.",
+        "Tilt to pour now reads the phone's motion sensor and works on both iPhone and Android. It tells you if something is in the way: the page has to be opened from an https:// address, and on iPhone you need to tap Allow.",
+        "If the liquid runs the wrong way when you tilt, press Reverse tilt." ] },
       { date: "October 31, 2026", title: "Liquid Lab opens, with a LabVIEW theme", notes: [
         "Four coloured liquids of different weights share one tank. Throw them together and they sort themselves into layers, heaviest at the bottom, the way oil, water and syrup do.",
         "Tools: Drag, Attract, Repel, Swirl, Pour, Erase and a solid Ball to stir with. Scroll over the tank to resize the brush, press 1 to 7 to switch tools, and Esc or Space to stop.",

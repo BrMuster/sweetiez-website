@@ -134,7 +134,8 @@
           <div class="tools" id="toolBtns"></div>
           <div id="toolSliders"></div>
           <div class="ro"><span class="lbl">Pour liquid</span><div class="swatches" id="pourSw"></div></div>
-          <div class="bar"><button id="tiltBtn" type="button" hidden>Tilt to pour</button></div>
+          <div class="bar"><button id="tiltBtn" type="button" hidden>Tilt to pour</button><button id="tiltRev" type="button" hidden title="If the liquid runs uphill, press this to turn the tilt round">Reverse tilt</button></div>
+          <p class="hint" id="tiltInfo" hidden></p>
           <p class="hint" id="toolHint"></p>
         </div>
         <div class="pane" id="liquids" hidden>
@@ -275,7 +276,7 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
 const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
-const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, drop: 0.6, running: true, ...PHYS };
+const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, ...PHYS };
 const TOOLS = [
   ["drag", "Drag", "Press and drag to push the liquid along with you."],
   ["attract", "Attract", "Hold to pull liquid toward the pointer."],
@@ -286,6 +287,7 @@ const TOOLS = [
   ["push", "Ball", "A solid ball: move it through the liquid like a spoon."],
 ];
 const defaultAmount = () => Math.round(Math.min(6000, Math.max(1200, sim.W * sim.H / 135)) / 4 / 50) * 50;   // about 4000 drops on a laptop screen, fewer on a phone
+const amountFor = size => Math.min(3000, Math.max(50, Math.round(1.72 * 1.72 * sim.W * sim.H / (4 * size * size) / 50) * 50));   // drops of each liquid that fill about half the tank at this particle size
 
 function slider(box, label, key, min, max, step, onSet, help) {   // a labelled slide control with a typed number box beside it
   const row = document.createElement("div"), sp = document.createElement("span"), r = document.createElement("input"), num = document.createElement("input");
@@ -363,7 +365,7 @@ function fill(mode) {
   const per = ctl.amount, N = per * 4, W = sim.W, H = sim.H;
   sim.n = 0; fillArea = W * H;
   if (!N) return;
-  sim.h = Math.min(40, Math.max(10, 1.72 * Math.sqrt(W * H / N)));   // drop spacing that fills roughly half the tank once settled
+  sim.h = ctl.size;                              // how far each particle reaches, which sets how far apart they settle
   if (mode === "mix") {                          // everything thrown in at random; it sorts itself out
     for (let m = 0; m < 4; m++) for (let k = 0; k < per; k++) addParticle(Math.random() * W, Math.random() * H, m);
     return;
@@ -455,21 +457,44 @@ function perFrameTools() {                       // pouring and erasing happen o
 }
 
 // ---- tilt a phone to steer gravity ----
-let tilt = null;
-const onTilt = e => {
-  const g = (e.gamma || 0) * Math.PI / 180, b = (e.beta || 0) * Math.PI / 180, a = (screen.orientation?.angle || 0) * Math.PI / 180;
-  const x = Math.sin(g), y = Math.sin(b);
-  tilt = { gx: x * Math.cos(a) + y * Math.sin(a), gy: -x * Math.sin(a) + y * Math.cos(a) };   // turn the reading to match the screen's rotation
+// Reads the motion sensor's gravity reading (in m/s², about 9.8 straight down). iPhones report it with the opposite
+// sign to Android, and the reading is in the phone's own frame, so it is turned to match how the screen is rotated.
+let tilt = null, tiltSeen = 0, tiltTimer = 0;
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const tiltInfo = msg => { $("tiltInfo").textContent = msg; $("tiltInfo").hidden = !msg; };
+const onMotion = e => {
+  const g = e.accelerationIncludingGravity;
+  if (!g || g.x == null || g.y == null) return;  // some browsers send empty readings when there is no sensor
+  const sign = (IOS ? 1 : -1) * ($("tiltRev").classList.contains("on") ? -1 : 1) / 9.8;
+  const dx = g.x * sign, dy = -g.y * sign;       // gravity in the phone's frame, y pointing down the screen
+  let deg = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  const a = ((deg % 360) + 360) % 360 * Math.PI / 180;
+  const gx = dx * Math.cos(a) + dy * Math.sin(a), gy = -dx * Math.sin(a) + dy * Math.cos(a);
+  tilt = tilt ? { gx: tilt.gx * 0.6 + gx * 0.4, gy: tilt.gy * 0.6 + gy * 0.4 } : { gx, gy };   // smooth out sensor jitter
+  if (!tiltSeen++) tiltInfo("Tilt is on. Hold the phone upright and lean it to pour; flat on a table there is no pull.");
 };
-if (window.DeviceOrientationEvent && matchMedia("(pointer: coarse)").matches) $("tiltBtn").hidden = false;
+function tiltOff(msg) {
+  removeEventListener("devicemotion", onMotion); clearTimeout(tiltTimer);
+  tilt = null; $("tiltBtn").classList.remove("on"); $("tiltBtn").textContent = "Tilt to pour"; $("tiltRev").hidden = true;
+  tiltInfo(msg || "");
+}
+if (matchMedia("(pointer: coarse)").matches) $("tiltBtn").hidden = false;
 $("tiltBtn").onclick = async () => {
-  const on = !$("tiltBtn").classList.contains("on");
-  if (on && typeof DeviceOrientationEvent.requestPermission === "function") {   // iPhone asks first
-    try { if (await DeviceOrientationEvent.requestPermission() !== "granted") return; } catch (e) { return; }
+  if ($("tiltBtn").classList.contains("on")) return tiltOff();
+  if (!window.isSecureContext) return tiltInfo("Tilt needs the page opened from an https:// address. Phones block the motion sensor on files and plain http:// pages.");
+  if (!window.DeviceMotionEvent) return tiltInfo("This browser does not give pages access to the motion sensor.");
+  if (typeof DeviceMotionEvent.requestPermission === "function") {   // iPhone asks first, and only straight after a tap
+    let ok = "";
+    try { ok = await DeviceMotionEvent.requestPermission(); } catch (e) {}   // newer Chrome has this too and may answer "prompt"; only a clear no stops here
+    if (ok === "denied") return tiltInfo("Motion access was refused. On iPhone, close Safari fully, open this page again, tap Tilt to pour and choose Allow.");
   }
-  $("tiltBtn").classList.toggle("on", on);
-  if (on) addEventListener("deviceorientation", onTilt); else { removeEventListener("deviceorientation", onTilt); tilt = null; }
+  tiltSeen = 0;
+  addEventListener("devicemotion", onMotion);
+  $("tiltBtn").classList.add("on"); $("tiltBtn").textContent = "Tilt on"; $("tiltRev").hidden = false;
+  tiltInfo("Waiting for the motion sensor…");
+  tiltTimer = setTimeout(() => { if (!tiltSeen) tiltOff("No readings came from the motion sensor. This device or browser may not have one, or it may be turned off in its settings."); }, 2500);
 };
+$("tiltRev").onclick = () => $("tiltRev").classList.toggle("on");   // for a device that reports the other way round
 
 // ---- stop / run ----
 function setRunning(on) {
@@ -588,18 +613,19 @@ function sizeTank() {
   if (!started) {                                // first time the tank has a size: pick an amount that suits the screen and fill it
     started = true;
     ctl.amount = defaultAmount();
-    sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, 2500, 50, null, "Drops of each liquid when you press Mix all or Flip layers");
-    slider($("liqSliders"), "Drop size", "drop", 0.3, 1.2, 0.05, null, "How big each drop is drawn");
-  } else if (W * H < fillArea / 1.6 || W * H > fillArea * 1.6) sliders.amount.set(defaultAmount());   // a much smaller or bigger tank (a phone turned, a window resized) gets a fresh fill to suit it
-  else return;
-  fill("mix");
+    ctl.size = Math.round(1.72 * Math.sqrt(W * H / (4 * ctl.amount)));
+    slider($("liqSliders"), "Particle size", "size", 6, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
+    sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, 3000, 50, () => fill("mix"), "How many particles of each liquid");
+    slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, null, "How big each particle is drawn, without changing the physics");
+    fill("mix");
+  } else if (W * H < fillArea / 1.6 || W * H > fillArea * 1.6) sliders.amount.set(amountFor(ctl.size));   // a much smaller or bigger tank (a phone turned, a window resized) gets a fresh fill to suit it
 }
 new ResizeObserver(sizeTank).observe(tank);
 function frame(t) {
   requestAnimationFrame(frame);
   if (ctl.running && sim.n + pointers.size) {
     const steps = ctl.steps;
-    if (tilt) { sim.gx = tilt.gx * ctl.grav * 1.5; sim.gy = tilt.gy * ctl.grav * 1.5; }
+    if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
     else { const a = ctl.angle * Math.PI / 180; sim.gx = Math.sin(a) * ctl.grav; sim.gy = Math.cos(a) * ctl.grav; }
     for (const p of pointers.values()) { p.vx = (p.x - p.lx) / steps; p.vy = (p.y - p.ly) / steps; }
     perFrameTools();
