@@ -40,7 +40,7 @@
   .ro { display: grid; gap: .1rem; }
   .ro output { min-width: 4rem; padding: .1rem .4rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--strong); background: var(--well); border-radius: 4px; }
   #fpsChart { width: 100%; height: 64px; display: block; border-radius: 4px; }
-  .tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; flex-wrap: wrap; gap: .3rem; border-bottom: 1px solid var(--line); }
   .tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
   .tab.on, .tab.on:hover { background: none; color: var(--strong); border-bottom-color: var(--accent); }
   .pane { display: grid; gap: .6rem; }
@@ -130,7 +130,7 @@
   <div class="rig">
     <div class="tankcol">
       <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>S</b> sculpts · <b>Esc</b> stops</span></div>
-      <div class="tank" id="tank"><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
+      <div class="tank" id="tank"><canvas id="bg"></canvas><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
     </div>
     <div class="panel">
       <div class="card">
@@ -148,6 +148,7 @@
           <button class="tab" type="button" data-tab="liquids">Liquids</button>
           <button class="tab" type="button" data-tab="physics">Physics</button>
           <button class="tab" type="button" data-tab="plot">Plot</button>
+          <button class="tab" type="button" data-tab="picture">Picture</button>
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
@@ -184,6 +185,21 @@
             </div>
             <div class="bar"><button id="pourPlot" type="button">Pour the plot into the tank</button><button id="meltBtn" type="button" title="Unfreeze everything and turn Sculpt off (M)">Melt</button></div>
             <p class="hint">Drag, attract or push the plot to reshape it; frozen parts come loose where you touch them. <b>Melt</b> (or <b>M</b>) lets it all go, and the lines run down and sort by weight. Pour some liquid onto a frozen plot and it flows around the lines like walls. A smaller Particle size (Liquids tab) gives finer lines.</p>
+          </div>
+        </div>
+        <div class="pane" id="picture" hidden>
+          <label class="drop" id="picDrop"><b>Paste a screenshot (Ctrl+V)</b><span class="hint">or drop a picture here or on the tank, or click to choose one</span><input type="file" id="picFile" accept="image/*" hidden></label>
+          <div class="bar"><button id="picPaste" type="button" title="Use the picture on your clipboard">Paste from clipboard</button><button id="picClear" type="button" hidden>Remove picture</button></div>
+          <p class="hint" id="picMsg">The picture becomes the tank's background, and the liquid bumps into what is drawn on it. Nothing is uploaded.</p>
+          <div id="picOpts" class="pane" hidden>
+            <div class="ro"><span class="lbl">Walls</span><span class="seg" id="wallSeg"><button type="button" data-wall="off">Off</button><button type="button" class="on" data-wall="shapes" title="Anything that isn't the background colour is solid: controls, buttons, boxes, text">Shapes</button><button type="button" data-wall="edges" title="Only sharp edges are solid, so liquid can get inside boxes">Outlines</button></span></div>
+            <div class="ro" id="emptyRow"><span class="lbl">Empty colours (the liquid passes through these)</span><div class="swatches"><span id="emptySw" class="swatches"></span><button id="pickBtn" type="button" title="Then tap a spot on the picture: that colour becomes open space">Mark empty colour</button><button id="pickReset" type="button" title="Back to just the panel colour found around the picture's edge">Reset</button></div></div>
+            <div id="picSliders"></div>
+            <div class="checks">
+              <label><input type="checkbox" id="picThin"> Ignore text and thin lines</label>
+              <label><input type="checkbox" id="picShow"> Show walls</label>
+            </div>
+            <p class="hint">LabVIEW tip: on Windows press <b>Win</b>+<b>Shift</b>+<b>S</b>, snip the front panel, then click this page and press <b>Ctrl</b>+<b>V</b>. If the liquid ignores something, raise Wall sensitivity; if it hits empty panel, lower it. Show walls tints what the liquid will hit.</p>
           </div>
         </div>
       </div>
@@ -283,6 +299,27 @@ function viscosity() {                           // goo: neighbours moving towar
     VX[i] -= I * nx; VY[i] -= I * ny; VX[j] += I * nx; VY[j] += I * ny;
   }
 }
+// Walls from a picture: a grid of small cells, each blocked or open. A particle that would cross into a blocked cell
+// stops just short of it and keeps whatever part of its move runs along the wall, so liquid slides off flat tops.
+let MASK = null;                                 // { gw, gh, cs, blk: blocked cells, near: nearest open cell for each blocked one }
+const blockedAt = (x, y) => { const m = MASK, cx = x / m.cs | 0, cy = y / m.cs | 0; return cx >= 0 && cy >= 0 && cx < m.gw && cy < m.gh && m.blk[cx + cy * m.gw] === 1; };
+function collide(i) {
+  const m = MASK, x0 = PX[i], y0 = PY[i], x1 = X[i], y1 = Y[i];
+  if (blockedAt(x0, y0)) {                       // already inside a wall (poured there, or the picture just arrived): hop to the nearest open spot
+    const f = m.near[(x0 / m.cs | 0) + (y0 / m.cs | 0) * m.gw];
+    if (f >= 0) { X[i] = PX[i] = (f % m.gw + 0.5) * m.cs; Y[i] = PY[i] = ((f / m.gw | 0) + 0.5) * m.cs; }
+    return;
+  }
+  const dx = x1 - x0, dy = y1 - y0, k = Math.ceil(Math.hypot(dx, dy) / m.cs);
+  let s = 1;
+  while (s <= k && !blockedAt(x0 + dx * s / k, y0 + dy * s / k)) s++;   // walk the move in cell-sized steps so thin walls can't be skipped
+  if (s > k) return;
+  const t = (s - 1) / k;
+  let x = x0 + dx * t, y = y0 + dy * t;
+  if (!blockedAt(x1, y)) x = x1;                 // slide along the wall
+  if (!blockedAt(x, y1)) y = y1;
+  X[i] = x; Y[i] = y;
+}
 const GRAV = 0.05;                               // pixels per step² at gravity 1, scaled by h below
 function step(beforeAdvance, afterRelax) {
   const n = sim.n, h = sim.h, g = GRAV * h / 14, gx = sim.gx * g, gy = sim.gy * g, vmax = h * 0.5;
@@ -306,7 +343,9 @@ function step(beforeAdvance, afterRelax) {
     if (x < b) x += (b - x) * f; else if (x > W - b) x -= (x - W + b) * f;
     if (y < b) y += (b - y) * f; else if (y > H - b) y -= (y - H + b) * f;
     x = x < 0.5 ? 0.5 : x > W - 0.5 ? W - 0.5 : x; y = y < 0.5 ? 0.5 : y > H - 0.5 ? H - 0.5 : y;
-    X[i] = x; Y[i] = y; VX[i] = x - PX[i]; VY[i] = y - PY[i];   // velocity is how far it really moved
+    X[i] = x; Y[i] = y;
+    if (MASK) collide(i);
+    VX[i] = X[i] - PX[i]; VY[i] = Y[i] - PY[i];  // velocity is how far it really moved
   }
   viscosity();
 }
@@ -401,7 +440,7 @@ buildLiquids();
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  for (const p of ["tools", "liquids", "physics", "plot"]) $(p).hidden = p !== t.dataset.tab;
+  for (const p of ["tools", "liquids", "physics", "plot", "picture"]) $(p).hidden = p !== t.dataset.tab;
 });
 
 // ---- filling the tank ----
@@ -410,14 +449,21 @@ function fill(mode) {
   sim.n = 0; fillArea = W * H;
   if (!N) return;
   sim.h = ctl.size;                              // how far each particle reaches, which sets how far apart they settle
-  if (mode === "mix") {                          // everything thrown in at random; it sorts itself out
-    for (let m = 0; m < 4; m++) for (let k = 0; k < per; k++) addParticle(Math.random() * W, Math.random() * H, m);
+  updateWalls();
+  const open = (x, y) => !MASK || !blockedAt(x, y);
+  if (mode === "mix") {                          // everything thrown in at random (but not inside a picture's walls); it sorts itself out
+    for (let m = 0; m < 4; m++) for (let k = 0; k < per; k++) {
+      let x, y, tries = 0;
+      do { x = Math.random() * W; y = Math.random() * H; } while (!open(x, y) && ++tries < 30);
+      if (open(x, y)) addParticle(x, y, m);
+    }
     return;
   }
   const s = Math.sqrt(W * H * 0.48 / N), cols = Math.max(1, Math.floor(W / s));   // upside-down stack: lightest at the bottom, heaviest on top
   for (let k = 0; k < N; k++) {
     const m = 3 - Math.floor(k / per), cx = k % cols, cy = Math.floor(k / cols);
-    addParticle((cx + 0.5 + (Math.random() - 0.5) * 0.2) * W / cols, H - (cy + 0.5) * s, m);
+    const x = (cx + 0.5 + (Math.random() - 0.5) * 0.2) * W / cols, y = H - (cy + 0.5) * s;
+    if (open(x, y)) addParticle(x, y, m);
   }
 }
 $("mixBtn").onclick = () => fill("mix");
@@ -546,7 +592,7 @@ $("sampleBtn").onclick = () => {                 // three made-up waves
   for (let i = 0; i <= 400; i++) { const x = i / 40; t += [x, Math.sin(x), 0.6 * Math.cos(1.3 * x), 1.4 * Math.exp(-x / 4) * Math.sin(3 * x)].map(v => +v.toFixed(4)).join(",") + "\n"; }
   readPlot(t, "Sample waves");
 };
-for (const el of [$("csvDrop"), $("tank")]) {         // drop a CSV on the Plot tab or straight onto the tank
+for (const el of [$("csvDrop"), $("picDrop"), $("tank")]) {   // drop a CSV or a picture on its tab or straight onto the tank
   el.addEventListener("dragover", e => { if (![...e.dataTransfer.types].includes("Files")) return; e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", () => el.classList.remove("over"));
   el.addEventListener("drop", async e => {
@@ -554,16 +600,176 @@ for (const el of [$("csvDrop"), $("tank")]) {         // drop a CSV on the Plot 
     el.classList.remove("over");
     if (!f) return;
     e.preventDefault();
-    document.querySelector('.tab[data-tab="plot"]').click();
-    readPlot(await f.text(), f.name);
+    const isPic = f.type.startsWith("image/");
+    document.querySelector(`.tab[data-tab="${isPic ? "picture" : "plot"}"]`).click();
+    if (isPic) loadPic(f, f.name); else readPlot(await f.text(), f.name);
   });
 }
+
+// ---- a picture as the tank's background, with walls the liquid bumps into ----
+let pic = null;                                  // { img, w, h, name }
+const bgc = $("bg"), bgx = bgc.getContext("2d");
+ctl.wallSens = 60; ctl.picAlpha = 1;
+let wallMode = "shapes", solid = null;           // solid: one byte per cell, 1 where the picture has something drawn
+let empties = null, picking = false, picPix = null;   // colours that count as open space (null = work it out); the picture's pixels, for picking
+function picMsg(t) { $("picMsg").textContent = t; }
+function picRect() {                             // where the picture sits: as big as fits, centred, never stretched
+  const sc = Math.min(sim.W / pic.w, sim.H / pic.h), w = pic.w * sc, h = pic.h * sc;
+  return { x: (sim.W - w) / 2, y: (sim.H - h) / 2, w, h };
+}
+async function loadPic(blob, name) {
+  if (!blob || !blob.type.startsWith("image/")) return picMsg("That isn't a picture.");
+  let img;
+  try { img = await createImageBitmap(blob); } catch (e) { return picMsg("I couldn't read that picture."); }
+  pic = { img, w: img.width, h: img.height, name }; empties = null;
+  $("picOpts").hidden = false; $("picClear").hidden = false;
+  buildWalls();
+  picMsg(name + " (" + img.width + " × " + img.height + ") is the tank's background.");
+}
+function buildWalls() {                          // look at the picture pixel by pixel and decide what is solid
+  solid = null;
+  if (pic && wallMode !== "off" && sim.W) {
+    const W = Math.round(sim.W), H = Math.round(sim.H), r = picRect(), oc = document.createElement("canvas");
+    oc.width = W; oc.height = H;
+    const o = oc.getContext("2d", { willReadFrequently: true });
+    o.drawImage(pic.img, r.x, r.y, r.w, r.h);
+    const d = o.getImageData(0, 0, W, H).data, px = new Uint8Array(W * H), sens = ctl.wallSens;
+    picPix = { d, W };
+    if (wallMode === "shapes") {                 // the empty colours (at first, the panel colour around the picture's edge) are open; anything far enough from all of them is solid
+      if (!empties) {                            // the most common colour along the picture's border is the panel
+        const cnt = new Map(), x0 = Math.ceil(r.x), x1 = Math.floor(r.x + r.w) - 1, y0 = Math.ceil(r.y), y1 = Math.floor(r.y + r.h) - 1;
+        const count = (x, y) => { const a = (x + y * W) * 4, k = (d[a] >> 3) << 10 | (d[a + 1] >> 3) << 5 | d[a + 2] >> 3; cnt.set(k, (cnt.get(k) || 0) + 1); };
+        for (let x = x0; x <= x1; x++) for (const y of [y0, y0 + 2, y1 - 2, y1]) count(x, y);
+        for (let y = y0; y <= y1; y++) for (const x of [x0, x0 + 2, x1 - 2, x1]) count(x, y);
+        let best = 0, bk = 0; for (const [k, c] of cnt) if (c > best) { best = c; bk = k; }
+        empties = [[(bk >> 10) * 8 + 4, (bk >> 5 & 31) * 8 + 4, (bk & 31) * 8 + 4]];
+      }
+      const tol = 8 + (100 - sens) * 1.5;
+      for (let i = 0; i < W * H; i++) {
+        const a = i * 4;
+        if (d[a + 3] < 128) continue;
+        let open = false;
+        for (const e of empties) if (Math.abs(d[a] - e[0]) + Math.abs(d[a + 1] - e[1]) + Math.abs(d[a + 2] - e[2]) <= tol) { open = true; break; }
+        if (!open) px[i] = 1;
+      }
+    } else {                                     // outlines: where the brightness jumps sharply (a Sobel edge filter)
+      const L = new Float32Array(W * H), thr = 10 + (100 - sens) * 2.5;
+      for (let i = 0; i < W * H; i++) { const a = i * 4; L[i] = d[a + 3] < 128 ? -1 : d[a] * 0.3 + d[a + 1] * 0.59 + d[a + 2] * 0.11; }
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+        const i = x + y * W;
+        if (L[i] < 0 || L[i - 1] < 0 || L[i + 1] < 0 || L[i - W] < 0 || L[i + W] < 0) continue;   // not across the picture's own border
+        const gx = L[i - W + 1] + 2 * L[i + 1] + L[i + W + 1] - L[i - W - 1] - 2 * L[i - 1] - L[i + W - 1];
+        const gy = L[i + W - 1] + 2 * L[i + W] + L[i + W + 1] - L[i - W - 1] - 2 * L[i - W] - L[i - W + 1];
+        if (Math.abs(gx) + Math.abs(gy) > thr) px[i] = 1;
+      }
+    }
+    if ($("picThin").checked && wallMode === "shapes") {   // drop strokes 1-2 pixels thin (text, hairlines): shrink everything by a pixel, then grow it back
+      const er = new Uint8Array(W * H);
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = x + y * W; er[i] = px[i] & px[i - 1] & px[i + 1] & px[i - W] & px[i + W] & px[i - W - 1] & px[i - W + 1] & px[i + W - 1] & px[i + W + 1]; }
+      px.fill(0);
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (er[x + y * W]) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) px[x + a + (y + b) * W] = 1;
+    }
+    const cs = 2, gw = Math.ceil(W / cs), gh = Math.ceil(H / cs);   // 2-pixel cells: solid if any pixel in it is
+    solid = new Uint8Array(gw * gh);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (px[x + y * W]) solid[(x / cs | 0) + (y / cs | 0) * gw] = 1;
+    solid.gw = gw; solid.gh = gh; solid.cs = cs;
+  }
+  showEmpties();
+  updateWalls();
+}
+function showEmpties() {                         // the swatches of colours that count as empty
+  $("emptyRow").hidden = wallMode !== "shapes";
+  $("emptySw").replaceChildren(...(empties || []).map(c => { const s = document.createElement("span"); s.className = "swatch"; s.style.setProperty("--c", `rgb(${c})`); s.style.cursor = "default"; s.style.display = "inline-block"; return s; }));
+}
+function pickEmpty(e) {                          // in "Mark empty colour" mode, a tap on the tank takes the colour under it (an average of a 5×5 patch)
+  if (!picking) return false;
+  picking = false; $("pickBtn").classList.remove("on"); $("pickBtn").textContent = "Mark empty colour";
+  const r = tank.getBoundingClientRect(), x = Math.round(e.clientX - r.left), y = Math.round(e.clientY - r.top);
+  if (!picPix) return true;
+  const { d, W } = picPix, sum = [0, 0, 0]; let k = 0;
+  for (let b = -2; b <= 2; b++) for (let a = -2; a <= 2; a++) { const i = ((x + a) + (y + b) * W) * 4; if (d[i + 3] >= 128) { sum[0] += d[i]; sum[1] += d[i + 1]; sum[2] += d[i + 2]; k++; } }
+  if (!k) { picMsg("That spot is outside the picture."); return true; }
+  (empties ||= []).push(sum.map(v => Math.round(v / k)));
+  buildWalls();
+  picMsg("Got it: that colour is now open space.");
+  return true;
+}
+function updateWalls() {                         // thicken the solid cells by a particle's radius, so drops stop with their edge (not their middle) at the wall
+  if (!solid) { MASK = null; drawPic(); return; }
+  const { gw, gh, cs } = solid, n = gw * gh, D = new Float32Array(n), INF = 1e9, rad = Math.max(1.5, sim.h * ctl.drop * 0.45) / cs;
+  for (let c = 0; c < n; c++) D[c] = solid[c] ? 0 : INF;
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {   // distance to the nearest solid cell, in two sweeps
+    const c = x + y * gw; let v = D[c];
+    if (x > 0) v = Math.min(v, D[c - 1] + 1);
+    if (y > 0) { v = Math.min(v, D[c - gw] + 1); if (x > 0) v = Math.min(v, D[c - gw - 1] + 1.414); if (x < gw - 1) v = Math.min(v, D[c - gw + 1] + 1.414); }
+    D[c] = v;
+  }
+  for (let y = gh - 1; y >= 0; y--) for (let x = gw - 1; x >= 0; x--) {
+    const c = x + y * gw; let v = D[c];
+    if (x < gw - 1) v = Math.min(v, D[c + 1] + 1);
+    if (y < gh - 1) { v = Math.min(v, D[c + gw] + 1); if (x < gw - 1) v = Math.min(v, D[c + gw + 1] + 1.414); if (x > 0) v = Math.min(v, D[c + gw - 1] + 1.414); }
+    D[c] = v;
+  }
+  const blk = new Uint8Array(n), near = new Int32Array(n).fill(-1), q = new Int32Array(n);
+  let qh = 0, qt = 0;
+  for (let c = 0; c < n; c++) { if (D[c] < rad) blk[c] = 1; else { near[c] = c; q[qt++] = c; } }
+  while (qh < qt) {                              // spread outward from the open cells so every blocked cell knows its nearest open one
+    const c = q[qh++], x = c % gw;
+    for (const nb of [x > 0 ? c - 1 : -1, x < gw - 1 ? c + 1 : -1, c - gw, c + gw]) if (nb >= 0 && nb < n && near[nb] < 0) { near[nb] = near[c]; q[qt++] = nb; }
+  }
+  MASK = { gw, gh, cs, blk, near };
+  drawPic();
+}
+function drawPic() {                             // the picture (and, if asked, a tint over the walls) on the canvas under the liquid
+  const dpr = devicePixelRatio || 1, W = sim.W, H = sim.H;
+  bgc.width = Math.round(W * dpr); bgc.height = Math.round(H * dpr);
+  bgx.setTransform(dpr, 0, 0, dpr, 0, 0); bgx.clearRect(0, 0, W, H);
+  if (!pic) return;
+  const r = picRect();
+  bgx.globalAlpha = ctl.picAlpha; bgx.drawImage(pic.img, r.x, r.y, r.w, r.h); bgx.globalAlpha = 1;
+  if ($("picShow").checked && MASK) {
+    const { gw, gh, cs, blk } = MASK, oc = document.createElement("canvas"), im = new ImageData(gw, gh);
+    for (let c = 0; c < gw * gh; c++) if (blk[c]) { im.data[c * 4] = 255; im.data[c * 4 + 2] = 255; im.data[c * 4 + 3] = 110; }   // magenta
+    oc.width = gw; oc.height = gh; oc.getContext("2d").putImageData(im, 0, 0);
+    bgx.imageSmoothingEnabled = false; bgx.drawImage(oc, 0, 0, gw * cs, gh * cs); bgx.imageSmoothingEnabled = true;
+  }
+}
+slider($("picSliders"), "Wall sensitivity", "wallSens", 0, 100, 1, () => buildWalls(), "Higher finds fainter shapes and edges; lower ignores more of the picture");
+slider($("picSliders"), "Picture strength", "picAlpha", 0.1, 1, 0.05, () => drawPic(), "Fade the picture so the liquid stands out");
+$("picThin").onchange = buildWalls;
+$("pickBtn").onclick = () => { picking = !picking; $("pickBtn").classList.toggle("on", picking); $("pickBtn").textContent = picking ? "Now tap the picture…" : "Mark empty colour"; };
+$("pickReset").onclick = () => { empties = null; buildWalls(); };
+$("picShow").onchange = drawPic;
+document.querySelectorAll("#wallSeg button").forEach(b => b.onclick = () => {
+  wallMode = b.dataset.wall;
+  document.querySelectorAll("#wallSeg button").forEach(x => x.classList.toggle("on", x === b));
+  buildWalls();
+});
+$("picFile").onchange = e => { const f = e.target.files[0]; if (f) loadPic(f, f.name); e.target.value = ""; };
+$("picClear").onclick = () => { pic = null; $("picOpts").hidden = true; $("picClear").hidden = true; buildWalls(); picMsg("Picture removed."); };
+document.addEventListener("paste", e => {        // Ctrl+V anywhere on the page
+  const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+  if (!it || e.target.matches?.("input[type=text], input[type=number], textarea")) return;
+  e.preventDefault();
+  document.querySelector('.tab[data-tab="picture"]').click();
+  loadPic(it.getAsFile(), "Pasted picture");
+});
+$("picPaste").onclick = async () => {
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find(t => t.startsWith("image/"));
+      if (type) return loadPic(await item.getType(type), "Pasted picture");
+    }
+    picMsg("There's no picture on the clipboard. Copy a screenshot first.");
+  } catch (e) { picMsg("Your browser didn't let the page read the clipboard. Click the page and press Ctrl+V instead."); }
+};
 
 // ---- pointers and tools ----
 const tank = $("tank"), cv = $("cv"), pointers = new Map();
 let hover = null;
 const local = e => { const r = tank.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
 tank.addEventListener("pointerdown", e => {
+  if (pickEmpty(e)) { e.preventDefault(); return; }
   tank.setPointerCapture(e.pointerId);
   const p = local(e);
   pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0 });
@@ -804,9 +1010,12 @@ function sizeTank() {
     ctl.size = Math.round(1.72 * Math.sqrt(W * H / (4 * ctl.amount)));
     slider($("liqSliders"), "Particle size", "size", 6, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
     sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, 3000, 50, () => fill("mix"), "How many particles of each liquid");
-    slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, null, "How big each particle is drawn, without changing the physics");
+    slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, () => updateWalls(), "How big each particle is drawn, without changing the physics");
     fill("mix");
-  } else if (W * H < fillArea / 1.6 || W * H > fillArea * 1.6) sliders.amount.set(amountFor(ctl.size));   // a much smaller or bigger tank (a phone turned, a window resized) gets a fresh fill to suit it
+  } else {
+    buildWalls();                                // the picture moves and scales with the tank
+    if (W * H < fillArea / 1.6 || W * H > fillArea * 1.6) sliders.amount.set(amountFor(ctl.size));   // a much smaller or bigger tank (a phone turned, a window resized) gets a fresh fill to suit it
+  }
 }
 new ResizeObserver(sizeTank).observe(tank);
 function frame(t) {

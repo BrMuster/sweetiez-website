@@ -209,6 +209,12 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid.html": [
+      { date: "October 31, 2026", title: "Your own picture as the tank, with walls the liquid hits", notes: [
+        "New Picture tab: paste a screenshot with Ctrl+V (or Paste from clipboard), drop a picture on the tank, or choose a file. It becomes the tank's background, scaled to fit without stretching. Nothing is uploaded.",
+        "The liquid bumps into what is in the picture. Shapes: everything that isn't the panel colour is solid, so liquid sits on top of buttons, controls and boxes and slides off their edges. Outlines: only the edges are solid, so liquid can get inside boxes.",
+        "The panel colour is found around the picture's edge. Press Mark empty colour and tap the picture to open up more colours (for example a graph's black background), or Reset to go back.",
+        "Wall sensitivity decides how faint a shape or edge still counts, Ignore text and thin lines leaves out labels and hairlines, and Show walls tints exactly what the liquid will hit. Picture strength fades the picture so the liquid stands out.",
+        "LabVIEW tip: press Win+Shift+S, snip the front panel, then click Liquid Lab and press Ctrl+V." ] },
       { date: "October 31, 2026", title: "Plot a CSV in liquid", notes: [
         "New Plot tab: drop a CSV on it (or straight onto the tank), or press Try sample data. The first column is X and every other number column becomes a line made of liquid. Notes above and below the data, like spectrometer exports, are skipped.",
         "Pick which lines to show and which liquid each one is made of (tap its colour). Lines style traces each curve, with a Line thickness setting; Filled style stacks the area under the curves in layers. You can also draw axes.",
