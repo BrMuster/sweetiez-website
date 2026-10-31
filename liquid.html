@@ -12,27 +12,47 @@
   * { box-sizing: border-box; margin: 0; }
   [hidden] { display: none !important; }
   body { min-height: 100vh; padding: 1rem 1.5rem; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
-  main { max-width: 1600px; height: calc(100vh - 2rem); margin: 0 auto; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 1rem; }
-  .home { color: var(--muted); text-decoration: none; transition: color .15s; } .home:hover { color: #fff; }
-  h1 { font-weight: 500; font-size: 1.6rem; color: var(--strong); }
-  .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  .headr { display: inline-flex; align-items: center; gap: 1rem; }
-  #themeBtn { padding: .3rem .8rem; font-size: .85rem; }
-  .rig { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 1rem; min-height: 0; }
+  main { max-width: 2400px; height: calc(100vh - 2rem); margin: 0 auto; display: grid; grid-template-rows: minmax(0, 1fr); }   /* no page header: the whole lab fits the window */
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* for screen readers only */
+  #homeBtn { display: inline-flex; align-items: center; justify-content: center; padding: .3rem .55rem; color: var(--text); background: #223246; border: 1px solid var(--line); border-radius: 4px; }
+  #homeBtn:hover { border-color: var(--accent); color: var(--strong); }
+  #homeBtn svg { width: 1.25rem; height: 1.25rem; }
+  .rig { display: grid; grid-template-columns: clamp(190px, 14vw, 250px) minmax(0, 1fr) 400px; grid-template-areas: "side tank panel"; gap: 1rem; min-height: 0; }
+  .side { grid-area: side; display: grid; align-content: start; gap: 1rem; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  .side .gauges { grid-template-columns: 1fr; }    /* the dials stack in the narrow left column */
+  .side { align-content: stretch; }
+  .side #gaugeCard { grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); }   /* the two charts grow to fill the column */
+  .side .chartbox { display: flex; flex-direction: column; min-height: 0; }
+  .side #countChart, .side #fpsChart { flex: 1 1 0; height: auto; min-height: 64px; }
+  .tankcol { grid-area: tank; } .panel { grid-area: panel; }
   .tankcol { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .3rem; min-height: 0; }
   .lbl { font-size: .8rem; color: var(--muted); }
   .tankhead { display: flex; justify-content: space-between; gap: 1rem; }
   .tank { position: relative; min-height: 320px; overflow: hidden; background: var(--well); border-radius: 6px; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
   .tank canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .brush { position: absolute; left: 0; top: 0; border: 1px solid #ffffff80; border-radius: 50%; pointer-events: none; }
-  .panel { display: grid; gap: 1rem; align-content: start; min-height: 0; overflow-y: auto; padding-bottom: .5rem; }
-  .card { padding: .9rem 1rem; background: var(--panel); border-radius: 6px; display: grid; gap: .7rem; }
+  .panel { display: flex; flex-direction: column; gap: 1rem; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-bottom: .5rem; }   /* scrolls up and down only */
+  .panel > * { flex: none; }
+  .panel > .card:nth-child(2) { margin-top: auto; }   /* the controls sit at the bottom, level with the tank */
+  #scopeCard { flex: 1 1 0; min-height: 150px; grid-template-rows: auto minmax(0, 1fr); }   /* the scope takes the spare height above them */
+  .scopehead { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+  .chs { display: inline-flex; gap: .7rem; font: 600 .7rem/1 Consolas, "Courier New", monospace; letter-spacing: .04em; }
+  .ch1 { color: #39ff6a; } .ch2 { color: #4cc9f0; }
+  .scope { position: relative; min-height: 110px; border-radius: 4px; overflow: hidden; background-color: #040806;   /* a CRT: 10 × 8 graticule behind the glowing traces */
+    background-image: linear-gradient(#173322 1px, transparent 1px), linear-gradient(90deg, #173322 1px, transparent 1px), linear-gradient(transparent calc(50% - 1px), #2a5c3c calc(50% - 1px), #2a5c3c 50%, transparent 50%), linear-gradient(90deg, transparent calc(50% - 1px), #2a5c3c calc(50% - 1px), #2a5c3c 50%, transparent 50%);
+    background-size: 10% 12.5%, 10% 12.5%, 100% 100%, 100% 100%; box-shadow: inset 0 0 18px #000; }
+  .scope canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scoperead { position: absolute; right: .45rem; bottom: .3rem; display: flex; gap: .8rem; font: .7rem/1 Consolas, "Courier New", monospace; pointer-events: none; }
+  .scoperead span:first-child { color: #39ff6a; } .scoperead span:last-child { color: #4cc9f0; }
+  .card { padding: .9rem 1rem; background: var(--panel); border-radius: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; }   /* never wider than the panel */
   button { font: inherit; color: var(--text); background: #223246; border: 1px solid var(--line); border-radius: 4px; padding: .35rem .7rem; cursor: pointer; }
   button:hover { border-color: var(--accent); color: var(--strong); }
   button.on, button.on:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .runrow { display: flex; align-items: center; gap: 1rem; }
+  .runrow { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
   #stopBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff6b6b; border-color: #ff6b6b; }
   #stopBtn.run { color: #4cd964; border-color: #4cd964; }
+  #abortBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff9f1a; border-color: #ff9f1a; }
+  #abortBtn:hover { color: #fff; background: #c96a00; border-color: #ff9f1a; }
   #recBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff5a5a; border-color: #ff5a5a; }
   #recBtn.on, #recBtn.on:hover { color: #fff; background: #d42a2a; border-color: #ff5a5a; }
   #recBtn.on .recdot { animation: blink 1s steps(2, start) infinite; }
@@ -44,9 +64,12 @@
   .led.on { background: #4cd964; box-shadow: 0 0 8px #4cd96499; }
   .ro { display: grid; gap: .1rem; }
   .ro output { min-width: 4rem; padding: .1rem .4rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--strong); background: var(--well); border-radius: 4px; }
-  #fpsChart { width: 100%; height: 64px; display: block; border-radius: 4px; }
+  #fpsChart, #countChart { width: 100%; height: 64px; display: block; border-radius: 4px; }
+  .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .gauges canvas { width: 100%; aspect-ratio: 1.15; display: block; }
+  #countLed { width: 100%; height: 52px; display: block; border-radius: 4px; }
   .tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--line); }   /* one row: tabs shrink to fit rather than wrap */
-  .tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
+  .tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .45rem; font-size: .9rem; color: var(--muted); }
   .tab.on, .tab.on:hover { background: none; color: var(--strong); border-bottom-color: var(--accent); }
   .pane { display: grid; gap: .6rem; }
   .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
@@ -74,24 +97,31 @@
   .checks label { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; font-size: .9rem; }
   input[type=checkbox] { accent-color: var(--accent); width: 1rem; height: 1rem; }
   .seg { display: inline-flex; } .seg button { border-radius: 0; } .seg button:first-child { border-radius: 4px 0 0 4px; } .seg button:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
-  @media (pointer: coarse) { .tankhead .hint { display: none; } }   /* no keyboard or mouse wheel on a phone */
+  #keysHint { font-size: .75rem; margin-top: -.6rem; }   /* tucked under the STOP / REC card */
+  #keysHint span { white-space: nowrap; }          /* lines break between hints, not inside one */
+  @media (pointer: coarse) { #keysHint { display: none; } }   /* no keyboard or mouse wheel on a phone */
+  @media (max-width: 1200px) {                     /* not wide enough for three columns: the gauges go under the tank */
+    main { height: auto; }
+    .rig { grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "tank panel" "side side"; }
+    .tank { height: calc(100vh - 3.5rem); }
+    .side { overflow: visible; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .side .gauges { grid-template-columns: repeat(2, minmax(0, 220px)); justify-content: center; }
+  }
   @media (max-width: 900px) {
     body { padding: .75rem; }
-    main { height: auto; }
-    .rig { grid-template-columns: 1fr; }
+    .rig { grid-template-columns: 1fr; grid-template-areas: "tank" "panel" "side"; }
     .tank { height: 62vh; }
     .panel { overflow: visible; }
   }
+  @media (max-width: 520px) { .tabs { flex-wrap: wrap; } .tab { overflow: visible; } }   /* a phone: two rows of whole tab names beat five cut-off ones */
   /* LabVIEW theme: a grey front panel with raised 3D buttons, sunken white controls, grey indicators, bold labels and a black graph display */
   :root[data-theme=labview] { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000; --well: #fff;
     --raised: inset 1px 1px #fff, inset -1px -1px #8a8a8a; --sunken: inset 1px 1px #6e6e6e, inset -1px -1px #fff; }
   [data-theme=labview] body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
     background-color: var(--bg); background-image: linear-gradient(#0000000a 1px, transparent 1px), linear-gradient(90deg, #0000000a 1px, transparent 1px); background-size: 12px 12px; }   /* faint panel grid, like the editor's alignment grid */
-  [data-theme=labview] .pagehead { padding: .4rem .8rem; background: linear-gradient(#f2f2f2, #cdcdcd); border: 1px solid #7a7a7a; box-shadow: var(--raised); border-radius: 3px; }
-  [data-theme=labview] h1 { font-size: 1.3rem; font-weight: 700; }
-  [data-theme=labview] .home { color: #003fa3; font-weight: 700; } [data-theme=labview] .home:hover { color: #000; text-decoration: underline; }
+  [data-theme=labview] #homeBtn { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
   [data-theme=labview] .lbl, [data-theme=labview] .sl span, [data-theme=labview] .liq b { color: #000; font-weight: 700; }   /* every LabVIEW control carries a bold label */
-  [data-theme=labview] .tankhead .hint { color: #3d3d3d; }
+  [data-theme=labview] #keysHint { color: #3d3d3d; }
   [data-theme=labview] .tank { margin: 6px; border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 5px #c4c4c4, 0 0 0 6px #7a7a7a;   /* black plot area in a grey bezel, like a waveform graph */
     background-color: #000; background-image: linear-gradient(#ffffff26 1px, transparent 1px), linear-gradient(90deg, #ffffff26 1px, transparent 1px); background-size: 50px 50px; }
   [data-theme=labview] .brush { border: 1px dashed #ffff00; }
@@ -102,13 +132,16 @@
   [data-theme=labview] #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
   [data-theme=labview] #recBtn { color: #c00000; }
   [data-theme=labview] #recBtn.on, [data-theme=labview] #recBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
+  [data-theme=labview] #abortBtn { color: #fff; background: linear-gradient(#ffb357, #e06a00); border: 1px solid #6b3200; border-radius: 6px; box-shadow: inset 1px 1px #ffd9a8, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }
+  [data-theme=labview] #abortBtn:active { background: linear-gradient(#e06a00, #ffb357); }
   [data-theme=labview] #stopBtn.run { background: linear-gradient(#7ee07e, #1b8a1b); border-color: #0a3d0a; box-shadow: inset 1px 1px #c4f5c4, 1px 1px 0 #0004; }
   [data-theme=labview] .led { background: radial-gradient(circle at 35% 35%, #4d7a4d, #0f3d0f 60%, #062006); border: 1px solid #333; }   /* round LED: dark green off, bright green on */
   [data-theme=labview] .led.on { background: radial-gradient(circle at 35% 35%, #d4ffd4, #18e018 50%, #067a06); box-shadow: 0 0 6px #18e01899; }
   [data-theme=labview] .ro output { color: #000; background: #d0d0d0; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); }   /* indicators are grey, controls are white */
-  [data-theme=labview] #fpsChart { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
+  [data-theme=labview] .scope { border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a, inset 0 0 18px #000; margin: 4px; }
+  [data-theme=labview] #fpsChart, [data-theme=labview] #countChart, [data-theme=labview] #countLed { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
   [data-theme=labview] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
-  [data-theme=labview] .tab { padding: .3rem .6rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
+  [data-theme=labview] .tab { padding: .3rem .5rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
   [data-theme=labview] .tab.on, [data-theme=labview] .tab.on:hover { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); box-shadow: inset 1px 1px #fff; position: relative; top: -2px; padding-bottom: calc(.3rem + 2px); }
   [data-theme=labview] input.num { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
   [data-theme=labview] input.num:focus { background: #fffff0; outline: none; }
@@ -133,25 +166,24 @@
 </head>
 <body>
 <main>
-  <div class="pagehead"><h1>Liquid Lab</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
+  <h1 class="sr">Liquid Lab</h1>
   <div class="rig">
+    <div class="side">
+      <div class="card" id="gaugeCard">
+        <div class="gauges"><canvas id="fpsGauge" title="Frames per second"></canvas><canvas id="fillGauge" title="How full the tank is, out of the Particle limit"></canvas></div>
+        <div class="ro"><span class="lbl">Particle count</span><canvas id="countLed"></canvas></div>
+        <div class="ro chartbox"><span class="lbl">Particle count chart</span><canvas id="countChart"></canvas></div>
+        <div class="ro chartbox"><span class="lbl">Frame rate chart</span><canvas id="fpsChart"></canvas></div>
+      </div>
+    </div>
     <div class="tankcol">
-      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>9</b>, <b>0</b> pick a tool · <b>S</b> sculpts · <b>R</b> records · <b>Esc</b> stops</span></div>
-      <div class="tank" id="tank"><canvas id="bg"></canvas><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
+      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span></div>
+      <div class="tank" id="tank"><canvas id="bg"></canvas><canvas id="cv"></canvas><canvas id="ov"></canvas><div class="brush" id="brush" hidden></div></div>
     </div>
     <div class="panel">
-      <div class="card">
-        <div class="runrow">
-          <button id="stopBtn" type="button" title="Stop the liquid (Esc or Space); press again to run">STOP</button>
-          <span class="ledbox"><span class="led on" id="led"></span><span class="lbl">Running</span></span>
-          <span class="ro"><span class="lbl">Particles</span><output id="countOut">0</output></span>
-          <span class="ro"><span class="lbl">Frames/s</span><output id="fpsOut">0</output></span>
-        </div>
-        <div class="runrow">
-          <button id="recBtn" type="button" title="Record a video of the tank (R); press again to stop and save it"><span class="recdot">●</span> REC</button>
-          <span class="hint" id="recOut">Saves a video of the tank, picture and all.</span>
-        </div>
-        <div class="ro"><span class="lbl">Frame rate chart</span><canvas id="fpsChart"></canvas></div>
+      <div class="card" id="scopeCard">
+        <div class="scopehead"><span class="lbl">Scope</span><span class="chs"><span class="ch1" title="The liquid's surface, left to right across the tank">CH1 SURFACE</span><span class="ch2" title="How fast the liquid is moving, over the last few seconds">CH2 MOTION</span></span></div>
+        <div class="scope"><canvas id="scope"></canvas><div class="scoperead"><span id="sloshOut">slosh 0 px</span><span id="speedOut">speed 0.0</span></div></div>
       </div>
       <div class="card">
         <div class="tabs" role="tablist">
@@ -160,10 +192,12 @@
           <button class="tab" type="button" data-tab="physics">Physics</button>
           <button class="tab" type="button" data-tab="plot">Plot</button>
           <button class="tab" type="button" data-tab="picture">Picture</button>
+          <button class="tab" type="button" data-tab="about">About</button>
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
           <div class="bar" id="wallBar" hidden><span class="seg" id="inkSeg"><button type="button" class="on" data-ink="draw">Draw</button><button type="button" data-ink="erase" title="Or right-click, or hold Shift while drawing">Rub out</button></span><button id="wallClear" type="button">Clear walls</button></div>
+          <div class="bar" id="scoopBar" hidden><button id="scoopClear" type="button">Remove shape</button></div>
           <div id="devBar" hidden><div id="flowBox"></div><div class="bar"><button id="devClear" type="button">Remove all emitters</button></div></div>
           <div class="bar"><button id="sculptBtn" type="button" title="Sculpt (S): the liquid stops flowing by itself and stays where you shape it">Sculpt</button></div>
           <div id="toolSliders"></div>
@@ -173,6 +207,7 @@
           <p class="hint" id="toolHint"></p>
         </div>
         <div class="pane" id="liquids" hidden>
+          <div class="ro"><span class="lbl">Presets</span><div class="tools" id="presetBtns"></div></div>
           <div id="liqRows" class="pane"></div>
           <div id="liqSliders"></div>
           <div class="bar"><button id="mixBtn" type="button" title="Throw every liquid all over the tank and let it settle">Mix all</button><button id="flipBtn" type="button" title="Stack the layers upside down, heaviest on top, and watch them turn over">Flip layers</button><button id="emptyBtn" type="button">Empty tank</button></div>
@@ -197,7 +232,7 @@
               <label><input type="checkbox" id="pAxes"> Draw axes</label>
             </div>
             <div class="bar"><button id="pourPlot" type="button">Pour the plot into the tank</button><button id="meltBtn" type="button" title="Unfreeze everything and turn Sculpt off (M)">Melt</button></div>
-            <p class="hint">Drag, attract or push the plot to reshape it; frozen parts come loose where you touch them. <b>Melt</b> (or <b>M</b>) lets it all go, and the lines run down and sort by weight. Pour some liquid onto a frozen plot and it flows around the lines like walls. A smaller Particle size (Liquids tab) gives finer lines.</p>
+            <p class="hint">Reshape the plot with any tool; touched parts come loose. <b>Melt</b> (<b>M</b>) lets it all run down. A smaller Particle size (Liquids tab) gives finer lines.</p>
           </div>
         </div>
         <div class="pane" id="picture" hidden>
@@ -215,8 +250,26 @@
             <p class="hint">LabVIEW tip: on Windows press <b>Win</b>+<b>Shift</b>+<b>S</b>, snip the front panel, then click this page and press <b>Ctrl</b>+<b>V</b>. If the liquid ignores something, raise Wall sensitivity; if it hits empty panel, lower it. Show walls tints what the liquid will hit.</p>
           </div>
         </div>
+        <div class="pane" id="about" hidden>
+          <div class="ro"><span class="lbl">Look</span><div class="bar"><button id="themeBtn" type="button">LabVIEW theme</button></div></div>
+          <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. Heavier liquids sink under lighter ones. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005), the same one behind Grant Kot's Liquid Layers. This is a from-scratch JavaScript version.</p>
+        </div>
       </div>
-      <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. Heavier liquids sink under lighter ones. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005), the same one behind Grant Kot's Liquid Layers. This is a from-scratch JavaScript version.</p>
+      <div class="card" id="runCard">
+        <div class="runrow">
+          <button id="stopBtn" type="button" title="Stop the liquid (Esc or Space); press again to run">STOP</button>
+          <span class="ledbox"><span class="led on" id="led"></span><span class="lbl">Running</span></span>
+          <span class="ro"><span class="lbl">Particles</span><output id="countOut">0</output></span>
+          <span class="ro"><span class="lbl">Frames/s</span><output id="fpsOut">0</output></span>
+        </div>
+        <div class="runrow">
+          <button id="recBtn" type="button" title="Record a video of the tank (R); press again to stop and save it"><span class="recdot">●</span> REC</button>
+          <button id="abortBtn" type="button" title="Clear the whole tank: liquid, walls, emitters, trash and your shape (the picture stays)">ABORT</button>
+          <a id="homeBtn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
+        </div>
+        <p class="hint" id="recOut">Saves a video of the tank, picture and all.</p>
+      </div>
+      <p class="hint" id="keysHint"><span>Scroll to resize the brush</span> · <span><b>1</b>–<b>9</b>, <b>0</b> pick a tool</span> · <span><b>S</b> sculpts</span> · <span><b>R</b> records</span> · <span><b>Esc</b> stops</span></p>
     </div>
   </div>
 </main>
@@ -237,6 +290,7 @@ const sim = {
   gx: 0, gy: 1,                                  // gravity direction and strength (1 = normal)
   same: 1.2, diff: 0.0,                          // rest crowding between the same liquid, and between two different ones
   k: 0.35, kNear: 2.0, goo: 0,                   // stiffness, near stiffness (keeps particles from clumping), viscosity
+  firm: 0,                                       // firmness: slow creeping is held still, so thick stuff keeps its shape until pushed
   mass: [1, 0.6, 0.36, 0.22],                    // heavier liquids sink below lighter ones
 };
 function setCap(cap) {                           // (re)size every per-particle list, keeping the particles already in the tank
@@ -368,6 +422,10 @@ function step(beforeAdvance, afterRelax) {
     VX[i] = X[i] - PX[i]; VY[i] = Y[i] - PY[i];  // velocity is how far it really moved
   }
   viscosity();
+  if (sim.firm > 0) {                            // firmness: slow drops are held back (like a yield stress), the firmer the more; fast ones flow freely
+    const thr = h * 0.012, t2 = thr * thr, keep = 1 - 0.95 * sim.firm;
+    for (let i = 0; i < n; i++) if (VX[i] * VX[i] + VY[i] * VY[i] < t2) { VX[i] *= keep; VY[i] *= keep; }
+  }
 }
 
 // ---- the controls ----
@@ -377,7 +435,7 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Mint", color: "#3ddc97", mass: 0.36 },
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
-const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
+const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, firm: 0, steps: 2 };
 let savedCap = 12000;
 try { savedCap = Math.min(60000, Math.max(2000, +localStorage.getItem("liquidCap") || 12000)); } catch (e) {}   // remembered from last time
 setCap(savedCap);
@@ -393,6 +451,7 @@ const TOOLS = [
   ["wall", "Wall", "Draw walls the liquid flows around. Right-click or hold Shift to rub them out."],
   ["emitter", "Emitter", "Tap to place a spout that keeps pouring the liquid picked below. Drag while placing to aim it: further is faster. Right-click one to remove it."],
   ["drain", "Trash", "Paint trash: liquid that touches it disappears. Right-click or hold Shift to rub it out."],
+  ["scoop", "Shape", "Draw a solid shape, like a cup, a paddle or a hook. Then grab it and drag it to scoop and push the liquid. Right-drag, or Q and E, turn it. Drawing somewhere else makes a new one."],
 ];
 const defaultAmount = () => Math.round(Math.min(6000, Math.max(1200, sim.W * sim.H / 135)) / 4 / 50) * 50;   // about 4000 drops on a laptop screen, fewer on a phone
 const maxAmount = () => Math.floor(CAP / 4 / 50) * 50;   // each liquid gets a quarter of the limit
@@ -419,7 +478,7 @@ sliders.brush = slider($("toolSliders"), "Brush size", "brush", 2, 300, 1);
 sliders.strength = slider($("toolSliders"), "Strength", "strength", 0, 1, 0.05);
 sliders.keep = slider($("toolSliders"), "Sculpt flow", "keep", 0, 1, 0.05, null, "While sculpting: 0 freezes the liquid between your strokes, higher lets it keep drifting a little");
 const physBox = $("physSliders"), applyPhys = () => {
-  sim.k = ctl.k; sim.kNear = ctl.kNear; sim.same = ctl.same; sim.diff = ctl.diff; sim.goo = ctl.goo;
+  sim.k = ctl.k; sim.kNear = ctl.kNear; sim.same = ctl.same; sim.diff = ctl.diff; sim.goo = ctl.goo; sim.firm = ctl.firm;
 };
 sliders.grav = slider(physBox, "Gravity", "grav", 0, 3, 0.1);
 sliders.angle = slider(physBox, "Gravity angle", "angle", -180, 180, 5, null, "0 is straight down, 90 pulls to the right");
@@ -428,6 +487,7 @@ sliders.kNear = slider(physBox, "Near stiffness", "kNear", 0, 4, 0.1, applyPhys,
 sliders.same = slider(physBox, "Same-liquid pull", "same", 0, 4, 0.1, applyPhys, "How tightly each liquid holds itself together");
 sliders.diff = slider(physBox, "Mixing", "diff", 0, 4, 0.1, applyPhys, "0 keeps different liquids apart like oil and water; raise it to let them blend");
 sliders.goo = slider(physBox, "Goo", "goo", 0, 1, 0.05, applyPhys, "Viscosity: higher is thicker, like honey");
+sliders.firm = slider(physBox, "Firmness", "firm", 0, 1, 0.05, applyPhys, "Thick stuff like frosting keeps its shape until you push it");
 sliders.steps = slider(physBox, "Steps per frame", "steps", 1, 5, 1, null, "More steps is smoother and stiffer but slower");
 applyPhys();
 $("physReset").onclick = () => { for (const k in PHYS) sliders[k].set(PHYS[k]); };
@@ -438,7 +498,7 @@ for (const [id, name, help] of TOOLS) {          // tool buttons
   b.onclick = () => pickTool(id);
   $("toolBtns").append(b);
 }
-const toolBrush = { wall: 8, pour: 25, emitter: 16, drain: 24 };   // each tool keeps its own brush size
+const toolBrush = { wall: 8, pour: 25, emitter: 16, drain: 24, scoop: 6 };   // each tool keeps its own brush size
 function pickTool(id) {
   toolBrush[ctl.tool] = ctl.brush;
   ctl.tool = id;
@@ -447,6 +507,7 @@ function pickTool(id) {
   $("toolHint").textContent = TOOLS.find(t => t[0] === id)[2];
   $("wallBar").hidden = id !== "wall";
   $("devBar").hidden = id !== "emitter" && id !== "drain"; $("flowBox").hidden = id !== "emitter";
+  $("scoopBar").hidden = id !== "scoop";
   $("devClear").textContent = id === "drain" ? "Remove all trash" : "Remove all emitters";
 }
 pickTool("drag");
@@ -471,10 +532,34 @@ function buildLiquids() {                        // pour swatches and the liquid
   });
 }
 buildLiquids();
+// Presets: four liquids that go together (heaviest first) and the physics that makes them act like the real thing.
+// same = how tightly each liquid holds together, diff = how much different ones blend, goo = thickness.
+const PRESETS = [
+  { name: "Classic", tip: "The original four, like oil and water", liq: [["Ruby", "#ff4d6d"], ["Amber", "#ffb703"], ["Mint", "#3ddc97"], ["Sky", "#3a86ff"]], phys: {} },
+  { name: "Water", tip: "Thin and splashy, and the layers blend", liq: [["Deep", "#0b3d91"], ["Sea", "#1565c0"], ["Lagoon", "#29b6f6"], ["Foam", "#b3e5fc"]], phys: { same: 1, diff: 0.9, goo: 0 } },
+  { name: "Oil", tip: "Water at the bottom, oils floating on it, slow and slick", liq: [["Water", "#2f7dd1"], ["Crude", "#1b1b1b"], ["Motor oil", "#7a5a1e"], ["Olive oil", "#b5a33a"]], phys: { same: 1.6, diff: 0, goo: 0.3 } },
+  { name: "Honey", tip: "Thick and slow, it drips and folds", liq: [["Dark", "#7a3e00"], ["Clover", "#c77700"], ["Wild", "#f2a900"], ["Light", "#ffd56b"]], phys: { k: 0.3, same: 1.6, diff: 0.8, goo: 0.8, firm: 0.5 } },
+  { name: "Frosting", tip: "So thick it holds its shape: pipe it with Pour, then sculpt it", liq: [["Chocolate", "#6b3e26"], ["Strawberry", "#ff8fb1"], ["Mint", "#a8e6cf"], ["Vanilla", "#fff3d6"]], phys: { k: 0.25, kNear: 2.5, same: 2.6, diff: 0.4, goo: 1, firm: 1 } },
+  { name: "Blood", tip: "Happy Halloween: thick, dark red and a little sticky", liq: [["Clotted", "#3d0000"], ["Venous", "#7a0010"], ["Arterial", "#c1121f"], ["Plasma", "#f2c14e"]], phys: { k: 0.3, same: 1.9, diff: 0.5, goo: 0.4 } },
+  { name: "Slime", tip: "Halloween goo in potion colours that won't mix", liq: [["Pumpkin", "#ff7518"], ["Witch", "#7b2cbf"], ["Ooze", "#39ff14"], ["Ghost", "#eef2ff"]], phys: { k: 0.3, same: 2.2, diff: 0, goo: 0.6, firm: 0.6 } },
+  { name: "Lava", tip: "Molten rock: heavy, glowing and sluggish", liq: [["Basalt", "#2b1d1a"], ["Magma", "#b3200b"], ["Molten", "#ff4500"], ["White-hot", "#ffd166"]], phys: { k: 0.3, same: 1.8, diff: 0.6, goo: 0.7, firm: 0.55 } },
+];
+function usePreset(p) {
+  p.liq.forEach(([name, color], m) => { LIQ[m].name = name; LIQ[m].color = color; });
+  setColors(); buildLiquids(); if (plot) buildSeries(); devDirty = true;
+  for (const k of ["k", "kNear", "same", "diff", "goo", "firm"]) sliders[k].set(p.phys[k] ?? PHYS[k]);
+  document.querySelectorAll("#presetBtns button").forEach(b => b.classList.toggle("on", b.textContent === p.name));
+}
+for (const p of PRESETS) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = p.name; b.title = p.tip; b.onclick = () => usePreset(p);
+  $("presetBtns").append(b);
+}
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  for (const p of ["tools", "liquids", "physics", "plot", "picture"]) $(p).hidden = p !== t.dataset.tab;
+  for (const p of ["tools", "liquids", "physics", "plot", "picture", "about"]) $(p).hidden = p !== t.dataset.tab;
+  fitScope();
 });
 
 // ---- filling the tank ----
@@ -778,6 +863,7 @@ function runDevices() {                          // once a frame: emitters pour,
 function scaleDevices(sx, sy) {                  // the tank changed size: keep them in the same places
   for (const e of emitters) { e.x *= sx; e.y *= sy; }
   for (const d of drains) { d.x *= sx; d.y *= sy; }
+  if (scoop) { scoop.x *= sx; scoop.y *= sy; scoop.tx *= sx; scoop.ty *= sy; }
   devDirty = true;
 }
 function drawDevices() {                         // on the background canvas, under the liquid
@@ -907,21 +993,22 @@ const local = e => { const r = tank.getBoundingClientRect(); return { x: e.clien
 tank.addEventListener("pointerdown", e => {
   if (pickEmpty(e)) { e.preventDefault(); return; }
   tank.setPointerCapture(e.pointerId);
-  const p = local(e), rub = inkErase || e.button === 2 || e.shiftKey;
+  const p = local(e), rub = (ctl.tool === "wall" && inkErase) || e.button === 2 || e.shiftKey;   // the Wall tool's Rub out switch is for walls only
   pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0, rub });
   if (ctl.tool === "wall") inkLine(p.x, p.y, p.x, p.y, ctl.brush, rub ? 0 : 1);
   devPointer(p, pointers.get(e.pointerId), true);
+  scoopPointer(p, pointers.get(e.pointerId), "down");
   hover = p; showBrush();
   e.preventDefault();
 });
 tank.addEventListener("pointermove", e => {
   const p = local(e), q = pointers.get(e.pointerId);
   if (q && ctl.tool === "wall") inkLine(q.x, q.y, p.x, p.y, ctl.brush, q.rub || e.shiftKey ? 0 : 1);
-  if (q) { q.rub ||= e.shiftKey; devPointer(p, q, false); }
+  if (q) { q.rub ||= e.shiftKey; devPointer(p, q, false); scoopPointer(p, q, "move"); }
   if (q) { q.x = p.x; q.y = p.y; }
   hover = p; showBrush();
 });
-const lift = e => { pointers.delete(e.pointerId); if (e.pointerType !== "mouse") { hover = null; showBrush(); } };
+const lift = e => { const q = pointers.get(e.pointerId); if (q) scoopPointer(local(e), q, "up"); pointers.delete(e.pointerId); if (e.pointerType !== "mouse") { hover = null; showBrush(); } };
 tank.addEventListener("pointerup", lift);
 tank.addEventListener("pointercancel", lift);
 tank.addEventListener("pointerleave", e => { if (!pointers.size) { hover = null; showBrush(); } });
@@ -942,7 +1029,7 @@ function showBrush() {
 
 function applyTools() {                          // runs every step, before the particles move
   const t = ctl.tool;
-  if (!pointers.size || ["pour", "erase", "push", "wall", "emitter", "drain"].includes(t)) return;
+  if (!pointers.size || ["pour", "erase", "push", "wall", "emitter", "drain", "scoop"].includes(t)) return;
   const r = ctl.brush, r2 = r * r, str = ctl.strength, n = sim.n, pull = str * sim.h * 0.04;
   for (const p of pointers.values()) {
     for (let i = 0; i < n; i++) {
@@ -966,6 +1053,86 @@ function applyBall() {                           // runs every step after the li
     X[i] = p.x + dx / d * r; Y[i] = p.y + dy / d * r; LOCK[i] = 0;
   }
 }
+// ---- the scoop: a shape you draw, then move and turn through the liquid like a solid spoon or paddle ----
+// It is a thick line through the drawn points. It stays in the tank as an obstacle when other tools are picked.
+const ov = $("ov"), ovx = ov.getContext("2d");
+let scoop = null;                                // { pts: [x, y] around its centre, r: half its thickness, x, y, a: where it is now, tx, ty, ta: where the pointer wants it }
+let scoopDraw = null, scoopSeen = "";            // the shape being drawn; what is on the overlay now
+function nearScoop(p) {                          // is the pointer on (or just beside) the shape?
+  if (!scoop) return false;
+  const w = scoopWorld();
+  for (let k = 0; k < w.length; k++) { const [a, b] = [w[k], w[Math.min(k + 1, w.length - 1)]]; if (segDist(p.x, p.y, a[0], a[1], b[0], b[1])[0] < scoop.r + 12) return true; }
+  return false;
+}
+function segDist(px, py, ax, ay, bx, by) {       // distance from a point to a segment, and the closest point on it
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+  const cx = ax + dx * t, cy = ay + dy * t;
+  return [Math.hypot(px - cx, py - cy), cx, cy];
+}
+function scoopWorld() {                          // its points where it sits now
+  const c = Math.cos(scoop.a), s = Math.sin(scoop.a);
+  return scoop.pts.map(([x, y]) => [scoop.x + x * c - y * s, scoop.y + x * s + y * c]);
+}
+function scoopPointer(p, q, kind) {              // the Scoop tool, from the pointer handlers: kind is "down", "move" or "up"
+  if (ctl.tool !== "scoop") return;
+  if (kind === "down") {
+    if (q.rub && scoop) q.turn = { a0: Math.atan2(p.y - scoop.y, p.x - scoop.x), ta: scoop.ta };   // right-drag turns it about its middle
+    else if (!q.rub && nearScoop(p)) q.grab = { dx: scoop.tx - p.x, dy: scoop.ty - p.y };
+    else if (!q.rub) scoopDraw = { pts: [[p.x, p.y]], r: ctl.brush };
+  } else if (kind === "move") {
+    if (q.turn) scoop.ta = q.turn.ta + Math.atan2(p.y - scoop.y, p.x - scoop.x) - q.turn.a0;
+    else if (q.grab) { scoop.tx = p.x + q.grab.dx; scoop.ty = p.y + q.grab.dy; }
+    else if (scoopDraw) { const l = scoopDraw.pts[scoopDraw.pts.length - 1]; if (Math.hypot(p.x - l[0], p.y - l[1]) > Math.max(3, scoopDraw.r * 0.6)) scoopDraw.pts.push([p.x, p.y]); }
+  } else if (scoopDraw && !q.grab && !q.turn) {  // let go after drawing: it becomes the scoop (replacing the old one)
+    const pts = scoopDraw.pts, n = pts.length, cx = pts.reduce((a, b) => a + b[0], 0) / n, cy = pts.reduce((a, b) => a + b[1], 0) / n;
+    scoop = { pts: pts.map(([x, y]) => [x - cx, y - cy]), r: scoopDraw.r, x: cx, y: cy, a: 0, tx: cx, ty: cy, ta: 0 };
+    scoopDraw = null;
+  }
+}
+function applyScoop() {                          // runs every step after the liquid relaxes: glide toward the pointer, then nothing may be inside it
+  if (!scoop) return;
+  const s = scoop, most = Math.max(1.5, s.r * 0.8);   // small moves each step, so a thin shape can't jump past drops
+  const mx = s.tx - s.x, my = s.ty - s.y, d = Math.hypot(mx, my);
+  if (d > most) { s.x += mx / d * most; s.y += my / d * most; } else { s.x = s.tx; s.y = s.ty; }
+  const span = Math.max(...s.pts.map(([x, y]) => Math.hypot(x, y))) || 1, ma = most / span, da = s.ta - s.a;
+  s.a += Math.abs(da) > ma ? Math.sign(da) * ma : da;
+  const w = scoopWorld(), r = s.r, n = sim.n;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of w) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  x0 -= r; y0 -= r; x1 += r; y1 += r;
+  for (let i = 0; i < n; i++) {
+    const px = X[i], py = Y[i];
+    if (px < x0 || px > x1 || py < y0 || py > y1) continue;
+    let best = r, bx = 0, by = 0, hit = false;
+    for (let k = 0; k < w.length; k++) {
+      const b = w[Math.min(k + 1, w.length - 1)], [dd, cx, cy] = segDist(px, py, w[k][0], w[k][1], b[0], b[1]);
+      if (dd < best) { best = dd; bx = cx; by = cy; hit = true; }
+    }
+    if (!hit) continue;
+    let nx = px - bx, ny = py - by, l = Math.hypot(nx, ny);
+    if (l < 1e-6) { nx = PX[i] - bx; ny = PY[i] - by; l = Math.hypot(nx, ny) || 1; if (l === 1 && !nx && !ny) { nx = 0; ny = -1; } }   // dead centre: back out the way it came
+    X[i] = bx + nx / l * r; Y[i] = by + ny / l * r; LOCK[i] = 0;
+  }
+}
+function drawScoop() {                           // on its own canvas above the liquid; only redrawn when it moves
+  const key = scoop ? [scoop.x, scoop.y, scoop.a, scoop.r].map(v => v.toFixed(1)).join() : "", dkey = scoopDraw ? scoopDraw.pts.length + "," + scoopDraw.r : "", all = key + "|" + dkey + "|" + labview();
+  if (all === scoopSeen) return;
+  scoopSeen = all;
+  const dpr = devicePixelRatio || 1;
+  if (ov.width !== cv.width || ov.height !== cv.height) { ov.width = cv.width; ov.height = cv.height; }
+  ovx.setTransform(dpr, 0, 0, dpr, 0, 0); ovx.clearRect(0, 0, sim.W, sim.H);
+  const line = (pts, r, dashed) => {
+    ovx.lineCap = ovx.lineJoin = "round";
+    ovx.beginPath(); pts.forEach(([x, y], k) => k ? ovx.lineTo(x, y) : ovx.moveTo(x, y)); if (pts.length === 1) ovx.lineTo(pts[0][0] + 0.01, pts[0][1]);
+    ovx.setLineDash(dashed ? [6, 5] : []);
+    ovx.strokeStyle = labview() ? "#3a3a3a" : "#0b1118"; ovx.lineWidth = 2 * r + 3; ovx.stroke();
+    ovx.strokeStyle = labview() ? "#c8c8c8" : "#b8c7d6"; ovx.lineWidth = 2 * r; ovx.stroke();
+    ovx.strokeStyle = "#ffffff55"; ovx.lineWidth = Math.max(1, r * 0.4); ovx.stroke();   // a shine down the middle
+  };
+  if (scoop) line(scoopWorld(), scoop.r, false);
+  if (scoopDraw) line(scoopDraw.pts, scoopDraw.r, true);
+}
+$("scoopClear").onclick = () => { scoop = scoopDraw = null; };
 function perFrameTools() {                       // pouring and erasing happen once a frame
   if (!pointers.size) return;
   const r = ctl.brush, steps = ctl.steps;
@@ -1030,6 +1197,10 @@ function setRunning(on) {
   $("led").classList.toggle("on", on);
 }
 $("stopBtn").onclick = () => setRunning(!ctl.running);
+$("abortBtn").onclick = () => {                  // clear the whole tank; the picture stays (it has its own Remove button)
+  sim.n = 0; emitters.length = 0; drains.length = 0; ink = null; scoop = scoopDraw = null;
+  mergeWalls(); devDirty = true;
+};
 function setSculpt(on) {                         // sculpt: nothing flows by itself, so the liquid holds whatever shape you push it into
   ctl.sculpt = on;
   $("sculptBtn").classList.toggle("on", on); $("sculptBtn").textContent = on ? "Sculpting" : "Sculpt";
@@ -1042,6 +1213,7 @@ addEventListener("keydown", e => {
   else if (e.key.length === 1 && "1234567890".indexOf(e.key) >= 0 && "1234567890".indexOf(e.key) < TOOLS.length) pickTool(TOOLS["1234567890".indexOf(e.key)][0]);
   else if (e.key === "s" || e.key === "S") setSculpt(!ctl.sculpt);
   else if (e.key === "m" || e.key === "M") melt();
+  else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && scoop) scoop.ta += (e.key.toLowerCase() === "q" ? -1 : 1) * Math.PI / 18;   // turn the scoop 10°
   else if ((e.key === "r" || e.key === "R") && !$("recBtn").disabled) $("recBtn").click();
   else if (e.key === "[" || e.key === "]") { sliders.brush.set(ctl.brush * (e.key === "]" ? 1.1 : 1 / 1.1)); showBrush(); }
 });
@@ -1115,31 +1287,159 @@ function render() {
   gl.drawArrays(gl.POINTS, 0, n);
 }
 
-// ---- frame-rate chart, drawn like a strip chart ----
-const fpsHist = [];
+// ---- the instruments: strip charts, dials and a digital readout ----
+const fpsHist = [], countHist = [];
 const labview = () => document.documentElement.dataset.theme === "labview";
-function drawChart() {
-  const c = $("fpsChart"), x = c.getContext("2d"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
-  if (!W) return;
-  if (c.width !== Math.round(W * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
-  x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const lv = labview(), top = Math.max(60, ...fpsHist) * 1.1, css = getComputedStyle(document.documentElement);
-  x.fillStyle = lv ? "#000" : css.getPropertyValue("--well"); x.fillRect(0, 0, W, H);
+function fit(c) {                                // a canvas's 2D context, sized to how big it shows on screen
+  const dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  if (!W || !H) return null;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { x, W, H };
+}
+function strip(c, hist, minTop, line) {          // the last 30 seconds, newest on the right
+  const f = fit(c); if (!f) return;
+  const { x, W, H } = f, lv = labview(), top = Math.max(minTop, ...hist) * 1.1;
+  x.fillStyle = lv ? "#000" : getComputedStyle(document.documentElement).getPropertyValue("--well"); x.fillRect(0, 0, W, H);
   x.strokeStyle = lv ? "#ffffff30" : "#2a3a4d"; x.lineWidth = 1; x.beginPath();
   for (let g = 1; g < 4; g++) { const y = Math.round(H * g / 4) + 0.5; x.moveTo(0, y); x.lineTo(W, y); }
   for (let g = 1; g < 6; g++) { const xx = Math.round(W * g / 6) + 0.5; x.moveTo(xx, 0); x.lineTo(xx, H); }
   x.stroke();
-  x.strokeStyle = lv ? "#fff" : "#1a9fff"; x.lineWidth = 1.5; x.beginPath();
-  fpsHist.forEach((f, i) => { const px = W - (fpsHist.length - 1 - i) * W / 59, py = H - f / top * H; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.strokeStyle = line; x.lineWidth = 1.5; x.beginPath();
+  hist.forEach((v, i) => { const px = W - (hist.length - 1 - i) * W / 59, py = H - v / top * H; i ? x.lineTo(px, py) : x.moveTo(px, py); });
   x.stroke();
   x.fillStyle = lv ? "#fff" : "#8f98a0"; x.font = "10px Tahoma, system-ui, sans-serif"; x.textBaseline = "top";
-  x.fillText(Math.round(top), 3, 2); x.textBaseline = "bottom"; x.fillText("0", 3, H - 1);
+  x.fillText(Math.round(top).toLocaleString(), 3, 2); x.textBaseline = "bottom"; x.fillText("0", 3, H - 1);
+}
+function drawChart() {
+  const lv = labview();
+  strip($("fpsChart"), fpsHist, 60, lv ? "#fff" : "#1a9fff");
+  strip($("countChart"), countHist, 100, lv ? "#ffd60a" : "#3ddc97");
+}
+// A round dial: a 270° scale with coloured zones, ticks and numbers, a needle, and the value written underneath.
+function gauge(c, v, max, step, label, unit, zones) {
+  const f = fit(c); if (!f) return;
+  const { x, W, H } = f, lv = labview(), cx = W / 2, cy = H * 0.5, R = Math.min(W / 2, H / 2) - 4;
+  const a0 = Math.PI * 0.75, ang = t => a0 + Math.PI * 1.5 * Math.min(1, Math.max(0, t / max));
+  const font = lv ? "Tahoma, sans-serif" : "'Segoe UI', system-ui, sans-serif";
+  x.clearRect(0, 0, W, H);
+  const bez = x.createLinearGradient(0, cy - R, 0, cy + R);   // the rim
+  bez.addColorStop(0, lv ? "#fdfdfd" : "#3a4d63"); bez.addColorStop(1, lv ? "#8a8a8a" : "#0b1118");
+  x.beginPath(); x.arc(cx, cy, R, 0, 2 * Math.PI); x.fillStyle = bez; x.fill();
+  const face = x.createRadialGradient(cx, cy - R * 0.3, R * 0.1, cx, cy, R);
+  face.addColorStop(0, lv ? "#ffffff" : "#16283a"); face.addColorStop(1, lv ? "#dcdcdc" : "#070c12");
+  x.beginPath(); x.arc(cx, cy, R * 0.95, 0, 2 * Math.PI); x.fillStyle = face; x.fill();
+  x.lineWidth = R * 0.07;                        // zones: [from, to, colour]
+  for (const [a, b, col] of zones) { x.beginPath(); x.arc(cx, cy, R * 0.86, ang(a), ang(b)); x.strokeStyle = col; x.stroke(); }
+  x.strokeStyle = lv ? "#000" : "#8fd3ff"; x.fillStyle = lv ? "#000" : "#bfe6ff";
+  x.font = `${Math.max(8, R * 0.15)}px ${font}`; x.textAlign = "center"; x.textBaseline = "middle";
+  for (let t = 0; t <= max + 1e-9; t += step / 5) {   // minor ticks, and a longer one with a number every step
+    const major = Math.abs(t / step - Math.round(t / step)) < 1e-6, a = ang(t), cs = Math.cos(a), sn = Math.sin(a), r0 = R * 0.9, r1 = R * (major ? 0.72 : 0.79);
+    x.lineWidth = Math.max(major ? 1.4 : 0.7, R * (major ? 0.025 : 0.012));
+    x.beginPath(); x.moveTo(cx + cs * r0, cy + sn * r0); x.lineTo(cx + cs * r1, cy + sn * r1); x.stroke();
+    if (major) x.fillText(Math.round(t), cx + cs * R * 0.56, cy + sn * R * 0.56);
+  }
+  x.fillStyle = lv ? "#333" : "#8f98a0"; x.font = `600 ${Math.max(8, R * 0.13)}px ${font}`;
+  x.fillText(label, cx, cy + R * 0.34);
+  x.fillStyle = lv ? "#000" : "#fff"; x.font = `700 ${Math.max(10, R * 0.2)}px ${font}`;
+  x.fillText(Math.round(v) + unit, cx, cy + R * 0.6);
+  const a = ang(v), nl = R * 0.84, hr = Math.max(4, R * 0.09);   // the needle and its hub
+  x.save();
+  if (!lv) { x.shadowColor = "#ff9f1a"; x.shadowBlur = R * 0.08; }
+  x.strokeStyle = lv ? "#c00000" : "#ff9f1a"; x.lineWidth = Math.max(2, R * 0.03); x.lineCap = "round";
+  x.beginPath(); x.moveTo(cx - Math.cos(a) * R * 0.15, cy - Math.sin(a) * R * 0.15); x.lineTo(cx + Math.cos(a) * nl, cy + Math.sin(a) * nl); x.stroke();
+  x.restore();
+  const hub = x.createRadialGradient(cx - hr * 0.3, cy - hr * 0.3, 1, cx, cy, hr);
+  hub.addColorStop(0, lv ? "#fff" : "#9aa8b6"); hub.addColorStop(1, lv ? "#555" : "#1b2633");
+  x.beginPath(); x.arc(cx, cy, hr, 0, 2 * Math.PI); x.fillStyle = hub; x.fill();
+}
+// A seven-segment LED readout; unused digits show as dim 8s, like a real one.
+const SEGS = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
+function led(c, n, digits) {
+  const f = fit(c); if (!f) return;
+  const { x, W, H } = f, pad = 7, cell = (W - pad * 2) / digits, w = Math.min(cell * 0.7, (H - pad * 2) * 0.55), h = H - pad * 2, t = w * 0.17, g = t * 0.12;
+  x.fillStyle = "#050806"; x.fillRect(0, 0, W, H);
+  x.transform(1, 0, -0.08, 1, H * 0.04, 0);       // a slight italic lean
+  const s = String(Math.max(0, Math.round(n))).padStart(digits, " ").slice(-digits);
+  const hseg = (x1, x2, y) => { x.moveTo(x1, y); x.lineTo(x1 + t / 2, y - t / 2); x.lineTo(x2 - t / 2, y - t / 2); x.lineTo(x2, y); x.lineTo(x2 - t / 2, y + t / 2); x.lineTo(x1 + t / 2, y + t / 2); x.closePath(); };
+  const vseg = (xx, y1, y2) => { x.moveTo(xx, y1); x.lineTo(xx + t / 2, y1 + t / 2); x.lineTo(xx + t / 2, y2 - t / 2); x.lineTo(xx, y2); x.lineTo(xx - t / 2, y2 - t / 2); x.lineTo(xx - t / 2, y1 + t / 2); x.closePath(); };
+  for (const lit of [false, true]) {             // the dim ghost segments first, then the lit ones with a glow
+    x.beginPath();
+    for (let i = 0; i < digits; i++) {
+      const on = lit ? SEGS[s[i]] || "" : "abcdefg", x0 = pad + i * cell + (cell - w) / 2, L = x0 + t / 2, Rr = x0 + w - t / 2, T = pad + t / 2, M = pad + h / 2, B = pad + h - t / 2;
+      if (on.includes("a")) hseg(L + g, Rr - g, T);
+      if (on.includes("g")) hseg(L + g, Rr - g, M);
+      if (on.includes("d")) hseg(L + g, Rr - g, B);
+      if (on.includes("f")) vseg(L, T + g, M - g);
+      if (on.includes("b")) vseg(Rr, T + g, M - g);
+      if (on.includes("e")) vseg(L, M + g, B - g);
+      if (on.includes("c")) vseg(Rr, M + g, B - g);
+    }
+    x.save();
+    if (lit) { x.shadowColor = "#39ff6a"; x.shadowBlur = 8; }
+    x.fillStyle = lit ? "#39ff6a" : "#0f2416"; x.fill();
+    x.restore();
+  }
+}
+// The scope: CH1 is the liquid's surface across the tank (from how much liquid is in each slice of it, so flying
+// drops don't make spikes), CH2 is the liquid's average speed scrolling by. Old traces fade like a CRT's phosphor.
+const scope = { lvl: null, cnt: null, speed: [], frame: 0, area: 0.135 };   // area: how much tank a resting drop fills, in h² (measured: 0.12-0.15 across particle sizes)
+function drawScope() {
+  if ($("scopeCard").hidden) { if (++scope.frame % 15 === 0) fitScope(); return; }
+  const f = fit($("scope")); if (!f) return;
+  const { x, W, H } = f, K = 96, n = sim.n, cw = sim.W / K;
+  if (!scope.cnt) { scope.cnt = new Float32Array(K); scope.lvl = new Float32Array(K); }
+  const cnt = scope.cnt.fill(0);
+  let sp = 0;
+  for (let i = 0; i < n; i++) { const k = X[i] / cw | 0; if (k >= 0 && k < K) cnt[k]++; sp += Math.hypot(VX[i], VY[i]); }
+  sp = n ? sp / n : 0;
+  scope.speed.push(sp); if (scope.speed.length > 240) scope.speed.shift();   // about 4 seconds
+  const a = scope.area * sim.h * sim.h / cw;     // pixels of depth per drop in a slice
+  let lo = Infinity, hi = -Infinity;
+  for (let k = 0; k < K; k++) {
+    const blur = (cnt[Math.max(0, k - 1)] + 2 * cnt[k] + cnt[Math.min(K - 1, k + 1)]) / 4, depth = Math.min(sim.H, blur * a);
+    scope.lvl[k] += (depth - scope.lvl[k]) * 0.35;   // a little smoothing so the trace glides
+    if (k > 2 && k < K - 3 && cnt[k] > 2) { lo = Math.min(lo, scope.lvl[k]); hi = Math.max(hi, scope.lvl[k]); }   // slosh: highest minus lowest, away from the side walls
+  }
+  x.globalCompositeOperation = "destination-out"; x.fillStyle = "rgba(0,0,0,0.3)"; x.fillRect(0, 0, W, H);   // fade the old traces
+  x.globalCompositeOperation = "source-over"; x.lineWidth = 1.6; x.lineJoin = "round";
+  x.save(); x.shadowColor = "#39ff6a"; x.shadowBlur = 6; x.strokeStyle = "#39ff6a"; x.beginPath();
+  for (let k = 0; k < K; k++) { const px = k / (K - 1) * W, py = H - scope.lvl[k] / sim.H * H; k ? x.lineTo(px, py) : x.moveTo(px, py); }
+  x.stroke(); x.restore();
+  const s = scope.speed, top = Math.max(sim.h * 0.05, ...s) * 1.15;   // CH2 lives in the bottom 40%, newest on the right
+  x.save(); x.shadowColor = "#4cc9f0"; x.shadowBlur = 5; x.strokeStyle = "#4cc9f0"; x.lineWidth = 1.3; x.beginPath();
+  s.forEach((v, i) => { const px = W - (s.length - 1 - i) * W / 239, py = H - 3 - v / top * H * 0.4; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.stroke(); x.restore();
+  if (++scope.frame % 15 === 0) {                // readouts and room for the scope, four times a second
+    fitScope();
+    $("sloshOut").textContent = "slosh " + (hi >= lo ? Math.round(hi - lo) : 0) + " px";
+    $("speedOut").textContent = "speed " + sp.toFixed(1);
+  }
+}
+function fitScope() {                            // the scope only shows when the controls below it leave it room
+  const p = document.querySelector(".panel"), card = $("scopeCard");
+  if (getComputedStyle(p).overflowY !== "auto") { card.hidden = false; return; }   // phone layout: the page scrolls instead
+  const gap = parseFloat(getComputedStyle(p).rowGap) || 0, pad = parseFloat(getComputedStyle(p).paddingBottom) || 0;
+  let used = pad;
+  for (const c of p.children) if (c !== card) used += c.offsetHeight + gap;
+  card.hidden = p.clientHeight - used < 140;
+}
+const inst = { fps: 0, fill: 0, shown: -1 };     // the needles ease toward their readings instead of jumping
+function drawInstruments(force) {
+  const fps = fpsHist.length ? fpsHist[fpsHist.length - 1] : 0, fill = CAP ? sim.n / CAP * 100 : 0;
+  const before = inst.fps + inst.fill;
+  inst.fps += (fps - inst.fps) * 0.12; inst.fill += (fill - inst.fill) * 0.15;
+  if (force || Math.abs(inst.fps + inst.fill - before) > 0.02) {
+    gauge($("fpsGauge"), inst.fps, 150, 30, "FPS", "", [[0, 20, "#e03131"], [20, 40, "#f59f00"], [40, 150, "#2fb344"]]);
+    gauge($("fillGauge"), inst.fill, 100, 20, "FILL", "%", [[0, 70, "#2fb344"], [70, 90, "#f59f00"], [90, 100, "#e03131"]]);
+  }
+  if (force || inst.shown !== sim.n) { inst.shown = sim.n; led($("countLed"), sim.n, 5); }
 }
 function setTheme(t) {                           // the look of the page: the default dark one, or LabVIEW's grey front panel
   if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   $("themeBtn").textContent = t === "labview" ? "Dark theme" : "LabVIEW theme";
   try { localStorage.setItem("liquidTheme", t); } catch (e) {}
-  drawChart(); drawPic();                        // drawn walls take the theme's colour
+  drawChart(); drawPic(); drawInstruments(true); // drawn walls and the dials take the theme's colours
 }
 $("themeBtn").onclick = () => setTheme(labview() ? "dark" : "labview");
 setTheme(labview() ? "labview" : "dark");
@@ -1175,7 +1475,7 @@ function frame(t) {
   requestAnimationFrame(frame);
   if (inkDirty && (!pointers.size || t - inkT > 60)) { inkT = t; devDirty = false; buildSink(); mergeWalls(); }   // fresh walls, a few times a second while drawing
   if (devDirty) { devDirty = false; buildSink(); drawPic(); }
-  if (ctl.running && sim.n + pointers.size + emitters.length) {
+  if (ctl.running && (sim.n + pointers.size + emitters.length || scoop)) {
     const steps = ctl.steps;
     if (ctl.sculpt) sim.gx = sim.gy = 0;          // no gravity while sculpting, so shapes don't sag
     else if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
@@ -1184,18 +1484,22 @@ function frame(t) {
     perFrameTools();
     runDevices();
     for (let s = 0; s < steps; s++) {
-      step(applyTools, applyBall);
+      step(applyTools, () => { applyBall(); applyScoop(); });
       if (ctl.sculpt) for (let i = 0, k = ctl.keep; i < sim.n; i++) { VX[i] *= k; VY[i] *= k; }   // sculpt: drop (most of) each particle's speed
     }
     for (const p of pointers.values()) { p.lx = p.x; p.ly = p.y; }
   }
   render();
+  drawScoop();
   if (rec) recFrame();                            // straight after drawing, while the liquid's picture is still there to copy
+  drawInstruments();
+  drawScope();
   frames++;
   if (t - lastT >= 500) {                        // twice a second: frame rate, particle count, and ease off if it is struggling
     const fps = frames * 1000 / (t - lastT);
     frames = 0; lastT = t;
     fpsHist.push(fps); if (fpsHist.length > 60) fpsHist.shift();
+    countHist.push(sim.n); if (countHist.length > 60) countHist.shift();
     $("fpsOut").value = Math.round(fps); $("countOut").value = sim.n;
     slow = fps < 40 && ctl.running ? slow + 1 : 0;
     if (slow >= 4 && ctl.steps > 1) { sliders.steps.set(ctl.steps - 1); slow = 0; }
@@ -1224,6 +1528,7 @@ function recFrame() {
   }
   ctx.drawImage(bgc, 0, 0, W, H);
   ctx.drawImage(cv, 0, 0, W, H);
+  ctx.drawImage(ov, 0, 0, W, H);                 // the scoop, on top
 }
 function startRec() {
   const type = recType(), sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H)), cvs = document.createElement("canvas");

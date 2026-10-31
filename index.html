@@ -209,6 +209,27 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid.html": [
+      { date: "October 31, 2026", title: "Blood, slime and frosting: liquid presets", notes: [
+        "New Presets on the Liquids tab: Classic, Water, Oil, Honey, Frosting, Blood, Slime and Lava. Each one sets the four liquids' names and colours and how they behave.",
+        "For Halloween, Blood is thick, dark and a little sticky, and Slime comes in pumpkin, witch purple, glowing ooze and ghost white, and they won't mix.",
+        "Frosting holds its shape like the real thing, so you can pipe it with Pour and smear it with Drag. Honey oozes slowly, and Oil floats on water.",
+        "New Firmness slider on the Physics tab: the higher it is, the better thick stuff keeps its shape until you push it." ] },
+      { date: "October 31, 2026", title: "A live oscilloscope", notes: [
+        "New Scope in the top right, drawn like a green CRT with fading phosphor trails. CH1 traces the liquid's surface across the tank, so you can watch waves slosh back and forth. CH2 scrolls the liquid's speed, which spikes when you stir and settles when it calms.",
+        "Readouts in the corner show the slosh height and the speed. The controls moved down to line up with the bottom of the tank, and the scope uses the space above them." ] },
+      { date: "October 31, 2026", title: "Everything on one screen", notes: [
+        "The gauges, the particle counter and both charts moved to their own column on the left, and the charts stretch to fill it. On a big screen the whole lab now fits with no scrolling.",
+        "The page title bar is gone to make room. The theme button lives on the About tab, and Home is the little house button next to ABORT." ] },
+      { date: "October 31, 2026", title: "Draw your own shapes", notes: [
+        "New Shape tool: draw any shape, like a cup, a paddle or a hook, and it becomes a solid object in the tank.",
+        "Grab it and drag it to push the liquid around, or dip a cup under the surface and lift it out full. Right-drag, or press Q and E, to turn it and pour it out.",
+        "Brush size sets how thick the shape is. Draw somewhere else to make a new one, or press Remove shape. It shows up in recordings too.",
+        "New orange ABORT button under STOP: one press clears the whole tank, including liquid, walls, emitters, trash and your shape. A pasted picture stays.",
+        "Fixed: after using Rub out on the Wall tool, the Shape, Trash and Emitter tools could stop drawing. Rub out now only affects walls." ] },
+      { date: "October 31, 2026", title: "Gauges, dials and a new layout", notes: [
+        "New instrument panel: a Frames/s dial and a Tank fill dial with coloured zones, a glowing seven-segment particle counter, and a strip chart of the particle count over the last 30 seconds. They match the LabVIEW theme too.",
+        "The controls panel is wider and no longer scrolls sideways. The tool tabs sit at the top, with STOP and REC below them.",
+        "The keyboard shortcuts moved under STOP and REC, and the explanation of how the liquid works moved to a new About tab." ] },
       { date: "October 31, 2026", title: "Emitters, trash and a bigger pour", notes: [
         "New Emitter tool (or press 9): tap to place a spout that keeps pouring the liquid picked below. Drag while placing to aim it, and the further you drag, the faster it shoots. Emitter flow sets how much they all pour.",
         "New Trash tool (or press 0): paint it anywhere, and liquid that touches it disappears. Put an emitter at the top and trash at the bottom for a fountain that runs forever.",
