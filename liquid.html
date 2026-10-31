@@ -45,8 +45,8 @@
   .ro { display: grid; gap: .1rem; }
   .ro output { min-width: 4rem; padding: .1rem .4rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--strong); background: var(--well); border-radius: 4px; }
   #fpsChart { width: 100%; height: 64px; display: block; border-radius: 4px; }
-  .tabs { display: flex; flex-wrap: wrap; gap: .3rem; border-bottom: 1px solid var(--line); }
-  .tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
+  .tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--line); }   /* one row: tabs shrink to fit rather than wrap */
+  .tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
   .tab.on, .tab.on:hover { background: none; color: var(--strong); border-bottom-color: var(--accent); }
   .pane { display: grid; gap: .6rem; }
   .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
@@ -108,7 +108,7 @@
   [data-theme=labview] .ro output { color: #000; background: #d0d0d0; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); }   /* indicators are grey, controls are white */
   [data-theme=labview] #fpsChart { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
   [data-theme=labview] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
-  [data-theme=labview] .tab { padding: .3rem .9rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
+  [data-theme=labview] .tab { padding: .3rem .6rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
   [data-theme=labview] .tab.on, [data-theme=labview] .tab.on:hover { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); box-shadow: inset 1px 1px #fff; position: relative; top: -2px; padding-bottom: calc(.3rem + 2px); }
   [data-theme=labview] input.num { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
   [data-theme=labview] input.num:focus { background: #fffff0; outline: none; }
@@ -136,7 +136,7 @@
   <div class="pagehead"><h1>Liquid Lab</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
   <div class="rig">
     <div class="tankcol">
-      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>S</b> sculpts · <b>R</b> records · <b>Esc</b> stops</span></div>
+      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>9</b>, <b>0</b> pick a tool · <b>S</b> sculpts · <b>R</b> records · <b>Esc</b> stops</span></div>
       <div class="tank" id="tank"><canvas id="bg"></canvas><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
     </div>
     <div class="panel">
@@ -163,6 +163,8 @@
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
+          <div class="bar" id="wallBar" hidden><span class="seg" id="inkSeg"><button type="button" class="on" data-ink="draw">Draw</button><button type="button" data-ink="erase" title="Or right-click, or hold Shift while drawing">Rub out</button></span><button id="wallClear" type="button">Clear walls</button></div>
+          <div id="devBar" hidden><div id="flowBox"></div><div class="bar"><button id="devClear" type="button">Remove all emitters</button></div></div>
           <div class="bar"><button id="sculptBtn" type="button" title="Sculpt (S): the liquid stops flowing by itself and stays where you shape it">Sculpt</button></div>
           <div id="toolSliders"></div>
           <div class="ro"><span class="lbl">Pour liquid</span><div class="swatches" id="pourSw"></div></div>
@@ -388,6 +390,9 @@ const TOOLS = [
   ["pour", "Pour", "Hold to pour the liquid picked below. Heavier ones sink through the lighter ones."],
   ["erase", "Erase", "Hold to soak up liquid under the pointer."],
   ["push", "Ball", "A solid ball: move it through the liquid like a spoon."],
+  ["wall", "Wall", "Draw walls the liquid flows around. Right-click or hold Shift to rub them out."],
+  ["emitter", "Emitter", "Tap to place a spout that keeps pouring the liquid picked below. Drag while placing to aim it: further is faster. Right-click one to remove it."],
+  ["drain", "Trash", "Paint trash: liquid that touches it disappears. Right-click or hold Shift to rub it out."],
 ];
 const defaultAmount = () => Math.round(Math.min(6000, Math.max(1200, sim.W * sim.H / 135)) / 4 / 50) * 50;   // about 4000 drops on a laptop screen, fewer on a phone
 const maxAmount = () => Math.floor(CAP / 4 / 50) * 50;   // each liquid gets a quarter of the limit
@@ -410,7 +415,7 @@ function slider(box, label, key, min, max, step, onSet, help) {   // a labelled 
 }
 
 const sliders = {};
-sliders.brush = slider($("toolSliders"), "Brush size", "brush", 10, 300, 1);
+sliders.brush = slider($("toolSliders"), "Brush size", "brush", 2, 300, 1);
 sliders.strength = slider($("toolSliders"), "Strength", "strength", 0, 1, 0.05);
 sliders.keep = slider($("toolSliders"), "Sculpt flow", "keep", 0, 1, 0.05, null, "While sculpting: 0 freezes the liquid between your strokes, higher lets it keep drifting a little");
 const physBox = $("physSliders"), applyPhys = () => {
@@ -433,10 +438,16 @@ for (const [id, name, help] of TOOLS) {          // tool buttons
   b.onclick = () => pickTool(id);
   $("toolBtns").append(b);
 }
+const toolBrush = { wall: 8, pour: 25, emitter: 16, drain: 24 };   // each tool keeps its own brush size
 function pickTool(id) {
+  toolBrush[ctl.tool] = ctl.brush;
   ctl.tool = id;
+  if (toolBrush[id]) sliders.brush.set(toolBrush[id]);
   document.querySelectorAll("#toolBtns button").forEach(b => b.classList.toggle("on", b.dataset.tool === id));
   $("toolHint").textContent = TOOLS.find(t => t[0] === id)[2];
+  $("wallBar").hidden = id !== "wall";
+  $("devBar").hidden = id !== "emitter" && id !== "drain"; $("flowBox").hidden = id !== "emitter";
+  $("devClear").textContent = id === "drain" ? "Remove all trash" : "Remove all emitters";
 }
 pickTool("drag");
 
@@ -445,11 +456,11 @@ function buildLiquids() {                        // pour swatches and the liquid
   LIQ.forEach((L, m) => {
     const s = document.createElement("button");
     s.type = "button"; s.className = "swatch" + (ctl.pour === m ? " on" : ""); s.style.setProperty("--c", L.color); s.title = L.name; s.setAttribute("aria-label", "Pour " + L.name);
-    s.onclick = () => { ctl.pour = m; buildLiquids(); if (ctl.tool !== "pour") pickTool("pour"); };
+    s.onclick = () => { ctl.pour = m; buildLiquids(); if (ctl.tool !== "pour" && ctl.tool !== "emitter") pickTool("pour"); };
     $("pourSw").append(s);
     const row = document.createElement("div"), c = document.createElement("input"), b = document.createElement("b"), r = document.createElement("input"), num = document.createElement("input");
     row.className = "liq"; c.type = "color"; c.value = L.color; c.setAttribute("aria-label", L.name + " colour");
-    c.oninput = () => { L.color = c.value; s.style.setProperty("--c", c.value); setColors(); };
+    c.oninput = () => { L.color = c.value; s.style.setProperty("--c", c.value); setColors(); devDirty = true; };   // emitters show their liquid's colour
     b.textContent = L.name;
     r.type = "range"; num.type = "number"; num.className = "num";
     for (const el of [r, num]) { el.min = 0.1; el.max = 1; el.step = 0.01; el.setAttribute("aria-label", L.name + " weight"); el.value = L.mass; }
@@ -600,9 +611,9 @@ function pourPlot() {                            // lay particles along each lin
   else plotMsg(plot.name + " poured: " + sim.n.toLocaleString() + " particles in the tank.");
 }
 let style = "line";
-document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+document.querySelectorAll("[data-style]").forEach(b => b.onclick = () => {
   style = b.dataset.style;
-  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("[data-style]").forEach(x => x.classList.toggle("on", x === b));
 });
 ctl.plotRows = 2;
 slider($("plotSliders"), "Line thickness", "plotRows", 1, 6, 1, null, "Rows of particles across each line");
@@ -633,7 +644,7 @@ for (const el of [$("csvDrop"), $("picDrop"), $("tank")]) {   // drop a CSV or a
 let pic = null;                                  // { img, w, h, name }
 const bgc = $("bg"), bgx = bgc.getContext("2d");
 ctl.wallSens = 60; ctl.picAlpha = 1;
-let wallMode = "shapes", solid = null;           // solid: one byte per cell, 1 where the picture has something drawn
+let wallMode = "shapes", picSolid = null, solid = null;   // one byte per cell: picSolid is 1 where the picture has something drawn, solid adds the drawn walls
 let empties = null, picking = false, picPix = null;   // colours that count as open space (null = work it out); the picture's pixels, for picking
 function picMsg(t) { $("picMsg").textContent = t; }
 function picRect() {                             // where the picture sits: as big as fits, centred, never stretched
@@ -650,7 +661,7 @@ async function loadPic(blob, name) {
   picMsg(name + " (" + img.width + " × " + img.height + ") is the tank's background.");
 }
 function buildWalls() {                          // look at the picture pixel by pixel and decide what is solid
-  solid = null;
+  picSolid = null;
   if (pic && wallMode !== "off" && sim.W) {
     const W = Math.round(sim.W), H = Math.round(sim.H), r = picRect(), oc = document.createElement("canvas");
     oc.width = W; oc.height = H;
@@ -693,12 +704,109 @@ function buildWalls() {                          // look at the picture pixel by
       for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (er[x + y * W]) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) px[x + a + (y + b) * W] = 1;
     }
     const cs = 2, gw = Math.ceil(W / cs), gh = Math.ceil(H / cs);   // 2-pixel cells: solid if any pixel in it is
-    solid = new Uint8Array(gw * gh);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (px[x + y * W]) solid[(x / cs | 0) + (y / cs | 0) * gw] = 1;
-    solid.gw = gw; solid.gh = gh; solid.cs = cs;
+    picSolid = new Uint8Array(gw * gh);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (px[x + y * W]) picSolid[(x / cs | 0) + (y / cs | 0) * gw] = 1;
+    picSolid.gw = gw; picSolid.gh = gh; picSolid.cs = cs;
   }
   showEmpties();
+  mergeWalls();
+}
+// ---- walls you draw (the Wall tool) ----
+// Kept on their own grid of 2-pixel cells, the same size as the picture's, and added to the picture's walls.
+let ink = null, inkDirty = false, inkT = 0, inkErase = false;   // ink: 1 where a wall has been drawn
+function inkFit() {                              // match the tank's size, stretching anything already drawn
+  const gw = Math.ceil(Math.round(sim.W) / 2), gh = Math.ceil(Math.round(sim.H) / 2);
+  if (ink && ink.gw === gw && ink.gh === gh) return;
+  const old = ink, g = new Uint8Array(gw * gh);
+  g.gw = gw; g.gh = gh; g.cs = 2; g.any = false;
+  if (old?.any) for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) if (old[(x * old.gw / gw | 0) + (y * old.gh / gh | 0) * old.gw]) { g[x + y * gw] = 1; g.any = true; }
+  ink = g;
+}
+function inkLine(x0, y0, x1, y1, r, v) {         // paint (v = 1) or rub out (v = 0) a round-ended stroke
+  inkFit();
+  const { gw, gh } = ink, n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2)), rc = Math.max(0.7, r / 2), rc2 = rc * rc;
+  for (let s = 0; s <= n; s++) {
+    const cx = (x0 + (x1 - x0) * s / n) / 2, cy = (y0 + (y1 - y0) * s / n) / 2;
+    for (let y = Math.max(0, Math.floor(cy - rc)); y <= Math.min(gh - 1, Math.ceil(cy + rc)); y++)
+      for (let x = Math.max(0, Math.floor(cx - rc)); x <= Math.min(gw - 1, Math.ceil(cx + rc)); x++)
+        if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= rc2) ink[x + y * gw] = v;
+  }
+  if (v) ink.any = true;
+  inkDirty = true;
+}
+function mergeWalls() {                          // the picture's walls plus the drawn ones are what the liquid hits
+  inkFit(); inkDirty = false;
+  if (!ink.any) solid = picSolid;
+  else {
+    solid = Uint8Array.from(ink); solid.gw = ink.gw; solid.gh = ink.gh; solid.cs = 2;
+    if (picSolid) for (let c = 0; c < solid.length; c++) solid[c] |= picSolid[c];
+  }
   updateWalls();
+}
+const inkMode = erase => { inkErase = erase; document.querySelectorAll("#inkSeg button").forEach(b => b.classList.toggle("on", (b.dataset.ink === "erase") === erase)); };
+document.querySelectorAll("#inkSeg button").forEach(b => b.onclick = () => inkMode(b.dataset.ink === "erase"));
+$("wallClear").onclick = () => { ink = null; mergeWalls(); };
+// ---- emitters (spouts that keep pouring) and trash (liquid that touches it is gone) ----
+const emitters = [];                             // { x, y, dx, dy: which way it points, w: half its width, speed 0-1, liq, acc: drops owed }
+const drains = [];                               // circles { x, y, r }; together they make the trash
+let sink = null, devDirty = false;               // sink: 4-pixel cells, 1 inside the trash
+ctl.flow = 0.4;
+slider($("flowBox"), "Emitter flow", "flow", 0, 1, 0.05, null, "How fast every emitter pours");
+function buildSink() {
+  const gw = Math.ceil(sim.W / 4), gh = Math.ceil(sim.H / 4);
+  sink = new Uint8Array(gw * gh); sink.gw = gw; sink.gh = gh;
+  for (const d of drains) {
+    const rc = d.r / 4, cx = d.x / 4, cy = d.y / 4;
+    for (let y = Math.max(0, Math.floor(cy - rc)); y <= Math.min(gh - 1, Math.ceil(cy + rc)); y++)
+      for (let x = Math.max(0, Math.floor(cx - rc)); x <= Math.min(gw - 1, Math.ceil(cx + rc)); x++)
+        if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= rc * rc) sink[x + y * gw] = 1;
+  }
+}
+const inSink = (x, y) => { const cx = x / 4 | 0, cy = y / 4 | 0; return cx >= 0 && cy >= 0 && cx < sink.gw && cy < sink.gh && sink[cx + cy * sink.gw] === 1; };
+function runDevices() {                          // once a frame: emitters pour, trash swallows
+  const h = sim.h, sp = h * 0.5;
+  for (const e of emitters) {
+    const v = (0.15 + 0.85 * e.speed) * h * 0.45;
+    e.acc = Math.min(50, e.acc + ctl.flow * (2 * e.w / sp) * (v * ctl.steps / sp));   // about enough drops to keep a solid stream coming out
+    for (; e.acc >= 1; e.acc--) {
+      const s = (Math.random() * 2 - 1) * e.w;
+      addParticle(e.x - e.dy * s + e.dx * h * 0.4, e.y + e.dx * s + e.dy * h * 0.4, e.liq, e.dx * v, e.dy * v);
+    }
+  }
+  if (drains.length) for (let i = sim.n - 1; i >= 0; i--) if (inSink(X[i], Y[i])) removeParticle(i);
+}
+function scaleDevices(sx, sy) {                  // the tank changed size: keep them in the same places
+  for (const e of emitters) { e.x *= sx; e.y *= sy; }
+  for (const d of drains) { d.x *= sx; d.y *= sy; }
+  devDirty = true;
+}
+function drawDevices() {                         // on the background canvas, under the liquid
+  if (drains.length) {
+    bgx.fillStyle = "rgb(150, 55, 68)"; bgx.beginPath();
+    for (const d of drains) { bgx.moveTo(d.x + d.r, d.y); bgx.arc(d.x, d.y, d.r, 0, 2 * Math.PI); }
+    bgx.fill();
+  }
+  for (const e of emitters) {                    // a nozzle, its mouth in the liquid's colour
+    bgx.save(); bgx.translate(e.x, e.y); bgx.rotate(Math.atan2(-e.dx, e.dy));   // now +y points the way it pours
+    bgx.fillStyle = labview() ? "#9a9a9a" : "#3a4a5c"; bgx.fillRect(-e.w - 3, -12, 2 * e.w + 6, 12);
+    bgx.fillStyle = LIQ[e.liq].color; bgx.fillRect(-e.w, -4, 2 * e.w, 5);
+    bgx.restore();
+  }
+}
+$("devClear").onclick = () => { (ctl.tool === "drain" ? drains : emitters).length = 0; devDirty = true; };
+function devPointer(p, q, down) {                // the Emitter and Trash tools, from the pointer handlers
+  if (ctl.tool === "emitter") {
+    if (q.rub) { if (down) { const i = emitters.findIndex(e => Math.hypot(e.x - p.x, e.y - p.y) < e.w + 12); if (i >= 0) emitters.splice(i, 1); } }
+    else if (down) emitters.push(q.em = { x: p.x, y: p.y, dx: 0, dy: 1, w: ctl.brush, speed: 0.3, liq: ctl.pour, acc: 0 });
+    else if (q.em) {                             // dragging aims it
+      const ax = p.x - q.em.x, ay = p.y - q.em.y, len = Math.hypot(ax, ay);
+      if (len > 10) { q.em.dx = ax / len; q.em.dy = ay / len; q.em.speed = Math.min(1, len / 200); }
+    }
+  } else if (ctl.tool === "drain") {
+    if (q.rub) { for (let i = drains.length - 1; i >= 0; i--) if (Math.hypot(drains[i].x - p.x, drains[i].y - p.y) < drains[i].r + ctl.brush * 0.5) drains.splice(i, 1); }
+    else if (down || Math.hypot(p.x - q.dx0, p.y - q.dy0) > ctl.brush * 0.4) { drains.push({ x: p.x, y: p.y, r: ctl.brush }); q.dx0 = p.x; q.dy0 = p.y; }
+  } else return;
+  devDirty = true;
 }
 function showEmpties() {                         // the swatches of colours that count as empty
   $("emptyRow").hidden = wallMode !== "shapes";
@@ -747,10 +855,15 @@ function drawPic() {                             // the picture (and, if asked, 
   const dpr = devicePixelRatio || 1, W = sim.W, H = sim.H;
   bgc.width = Math.round(W * dpr); bgc.height = Math.round(H * dpr);
   bgx.setTransform(dpr, 0, 0, dpr, 0, 0); bgx.clearRect(0, 0, W, H);
-  if (!pic) return;
-  const r = picRect();
-  bgx.globalAlpha = ctl.picAlpha; bgx.drawImage(pic.img, r.x, r.y, r.w, r.h); bgx.globalAlpha = 1;
-  if ($("picShow").checked && MASK) {
+  if (pic) { const r = picRect(); bgx.globalAlpha = ctl.picAlpha; bgx.drawImage(pic.img, r.x, r.y, r.w, r.h); bgx.globalAlpha = 1; }
+  if (ink?.any) {                                // the drawn walls, soft-edged
+    const oc = document.createElement("canvas"), im = new ImageData(ink.gw, ink.gh), c = labview() ? [196, 196, 196] : [124, 143, 165];
+    for (let k = 0; k < ink.length; k++) if (ink[k]) { im.data.set(c, k * 4); im.data[k * 4 + 3] = 255; }
+    oc.width = ink.gw; oc.height = ink.gh; oc.getContext("2d").putImageData(im, 0, 0);
+    bgx.drawImage(oc, 0, 0, ink.gw * 2, ink.gh * 2);
+  }
+  drawDevices();
+  if (pic && $("picShow").checked && MASK) {
     const { gw, gh, cs, blk } = MASK, oc = document.createElement("canvas"), im = new ImageData(gw, gh);
     for (let c = 0; c < gw * gh; c++) if (blk[c]) { im.data[c * 4] = 255; im.data[c * 4 + 2] = 255; im.data[c * 4 + 3] = 110; }   // magenta
     oc.width = gw; oc.height = gh; oc.getContext("2d").putImageData(im, 0, 0);
@@ -794,13 +907,17 @@ const local = e => { const r = tank.getBoundingClientRect(); return { x: e.clien
 tank.addEventListener("pointerdown", e => {
   if (pickEmpty(e)) { e.preventDefault(); return; }
   tank.setPointerCapture(e.pointerId);
-  const p = local(e);
-  pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0 });
+  const p = local(e), rub = inkErase || e.button === 2 || e.shiftKey;
+  pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0, rub });
+  if (ctl.tool === "wall") inkLine(p.x, p.y, p.x, p.y, ctl.brush, rub ? 0 : 1);
+  devPointer(p, pointers.get(e.pointerId), true);
   hover = p; showBrush();
   e.preventDefault();
 });
 tank.addEventListener("pointermove", e => {
   const p = local(e), q = pointers.get(e.pointerId);
+  if (q && ctl.tool === "wall") inkLine(q.x, q.y, p.x, p.y, ctl.brush, q.rub || e.shiftKey ? 0 : 1);
+  if (q) { q.rub ||= e.shiftKey; devPointer(p, q, false); }
   if (q) { q.x = p.x; q.y = p.y; }
   hover = p; showBrush();
 });
@@ -818,14 +935,14 @@ function showBrush() {
   const b = $("brush");
   b.hidden = !hover;
   if (!hover) return;
-  const r = ctl.tool === "pour" ? Math.min(ctl.brush, sim.h * 2) : ctl.brush;
+  const r = ctl.brush;
   b.style.width = b.style.height = 2 * r + "px";
   b.style.transform = `translate(${hover.x - r}px, ${hover.y - r}px)`;
 }
 
 function applyTools() {                          // runs every step, before the particles move
   const t = ctl.tool;
-  if (!pointers.size || t === "pour" || t === "erase" || t === "push") return;
+  if (!pointers.size || ["pour", "erase", "push", "wall", "emitter", "drain"].includes(t)) return;
   const r = ctl.brush, r2 = r * r, str = ctl.strength, n = sim.n, pull = str * sim.h * 0.04;
   for (const p of pointers.values()) {
     for (let i = 0; i < n; i++) {
@@ -854,9 +971,9 @@ function perFrameTools() {                       // pouring and erasing happen o
   const r = ctl.brush, steps = ctl.steps;
   for (const p of pointers.values()) {
     if (ctl.tool === "pour") {
-      const k = Math.round(2 + ctl.strength * 10), rr = Math.min(r, sim.h * 2);
+      const k = Math.min(400, Math.round((2 + ctl.strength * 10) * Math.max(1, (r / (sim.h * 2)) ** 2)));   // a bigger brush pours more, so it stays as thick
       for (let j = 0; j < k; j++) {
-        const a = Math.random() * 2 * Math.PI, d = Math.sqrt(Math.random()) * rr;
+        const a = Math.random() * 2 * Math.PI, d = Math.sqrt(Math.random()) * r;
         addParticle(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, ctl.pour, p.vx, p.vy);
       }
     } else if (ctl.tool === "erase") {
@@ -922,7 +1039,7 @@ $("sculptBtn").onclick = () => setSculpt(!ctl.sculpt);
 addEventListener("keydown", e => {
   if (e.target.matches?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape" || e.key === " ") { e.preventDefault(); setRunning(!ctl.running); }
-  else if (e.key >= "1" && e.key <= String(TOOLS.length)) pickTool(TOOLS[+e.key - 1][0]);
+  else if (e.key.length === 1 && "1234567890".indexOf(e.key) >= 0 && "1234567890".indexOf(e.key) < TOOLS.length) pickTool(TOOLS["1234567890".indexOf(e.key)][0]);
   else if (e.key === "s" || e.key === "S") setSculpt(!ctl.sculpt);
   else if (e.key === "m" || e.key === "M") melt();
   else if ((e.key === "r" || e.key === "R") && !$("recBtn").disabled) $("recBtn").click();
@@ -1022,7 +1139,7 @@ function setTheme(t) {                           // the look of the page: the de
   if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   $("themeBtn").textContent = t === "labview" ? "Dark theme" : "LabVIEW theme";
   try { localStorage.setItem("liquidTheme", t); } catch (e) {}
-  drawChart();
+  drawChart(); drawPic();                        // drawn walls take the theme's colour
 }
 $("themeBtn").onclick = () => setTheme(labview() ? "dark" : "labview");
 setTheme(labview() ? "labview" : "dark");
@@ -1033,7 +1150,9 @@ function sizeTank() {
   const W = tank.clientWidth, H = tank.clientHeight, dpr = devicePixelRatio || 1;
   if (!W || !H) return;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  if (started) scaleDevices(W / sim.W, H / sim.H);
   sim.W = W; sim.H = H;
+  buildSink();
   if (!started) {                                // first time the tank has a size: pick an amount that suits the screen and fill it
     started = true;
     ctl.amount = Math.min(defaultAmount(), maxAmount());
@@ -1054,13 +1173,16 @@ function sizeTank() {
 new ResizeObserver(sizeTank).observe(tank);
 function frame(t) {
   requestAnimationFrame(frame);
-  if (ctl.running && sim.n + pointers.size) {
+  if (inkDirty && (!pointers.size || t - inkT > 60)) { inkT = t; devDirty = false; buildSink(); mergeWalls(); }   // fresh walls, a few times a second while drawing
+  if (devDirty) { devDirty = false; buildSink(); drawPic(); }
+  if (ctl.running && sim.n + pointers.size + emitters.length) {
     const steps = ctl.steps;
     if (ctl.sculpt) sim.gx = sim.gy = 0;          // no gravity while sculpting, so shapes don't sag
     else if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
     else { const a = ctl.angle * Math.PI / 180; sim.gx = Math.sin(a) * ctl.grav; sim.gy = Math.cos(a) * ctl.grav; }
     for (const p of pointers.values()) { p.vx = (p.x - p.lx) / steps; p.vy = (p.y - p.ly) / steps; }
     perFrameTools();
+    runDevices();
     for (let s = 0; s < steps; s++) {
       step(applyTools, applyBall);
       if (ctl.sculpt) for (let i = 0, k = ctl.keep; i < sim.n; i++) { VX[i] *= k; VY[i] *= k; }   // sculpt: drop (most of) each particle's speed
