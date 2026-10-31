@@ -33,6 +33,7 @@
   .runrow { display: flex; align-items: center; gap: 1rem; }
   #stopBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff6b6b; border-color: #ff6b6b; }
   #stopBtn.run { color: #4cd964; border-color: #4cd964; }
+  #sculptTag { color: var(--accent); font-weight: 600; }
   .ledbox { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; }
   .led { width: 1rem; height: 1rem; border-radius: 50%; background: #2a3a4d; }
   .led.on { background: #4cd964; box-shadow: 0 0 8px #4cd96499; }
@@ -111,7 +112,7 @@
   <div class="pagehead"><h1>Liquid Lab</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
   <div class="rig">
     <div class="tankcol">
-      <div class="tankhead"><span class="lbl">Tank</span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>Esc</b> stops</span></div>
+      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>S</b> sculpts · <b>Esc</b> stops</span></div>
       <div class="tank" id="tank"><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
     </div>
     <div class="panel">
@@ -132,6 +133,7 @@
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
+          <div class="bar"><button id="sculptBtn" type="button" title="Sculpt (S): the liquid stops flowing by itself and stays where you shape it">Sculpt</button></div>
           <div id="toolSliders"></div>
           <div class="ro"><span class="lbl">Pour liquid</span><div class="swatches" id="pourSw"></div></div>
           <div class="bar"><button id="tiltBtn" type="button" hidden>Tilt to pour</button><button id="tiltRev" type="button" hidden title="If the liquid runs uphill, press this to turn the tilt round">Reverse tilt</button></div>
@@ -276,7 +278,7 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
 const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
-const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, ...PHYS };
+const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
 const TOOLS = [
   ["drag", "Drag", "Press and drag to push the liquid along with you."],
   ["attract", "Attract", "Hold to pull liquid toward the pointer."],
@@ -307,6 +309,7 @@ function slider(box, label, key, min, max, step, onSet, help) {   // a labelled 
 const sliders = {};
 sliders.brush = slider($("toolSliders"), "Brush size", "brush", 10, 300, 1);
 sliders.strength = slider($("toolSliders"), "Strength", "strength", 0, 1, 0.05);
+sliders.keep = slider($("toolSliders"), "Sculpt flow", "keep", 0, 1, 0.05, null, "While sculpting: 0 freezes the liquid between your strokes, higher lets it keep drifting a little");
 const physBox = $("physSliders"), applyPhys = () => {
   sim.k = ctl.k; sim.kNear = ctl.kNear; sim.same = ctl.same; sim.diff = ctl.diff; sim.goo = ctl.goo;
 };
@@ -504,10 +507,17 @@ function setRunning(on) {
   $("led").classList.toggle("on", on);
 }
 $("stopBtn").onclick = () => setRunning(!ctl.running);
+function setSculpt(on) {                         // sculpt: nothing flows by itself, so the liquid holds whatever shape you push it into
+  ctl.sculpt = on;
+  $("sculptBtn").classList.toggle("on", on); $("sculptBtn").textContent = on ? "Sculpting" : "Sculpt";
+  $("sculptTag").hidden = !on;
+}
+$("sculptBtn").onclick = () => setSculpt(!ctl.sculpt);
 addEventListener("keydown", e => {
   if (e.target.matches?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape" || e.key === " ") { e.preventDefault(); setRunning(!ctl.running); }
   else if (e.key >= "1" && e.key <= String(TOOLS.length)) pickTool(TOOLS[+e.key - 1][0]);
+  else if (e.key === "s" || e.key === "S") setSculpt(!ctl.sculpt);
   else if (e.key === "[" || e.key === "]") { sliders.brush.set(ctl.brush * (e.key === "]" ? 1.1 : 1 / 1.1)); showBrush(); }
 });
 
@@ -625,11 +635,15 @@ function frame(t) {
   requestAnimationFrame(frame);
   if (ctl.running && sim.n + pointers.size) {
     const steps = ctl.steps;
-    if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
+    if (ctl.sculpt) sim.gx = sim.gy = 0;          // no gravity while sculpting, so shapes don't sag
+    else if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
     else { const a = ctl.angle * Math.PI / 180; sim.gx = Math.sin(a) * ctl.grav; sim.gy = Math.cos(a) * ctl.grav; }
     for (const p of pointers.values()) { p.vx = (p.x - p.lx) / steps; p.vy = (p.y - p.ly) / steps; }
     perFrameTools();
-    for (let s = 0; s < steps; s++) step(applyTools, applyBall);
+    for (let s = 0; s < steps; s++) {
+      step(applyTools, applyBall);
+      if (ctl.sculpt) for (let i = 0, k = ctl.keep; i < sim.n; i++) { VX[i] *= k; VY[i] *= k; }   // sculpt: drop (most of) each particle's speed
+    }
     for (const p of pointers.values()) { p.lx = p.x; p.ly = p.y; }
   }
   render();
