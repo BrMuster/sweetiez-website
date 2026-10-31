@@ -33,6 +33,7 @@
   .runrow { display: flex; align-items: center; gap: 1rem; }
   #stopBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff6b6b; border-color: #ff6b6b; }
   #stopBtn.run { color: #4cd964; border-color: #4cd964; }
+  #sculptTag { color: var(--accent); font-weight: 600; }
   .ledbox { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; }
   .led { width: 1rem; height: 1rem; border-radius: 50%; background: #2a3a4d; }
   .led.on { background: #4cd964; box-shadow: 0 0 8px #4cd96499; }
@@ -57,6 +58,17 @@
   .bar { display: flex; flex-wrap: wrap; gap: .4rem; }
   .hint { font-size: .85rem; color: var(--muted); }
   .hint b { color: var(--text); font-weight: 600; }
+  .drop { display: grid; gap: .3rem; place-items: center; padding: .9rem .6rem; text-align: center; cursor: pointer; border: 2px dashed var(--line); border-radius: 6px; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #1a9fff14; }
+  .tank.over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .serlist { display: grid; gap: .3rem; max-height: 11rem; overflow-y: auto; }
+  .ser { display: grid; grid-template-columns: 1.1rem 1.6rem minmax(0, 1fr); gap: .5rem; align-items: center; font-size: .9rem; }
+  .ser span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ser .swatch { width: 1.4rem; height: 1.4rem; }
+  .checks { display: grid; gap: .25rem; }
+  .checks label { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; font-size: .9rem; }
+  input[type=checkbox] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+  .seg { display: inline-flex; } .seg button { border-radius: 0; } .seg button:first-child { border-radius: 4px 0 0 4px; } .seg button:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
   @media (pointer: coarse) { .tankhead .hint { display: none; } }   /* no keyboard or mouse wheel on a phone */
   @media (max-width: 900px) {
     body { padding: .75rem; }
@@ -103,6 +115,12 @@
   [data-theme=labview] .swatch.on, [data-theme=labview] .swatch.on:hover { background: var(--c); border: 2px solid #000; box-shadow: 0 0 0 2px #fff inset; }
   [data-theme=labview] .liq input[type=color] { border: 1px solid #333; border-radius: 1px; box-shadow: var(--sunken); }
   [data-theme=labview] .hint b { color: #000; padding: 0 .25rem; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; font-weight: 400; }   /* keyboard keys */
+  [data-theme=labview] .drop { border: 2px dashed #7a7a7a; border-radius: 3px; background: #ececec; }
+  [data-theme=labview] .drop:hover, [data-theme=labview] .drop.over { border-color: var(--accent); background: #fff; }
+  [data-theme=labview] .serlist { padding: .3rem; background: #fff; border: 1px solid #7a7a7a; box-shadow: var(--sunken); }   /* a listbox */
+  [data-theme=labview] .ser span, [data-theme=labview] .checks label { color: #000; }
+  [data-theme=labview] input[type=checkbox] { accent-color: #1b8a1b; }
+  [data-theme=labview] .seg button:first-child { border-radius: 3px 0 0 3px; } [data-theme=labview] .seg button:last-child { border-radius: 0 3px 3px 0; }
   [data-theme=labview] :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
 </style>
 </head>
@@ -111,7 +129,7 @@
   <div class="pagehead"><h1>Liquid Lab</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
   <div class="rig">
     <div class="tankcol">
-      <div class="tankhead"><span class="lbl">Tank</span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>Esc</b> stops</span></div>
+      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>S</b> sculpts · <b>Esc</b> stops</span></div>
       <div class="tank" id="tank"><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
     </div>
     <div class="panel">
@@ -129,9 +147,11 @@
           <button class="tab on" type="button" data-tab="tools">Tools</button>
           <button class="tab" type="button" data-tab="liquids">Liquids</button>
           <button class="tab" type="button" data-tab="physics">Physics</button>
+          <button class="tab" type="button" data-tab="plot">Plot</button>
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
+          <div class="bar"><button id="sculptBtn" type="button" title="Sculpt (S): the liquid stops flowing by itself and stays where you shape it">Sculpt</button></div>
           <div id="toolSliders"></div>
           <div class="ro"><span class="lbl">Pour liquid</span><div class="swatches" id="pourSw"></div></div>
           <div class="bar"><button id="tiltBtn" type="button" hidden>Tilt to pour</button><button id="tiltRev" type="button" hidden title="If the liquid runs uphill, press this to turn the tilt round">Reverse tilt</button></div>
@@ -147,6 +167,24 @@
           <div id="physSliders"></div>
           <div class="bar"><button id="physReset" type="button">Reset physics</button></div>
           <p class="hint">Double-click any slider to put it back. Steps per frame drops by itself if the frame rate sinks too low.</p>
+        </div>
+        <div class="pane" id="plot" hidden>
+          <label class="drop" id="csvDrop"><b>Drop a CSV here</b><span class="hint">or click to choose one (you can also drop it on the tank)</span><input type="file" id="csvFile" accept=".csv,.txt,.tsv,text/csv,text/plain" hidden></label>
+          <div class="bar"><button id="sampleBtn" type="button" title="Three made-up waves to try it with">Try sample data</button></div>
+          <p class="hint" id="plotMsg">The first column is X; every other number column is a line. Nothing is uploaded: the file is read in your browser.</p>
+          <div id="plotOpts" class="pane" hidden>
+            <div class="ro"><span class="lbl">Lines (tap the colour to pick a liquid)</span><div class="serlist" id="serList"></div></div>
+            <div class="ro"><span class="lbl">Style</span><span class="seg"><button type="button" class="on" data-style="line">Lines</button><button type="button" data-style="fill">Filled</button></span></div>
+            <div id="plotSliders"></div>
+            <div class="checks">
+              <label><input type="checkbox" id="pClear" checked> Empty the tank first</label>
+              <label><input type="checkbox" id="pFreeze" checked> Freeze it until you touch it</label>
+              <label><input type="checkbox" id="pHold" checked> Turn on Sculpt, so touched parts act like clay instead of dripping</label>
+              <label><input type="checkbox" id="pAxes"> Draw axes</label>
+            </div>
+            <div class="bar"><button id="pourPlot" type="button">Pour the plot into the tank</button><button id="meltBtn" type="button" title="Unfreeze everything and turn Sculpt off (M)">Melt</button></div>
+            <p class="hint">Drag, attract or push the plot to reshape it; frozen parts come loose where you touch them. <b>Melt</b> (or <b>M</b>) lets it all go, and the lines run down and sort by weight. Pour some liquid onto a frozen plot and it flows around the lines like walls. A smaller Particle size (Liquids tab) gives finer lines.</p>
+          </div>
         </div>
       </div>
       <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. Heavier liquids sink under lighter ones. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005), the same one behind Grant Kot's Liquid Layers. This is a from-scratch JavaScript version.</p>
@@ -164,6 +202,7 @@ const CAP = 12000;                               // most particles the tank can 
 const X = new Float32Array(CAP), Y = new Float32Array(CAP), PX = new Float32Array(CAP), PY = new Float32Array(CAP);
 const VX = new Float32Array(CAP), VY = new Float32Array(CAP), MAT = new Uint8Array(CAP), MS = new Float32Array(CAP);
 const RHO = new Float32Array(CAP), NEAR = new Float32Array(CAP), CELL = new Int32Array(CAP), ORDER = new Int32Array(CAP);
+const LOCK = new Uint8Array(CAP);                // 1 = frozen in place (a poured plot) until a tool touches it; others bump into it like a wall
 let PAIRS = 0, PI = new Int32Array(CAP * 24), PJ = new Int32Array(CAP * 24), PQ = new Float32Array(CAP * 24), PNX = new Float32Array(CAP * 24), PNY = new Float32Array(CAP * 24);
 let START = new Int32Array(1), COUNT = new Int32Array(1);
 const sim = {
@@ -176,11 +215,11 @@ const sim = {
 function addParticle(x, y, m, vx = 0, vy = 0) {
   if (sim.n >= CAP) return;
   const i = sim.n++;
-  X[i] = x; Y[i] = y; VX[i] = vx; VY[i] = vy; MAT[i] = m;
+  X[i] = x; Y[i] = y; VX[i] = vx; VY[i] = vy; MAT[i] = m; LOCK[i] = 0;
 }
 function removeParticle(i) {                     // swap the last particle into the hole
   const l = --sim.n;
-  X[i] = X[l]; Y[i] = Y[l]; VX[i] = VX[l]; VY[i] = VY[l]; MAT[i] = MAT[l];
+  X[i] = X[l]; Y[i] = Y[l]; VX[i] = VX[l]; VY[i] = VY[l]; MAT[i] = MAT[l]; LOCK[i] = LOCK[l];
 }
 function buildGrid() {                           // bucket particles into h-sized cells so neighbours are quick to find
   const h = sim.h, cols = Math.ceil(sim.W / h) + 2, rows = Math.ceil(sim.H / h) + 2, cells = cols * rows;
@@ -226,9 +265,11 @@ function relax() {                               // double density relaxation: p
     const P = k * ((RHO[i] + RHO[j]) * 0.5 - r0), Pn = kn * (NEAR[i] + NEAR[j]) * 0.5;
     let D = P * q + Pn * q * q;
     D = D > lim ? lim : D < -lim ? -lim : D;
-    const mi = MS[i], mj = MS[j], t = 1 / (mi + mj), dx = D * PNX[p], dy = D * PNY[p];
-    X[i] -= dx * mj * t; Y[i] -= dy * mj * t;    // the lighter one of the pair moves further
-    X[j] += dx * mi * t; Y[j] += dy * mi * t;
+    const si = LOCK[i] ? 0 : MS[j], sj = LOCK[j] ? 0 : MS[i], t = si + sj;   // the lighter one of the pair moves further; a frozen one doesn't move at all
+    if (!t) continue;
+    const dx = D * PNX[p] / t, dy = D * PNY[p] / t;
+    X[i] -= dx * si; Y[i] -= dy * si;
+    X[j] += dx * sj; Y[j] += dy * sj;
   }
 }
 function viscosity() {                           // goo: neighbours moving toward each other trade some of that speed
@@ -237,7 +278,7 @@ function viscosity() {                           // goo: neighbours moving towar
   for (let p = 0; p < PAIRS; p++) {
     const i = PI[p], j = PJ[p], nx = PNX[p], ny = PNY[p];
     const u = (VX[i] - VX[j]) * nx + (VY[i] - VY[j]) * ny;
-    if (u <= 0) continue;
+    if (u <= 0 || LOCK[i] || LOCK[j]) continue;
     const I = 0.5 * PQ[p] * s * u;
     VX[i] -= I * nx; VY[i] -= I * ny; VX[j] += I * nx; VY[j] += I * ny;
   }
@@ -248,6 +289,7 @@ function step(beforeAdvance, afterRelax) {
   for (let i = 0; i < n; i++) { MS[i] = sim.mass[MAT[i]]; VX[i] += gx; VY[i] += gy; }
   if (beforeAdvance) beforeAdvance();
   for (let i = 0; i < n; i++) {
+    if (LOCK[i]) { VX[i] = VY[i] = 0; PX[i] = X[i]; PY[i] = Y[i]; continue; }
     let vx = VX[i], vy = VY[i];
     const v2 = vx * vx + vy * vy;
     if (v2 > vmax * vmax) { const f = vmax / Math.sqrt(v2); vx *= f; vy *= f; }
@@ -258,6 +300,7 @@ function step(beforeAdvance, afterRelax) {
   if (afterRelax) afterRelax();
   const W = sim.W, H = sim.H, b = sim.h * 0.4, mmax = Math.max(...sim.mass);
   for (let i = 0; i < n; i++) {                  // walls: a soft push back from each edge, stronger for light liquids so they never get trapped under heavy ones
+    if (LOCK[i]) continue;
     let x = X[i], y = Y[i];
     const f = Math.min(1, 0.3 * mmax / MS[i]);
     if (x < b) x += (b - x) * f; else if (x > W - b) x -= (x - W + b) * f;
@@ -276,7 +319,7 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
 const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
-const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, ...PHYS };
+const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
 const TOOLS = [
   ["drag", "Drag", "Press and drag to push the liquid along with you."],
   ["attract", "Attract", "Hold to pull liquid toward the pointer."],
@@ -307,6 +350,7 @@ function slider(box, label, key, min, max, step, onSet, help) {   // a labelled 
 const sliders = {};
 sliders.brush = slider($("toolSliders"), "Brush size", "brush", 10, 300, 1);
 sliders.strength = slider($("toolSliders"), "Strength", "strength", 0, 1, 0.05);
+sliders.keep = slider($("toolSliders"), "Sculpt flow", "keep", 0, 1, 0.05, null, "While sculpting: 0 freezes the liquid between your strokes, higher lets it keep drifting a little");
 const physBox = $("physSliders"), applyPhys = () => {
   sim.k = ctl.k; sim.kNear = ctl.kNear; sim.same = ctl.same; sim.diff = ctl.diff; sim.goo = ctl.goo;
 };
@@ -357,7 +401,7 @@ buildLiquids();
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  for (const p of ["tools", "liquids", "physics"]) $(p).hidden = p !== t.dataset.tab;
+  for (const p of ["tools", "liquids", "physics", "plot"]) $(p).hidden = p !== t.dataset.tab;
 });
 
 // ---- filling the tank ----
@@ -379,6 +423,141 @@ function fill(mode) {
 $("mixBtn").onclick = () => fill("mix");
 $("flipBtn").onclick = () => fill("flip");
 $("emptyBtn").onclick = () => { sim.n = 0; };
+
+// ---- plot a CSV with liquid ----
+function parseCSV(text) {                        // handles quotes like "a, b" and picks the delimiter (same reader as the Filter page)
+  text = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+  const d = [",", "\t", ";"].map(c => [c, text.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];   // the file's most common delimiter
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === d) { row.push(f); f = ""; }
+    else if (c === "\n") { row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.length > 1 || r[0].trim() !== "");
+}
+let plot = null;                                 // { name, X: [...], series: [{ name, v: [...], on, liq }] }
+function readPlot(text, fname) {                 // the data is the longest unbroken run of number rows; notes above and below it are skipped
+  const rows = parseCSV(text), isNum = c => c.trim() !== "" && isFinite(Number(c));
+  const isData = r => { const f = r.filter(c => c.trim() !== ""); return f.length >= 1 && f.every(isNum); };
+  let start = -1, len = 0;
+  for (let i = 0; i < rows.length;) {
+    if (!isData(rows[i])) { i++; continue; }
+    let j = i; while (j < rows.length && isData(rows[j])) j++;
+    if (j - i > len) { len = j - i; start = i; }
+    i = j;
+  }
+  if (len < 2) return plotMsg("I couldn't find rows of numbers in " + fname + ".");
+  const body = rows.slice(start, start + len), hd = start > 0 ? rows[start - 1] : [];
+  const width = Math.max(...body.map(r => r.length));
+  const col = j => body.map(r => (r[j] ?? "").trim() === "" ? NaN : Number(r[j]));
+  const name = j => (hd[j] ?? "").trim() || "Column " + (j + 1);
+  const cols = []; for (let j = 0; j < width; j++) { const v = col(j); if (v.some(Number.isFinite)) cols.push({ name: name(j), v }); }
+  const one = cols.length === 1;                 // a single column is plotted against its row number
+  const X = one ? body.map((_, i) => i) : cols[0].v;
+  plot = { name: fname, X, series: (one ? cols : cols.slice(1)).map((c, i) => ({ name: c.name, v: c.v, on: true, liq: i % 4 })) };
+  plotMsg(fname + ": " + len.toLocaleString() + " rows, " + plot.series.length + (plot.series.length === 1 ? " line" : " lines") + (one ? " (plotted against row number)." : " against " + cols[0].name + "."));
+  buildSeries(); $("plotOpts").hidden = false;
+  pourPlot();
+}
+function plotMsg(t) { $("plotMsg").textContent = t; }
+function buildSeries() {                         // one row per line: show it or not, and which liquid it is made of
+  const box = $("serList"); box.replaceChildren();
+  plot.series.forEach(se => {
+    const row = document.createElement("label"), cb = document.createElement("input"), sw = document.createElement("button"), nm = document.createElement("span");
+    row.className = "ser"; cb.type = "checkbox"; cb.checked = se.on; cb.onchange = () => { se.on = cb.checked; };
+    sw.type = "button"; sw.className = "swatch"; sw.style.setProperty("--c", LIQ[se.liq].color); sw.title = LIQ[se.liq].name + " (tap for the next liquid)";
+    sw.onclick = e => { e.preventDefault(); se.liq = (se.liq + 1) % 4; sw.style.setProperty("--c", LIQ[se.liq].color); sw.title = LIQ[se.liq].name + " (tap for the next liquid)"; };
+    nm.textContent = se.name; nm.title = se.name;
+    row.append(cb, sw, nm); box.append(row);
+  });
+}
+function pourPlot() {                            // lay particles along each line (or under it, filled), packed about as tight as liquid at rest
+  if (!plot) return;
+  const shown = plot.series.filter(se => se.on);
+  if (!shown.length) return plotMsg("Tick at least one line to plot.");
+  if ($("pClear").checked) sim.n = 0;
+  const first = sim.n;
+  const W = sim.W, H = sim.H, sp = sim.h * 0.45, pad = Math.max(3 * sp, Math.min(W, H) * 0.06);
+  const L = pad, R = W - pad, T = pad, B = H - pad, X = plot.X;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const se of shown) se.v.forEach((y, i) => { const x = X[i]; if (!Number.isFinite(x) || !Number.isFinite(y)) return; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+  if (!(x1 >= x0)) return plotMsg("Those lines have no numbers to plot.");
+  if (x1 === x0) { x0 -= 1; x1 += 1; } if (y1 === y0) { y0 -= 1; y1 += 1; }
+  const px = x => L + (x - x0) / (x1 - x0) * (R - L), py = y => B - (y - y0) / (y1 - y0) * (B - T);
+  const curves = shown.map(se => ({ liq: se.liq, pts: se.v.map((y, i) => Number.isFinite(y) && Number.isFinite(X[i]) ? [px(X[i]), py(y)] : null) }));
+  let full = false;
+  const put = (x, y, m) => { if (sim.n >= CAP) { full = true; return; } addParticle(x, y, m); };
+  if (style === "fill") {                        // stacked bands: each column of particles runs from a curve down to the next curve below it
+    const at = c => {                            // the curve's height at any x, from its points sorted left to right
+      const p = c.pts.filter(Boolean).sort((a, b) => a[0] - b[0]);
+      return x => { if (!p.length || x < p[0][0] || x > p[p.length - 1][0]) return null;
+        let lo = 0, hi = p.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (p[m][0] <= x) lo = m; else hi = m; }
+        const a = p[lo], b = p[hi], t = b[0] === a[0] ? 0 : (x - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * t; };
+    };
+    const fs = curves.map(c => ({ liq: c.liq, y: at(c) }));
+    for (let x = L; x <= R && !full; x += sp) {
+      const ys = fs.map(f => ({ liq: f.liq, y: f.y(x) })).filter(f => f.y !== null).sort((a, b) => a.y - b.y);
+      ys.forEach((f, k) => { const bottom = k + 1 < ys.length ? ys[k + 1].y : B; for (let y = f.y; y < bottom && !full; y += sp) put(x, y, f.liq); });
+    }
+  } else {
+    const rows = ctl.plotRows;
+    for (const c of curves) {                    // walk each line, dropping a particle every sp pixels, rows of them across its width
+      let carry = 0;
+      for (let i = 1; i < c.pts.length && !full; i++) {
+        const a = c.pts[i - 1], b = c.pts[i];
+        if (!a || !b) { carry = 0; continue; }   // a gap in the data breaks the line
+        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+        if (!len) continue;
+        const nx = -dy / len, ny = dx / len;
+        let t = carry;
+        for (; t <= len && !full; t += sp) for (let r = 0; r < rows; r++) { const o = (r - (rows - 1) / 2) * sp; put(a[0] + dx * t / len + nx * o, a[1] + dy * t / len + ny * o, c.liq); }
+        carry = t - len;
+      }
+    }
+  }
+  if ($("pAxes").checked) {                      // an L of liquid along the left and bottom, made of a liquid the lines don't use (if there is one)
+    const used = new Set(curves.map(c => c.liq)), m = [3, 2, 1, 0].find(k => !used.has(k)) ?? 0, ax = L - sp * 1.5, ay = B + sp * 1.5;
+    for (let y = T; y <= ay && !full; y += sp) put(ax, y, m);
+    for (let x = ax + sp; x <= R && !full; x += sp) put(x, ay, m);
+  }
+  if ($("pFreeze").checked) LOCK.fill(1, first, sim.n);
+  if ($("pHold").checked) setSculpt(true);
+  if (full) plotMsg("The tank is full (" + CAP.toLocaleString() + " particles), so part of the plot is missing. Try a bigger Particle size, thinner lines or Lines instead of Filled.");
+  else plotMsg(plot.name + " poured: " + sim.n.toLocaleString() + " particles in the tank.");
+}
+let style = "line";
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+  style = b.dataset.style;
+  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
+});
+ctl.plotRows = 2;
+slider($("plotSliders"), "Line thickness", "plotRows", 1, 6, 1, null, "Rows of particles across each line");
+$("pourPlot").onclick = pourPlot;
+function melt() { LOCK.fill(0); setSculpt(false); }   // let the whole plot go
+$("meltBtn").onclick = melt;
+$("csvFile").onchange = async e => { const f = e.target.files[0]; if (f) readPlot(await f.text(), f.name); e.target.value = ""; };
+$("sampleBtn").onclick = () => {                 // three made-up waves
+  let t = "x,Sine,Cosine,Damped\n";
+  for (let i = 0; i <= 400; i++) { const x = i / 40; t += [x, Math.sin(x), 0.6 * Math.cos(1.3 * x), 1.4 * Math.exp(-x / 4) * Math.sin(3 * x)].map(v => +v.toFixed(4)).join(",") + "\n"; }
+  readPlot(t, "Sample waves");
+};
+for (const el of [$("csvDrop"), $("tank")]) {         // drop a CSV on the Plot tab or straight onto the tank
+  el.addEventListener("dragover", e => { if (![...e.dataTransfer.types].includes("Files")) return; e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", async e => {
+    const f = e.dataTransfer.files[0];
+    el.classList.remove("over");
+    if (!f) return;
+    e.preventDefault();
+    document.querySelector('.tab[data-tab="plot"]').click();
+    readPlot(await f.text(), f.name);
+  });
+}
 
 // ---- pointers and tools ----
 const tank = $("tank"), cv = $("cv"), pointers = new Map();
@@ -424,6 +603,7 @@ function applyTools() {                          // runs every step, before the 
       const dx = X[i] - p.x, dy = Y[i] - p.y, d2 = dx * dx + dy * dy;
       if (d2 >= r2) continue;
       const d = Math.sqrt(d2) || 1, f = 1 - d / r;
+      LOCK[i] = 0;                               // touching frozen liquid frees it
       if (t === "drag") { const a = Math.min(1, f * str); VX[i] += (p.vx - VX[i]) * a; VY[i] += (p.vy - VY[i]) * a; }
       else if (t === "swirl") { const a = f * pull / d; VX[i] -= dy * a; VY[i] += dx * a; }
       else { const a = f * pull * (t === "attract" ? -1 : 1) / d; VX[i] += dx * a; VY[i] += dy * a; }
@@ -437,7 +617,7 @@ function applyBall() {                           // runs every step after the li
     const dx = X[i] - p.x, dy = Y[i] - p.y, d2 = dx * dx + dy * dy;
     if (d2 >= r2) continue;
     const d = Math.sqrt(d2) || 1;
-    X[i] = p.x + dx / d * r; Y[i] = p.y + dy / d * r;
+    X[i] = p.x + dx / d * r; Y[i] = p.y + dy / d * r; LOCK[i] = 0;
   }
 }
 function perFrameTools() {                       // pouring and erasing happen once a frame
@@ -504,10 +684,18 @@ function setRunning(on) {
   $("led").classList.toggle("on", on);
 }
 $("stopBtn").onclick = () => setRunning(!ctl.running);
+function setSculpt(on) {                         // sculpt: nothing flows by itself, so the liquid holds whatever shape you push it into
+  ctl.sculpt = on;
+  $("sculptBtn").classList.toggle("on", on); $("sculptBtn").textContent = on ? "Sculpting" : "Sculpt";
+  $("sculptTag").hidden = !on;
+}
+$("sculptBtn").onclick = () => setSculpt(!ctl.sculpt);
 addEventListener("keydown", e => {
   if (e.target.matches?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape" || e.key === " ") { e.preventDefault(); setRunning(!ctl.running); }
   else if (e.key >= "1" && e.key <= String(TOOLS.length)) pickTool(TOOLS[+e.key - 1][0]);
+  else if (e.key === "s" || e.key === "S") setSculpt(!ctl.sculpt);
+  else if (e.key === "m" || e.key === "M") melt();
   else if (e.key === "[" || e.key === "]") { sliders.brush.set(ctl.brush * (e.key === "]" ? 1.1 : 1 / 1.1)); showBrush(); }
 });
 
@@ -625,11 +813,15 @@ function frame(t) {
   requestAnimationFrame(frame);
   if (ctl.running && sim.n + pointers.size) {
     const steps = ctl.steps;
-    if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
+    if (ctl.sculpt) sim.gx = sim.gy = 0;          // no gravity while sculpting, so shapes don't sag
+    else if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
     else { const a = ctl.angle * Math.PI / 180; sim.gx = Math.sin(a) * ctl.grav; sim.gy = Math.cos(a) * ctl.grav; }
     for (const p of pointers.values()) { p.vx = (p.x - p.lx) / steps; p.vy = (p.y - p.ly) / steps; }
     perFrameTools();
-    for (let s = 0; s < steps; s++) step(applyTools, applyBall);
+    for (let s = 0; s < steps; s++) {
+      step(applyTools, applyBall);
+      if (ctl.sculpt) for (let i = 0, k = ctl.keep; i < sim.n; i++) { VX[i] *= k; VY[i] *= k; }   // sculpt: drop (most of) each particle's speed
+    }
     for (const p of pointers.values()) { p.lx = p.x; p.ly = p.y; }
   }
   render();

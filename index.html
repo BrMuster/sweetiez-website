@@ -209,6 +209,17 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid.html": [
+      { date: "October 31, 2026", title: "Plot a CSV in liquid", notes: [
+        "New Plot tab: drop a CSV on it (or straight onto the tank), or press Try sample data. The first column is X and every other number column becomes a line made of liquid. Notes above and below the data, like spectrometer exports, are skipped.",
+        "Pick which lines to show and which liquid each one is made of (tap its colour). Lines style traces each curve, with a Line thickness setting; Filled style stacks the area under the curves in layers. You can also draw axes.",
+        "The plot is frozen in place until you touch it. Drag, attract, swirl or push it with the ball to reshape it; with Sculpt on, touched parts act like clay, and with Sculpt off they drip.",
+        "Melt (or M) lets the whole plot go: the lines run down and sort themselves by weight.",
+        "Pour liquid onto a frozen plot and it collects in the curves like cups.",
+        "Nothing is uploaded: the file is read in your browser." ] },
+      { date: "October 31, 2026", title: "Sculpt mode", notes: [
+        "New Sculpt button on the Tools tab (or press S). The liquid stops flowing on its own and gravity switches off, so it stays in whatever shape you drag, push or pour it into, like clay. The particles still hold together and push apart, so edges stay soft and round.",
+        "Sculpt flow sets how much movement is kept between strokes: 0 freezes it in place, higher lets it keep drifting a little.",
+        "The tank's label shows \"sculpting\" while it is on. Press Sculpt or S again and gravity takes over." ] },
       { date: "October 31, 2026", title: "Smaller particles and working tilt", notes: [
         "New Particle size setting on the Liquids tab. Smaller particles make a smoother, finer liquid; the amount adjusts itself to keep the tank about half full, up to 3000 of each. Very small particles are slower, and the tank is shallower once that limit is reached.",
         "Drop size is now called Drawn size: it only changes how big the dots look, not the physics.",
