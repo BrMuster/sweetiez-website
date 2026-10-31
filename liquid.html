@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquid Lab</title>
+<script>try { if (localStorage.getItem("liquidTheme") === "labview") document.documentElement.dataset.theme = "labview"; } catch (e) {}</script>
+<style>
+  :root { --bg: #1b2838; --panel: #16202d; --line: #2a3a4d; --text: #c6d4df; --muted: #8f98a0; --accent: #1a9fff; --strong: #fff; --well: #0e141b; }
+  * { box-sizing: border-box; margin: 0; }
+  [hidden] { display: none !important; }
+  body { min-height: 100vh; padding: 1rem 1.5rem; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1600px; height: calc(100vh - 2rem); margin: 0 auto; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 1rem; }
+  .home { color: var(--muted); text-decoration: none; transition: color .15s; } .home:hover { color: #fff; }
+  h1 { font-weight: 500; font-size: 1.6rem; color: var(--strong); }
+  .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .headr { display: inline-flex; align-items: center; gap: 1rem; }
+  #themeBtn { padding: .3rem .8rem; font-size: .85rem; }
+  .rig { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 1rem; min-height: 0; }
+  .tankcol { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .3rem; min-height: 0; }
+  .lbl { font-size: .8rem; color: var(--muted); }
+  .tankhead { display: flex; justify-content: space-between; gap: 1rem; }
+  .tank { position: relative; min-height: 320px; overflow: hidden; background: var(--well); border-radius: 6px; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+  .tank canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .brush { position: absolute; left: 0; top: 0; border: 1px solid #ffffff80; border-radius: 50%; pointer-events: none; }
+  .panel { display: grid; gap: 1rem; align-content: start; min-height: 0; overflow-y: auto; padding-bottom: .5rem; }
+  .card { padding: .9rem 1rem; background: var(--panel); border-radius: 6px; display: grid; gap: .7rem; }
+  button { font: inherit; color: var(--text); background: #223246; border: 1px solid var(--line); border-radius: 4px; padding: .35rem .7rem; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--strong); }
+  button.on, button.on:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .runrow { display: flex; align-items: center; gap: 1rem; }
+  #stopBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff6b6b; border-color: #ff6b6b; }
+  #stopBtn.run { color: #4cd964; border-color: #4cd964; }
+  .ledbox { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; }
+  .led { width: 1rem; height: 1rem; border-radius: 50%; background: #2a3a4d; }
+  .led.on { background: #4cd964; box-shadow: 0 0 8px #4cd96499; }
+  .ro { display: grid; gap: .1rem; }
+  .ro output { min-width: 4rem; padding: .1rem .4rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--strong); background: var(--well); border-radius: 4px; }
+  #fpsChart { width: 100%; height: 64px; display: block; border-radius: 4px; }
+  .tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--line); }
+  .tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
+  .tab.on, .tab.on:hover { background: none; color: var(--strong); border-bottom-color: var(--accent); }
+  .pane { display: grid; gap: .6rem; }
+  .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+  .tools button { padding: .35rem .2rem; }
+  .sl { display: grid; grid-template-columns: 7.6rem minmax(0, 1fr) 4.4rem; gap: .5rem; align-items: center; }
+  .sl span { font-size: .9rem; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input.num { width: 100%; font: inherit; font-size: .9rem; padding: .1rem .3rem; text-align: right; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: 4px; }
+  .swatches { display: flex; gap: .5rem; align-items: center; }
+  .swatch { width: 2rem; height: 2rem; padding: 0; background: var(--c); border: 2px solid transparent; border-radius: 50%; }
+  .swatch.on, .swatch.on:hover { background: var(--c); border-color: var(--strong); box-shadow: 0 0 0 2px var(--panel) inset; }
+  .liq { display: grid; grid-template-columns: 2rem 4rem minmax(0, 1fr) 4.4rem; gap: .5rem; align-items: center; }
+  .liq input[type=color] { width: 2rem; height: 1.6rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+  .bar { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .hint { font-size: .85rem; color: var(--muted); }
+  .hint b { color: var(--text); font-weight: 600; }
+  @media (pointer: coarse) { .tankhead .hint { display: none; } }   /* no keyboard or mouse wheel on a phone */
+  @media (max-width: 900px) {
+    body { padding: .75rem; }
+    main { height: auto; }
+    .rig { grid-template-columns: 1fr; }
+    .tank { height: 62vh; }
+    .panel { overflow: visible; }
+  }
+  /* LabVIEW theme: a grey front panel with raised 3D buttons, sunken white controls, grey indicators, bold labels and a black graph display */
+  :root[data-theme=labview] { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000; --well: #fff;
+    --raised: inset 1px 1px #fff, inset -1px -1px #8a8a8a; --sunken: inset 1px 1px #6e6e6e, inset -1px -1px #fff; }
+  [data-theme=labview] body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
+    background-color: var(--bg); background-image: linear-gradient(#0000000a 1px, transparent 1px), linear-gradient(90deg, #0000000a 1px, transparent 1px); background-size: 12px 12px; }   /* faint panel grid, like the editor's alignment grid */
+  [data-theme=labview] .pagehead { padding: .4rem .8rem; background: linear-gradient(#f2f2f2, #cdcdcd); border: 1px solid #7a7a7a; box-shadow: var(--raised); border-radius: 3px; }
+  [data-theme=labview] h1 { font-size: 1.3rem; font-weight: 700; }
+  [data-theme=labview] .home { color: #003fa3; font-weight: 700; } [data-theme=labview] .home:hover { color: #000; text-decoration: underline; }
+  [data-theme=labview] .lbl, [data-theme=labview] .sl span, [data-theme=labview] .liq b { color: #000; font-weight: 700; }   /* every LabVIEW control carries a bold label */
+  [data-theme=labview] .tankhead .hint { color: #3d3d3d; }
+  [data-theme=labview] .tank { margin: 6px; border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 5px #c4c4c4, 0 0 0 6px #7a7a7a;   /* black plot area in a grey bezel, like a waveform graph */
+    background-color: #000; background-image: linear-gradient(#ffffff26 1px, transparent 1px), linear-gradient(90deg, #ffffff26 1px, transparent 1px); background-size: 50px 50px; }
+  [data-theme=labview] .brush { border: 1px dashed #ffff00; }
+  [data-theme=labview] .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
+  [data-theme=labview] button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
+  [data-theme=labview] button:hover { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
+  [data-theme=labview] button:active, [data-theme=labview] button.on, [data-theme=labview] button.on:hover { color: #000; font-weight: 700; background: linear-gradient(#c4c4c4, #e6e6e6); border-color: #6b6b6b; box-shadow: inset 1px 1px 2px #0006; }
+  [data-theme=labview] #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
+  [data-theme=labview] #stopBtn.run { background: linear-gradient(#7ee07e, #1b8a1b); border-color: #0a3d0a; box-shadow: inset 1px 1px #c4f5c4, 1px 1px 0 #0004; }
+  [data-theme=labview] .led { background: radial-gradient(circle at 35% 35%, #4d7a4d, #0f3d0f 60%, #062006); border: 1px solid #333; }   /* round LED: dark green off, bright green on */
+  [data-theme=labview] .led.on { background: radial-gradient(circle at 35% 35%, #d4ffd4, #18e018 50%, #067a06); box-shadow: 0 0 6px #18e01899; }
+  [data-theme=labview] .ro output { color: #000; background: #d0d0d0; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); }   /* indicators are grey, controls are white */
+  [data-theme=labview] #fpsChart { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
+  [data-theme=labview] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
+  [data-theme=labview] .tab { padding: .3rem .9rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
+  [data-theme=labview] .tab.on, [data-theme=labview] .tab.on:hover { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); box-shadow: inset 1px 1px #fff; position: relative; top: -2px; padding-bottom: calc(.3rem + 2px); }
+  [data-theme=labview] input.num { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
+  [data-theme=labview] input.num:focus { background: #fffff0; outline: none; }
+  [data-theme=labview] input[type=range] { -webkit-appearance: none; appearance: none; height: 20px; background: transparent; }   /* a slide control: sunken white track, raised grey thumb, blue fill */
+  [data-theme=labview] input[type=range]::-webkit-slider-runnable-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
+  [data-theme=labview] input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 20px; margin-top: -8px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; box-shadow: inset 1px 1px #fff; }
+  [data-theme=labview] input[type=range]::-moz-range-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
+  [data-theme=labview] input[type=range]::-moz-range-progress { height: 6px; background: #1f5fbf; }
+  [data-theme=labview] input[type=range]::-moz-range-thumb { width: 9px; height: 18px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; }
+  [data-theme=labview] .swatch, [data-theme=labview] .swatch:hover { background: var(--c); border: 1px solid #333; border-radius: 3px; box-shadow: inset 1px 1px #fff8, inset -1px -1px #0006; }   /* square colour boxes */
+  [data-theme=labview] .swatch.on, [data-theme=labview] .swatch.on:hover { background: var(--c); border: 2px solid #000; box-shadow: 0 0 0 2px #fff inset; }
+  [data-theme=labview] .liq input[type=color] { border: 1px solid #333; border-radius: 1px; box-shadow: var(--sunken); }
+  [data-theme=labview] .hint b { color: #000; padding: 0 .25rem; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; font-weight: 400; }   /* keyboard keys */
+  [data-theme=labview] :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="pagehead"><h1>Liquid Lab</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
+  <div class="rig">
+    <div class="tankcol">
+      <div class="tankhead"><span class="lbl">Tank</span><span class="hint">Scroll to resize the brush · <b>1</b>–<b>7</b> pick a tool · <b>Esc</b> stops</span></div>
+      <div class="tank" id="tank"><canvas id="cv"></canvas><div class="brush" id="brush" hidden></div></div>
+    </div>
+    <div class="panel">
+      <div class="card">
+        <div class="runrow">
+          <button id="stopBtn" type="button" title="Stop the liquid (Esc or Space); press again to run">STOP</button>
+          <span class="ledbox"><span class="led on" id="led"></span><span class="lbl">Running</span></span>
+          <span class="ro"><span class="lbl">Particles</span><output id="countOut">0</output></span>
+          <span class="ro"><span class="lbl">Frames/s</span><output id="fpsOut">0</output></span>
+        </div>
+        <div class="ro"><span class="lbl">Frame rate chart</span><canvas id="fpsChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="tabs" role="tablist">
+          <button class="tab on" type="button" data-tab="tools">Tools</button>
+          <button class="tab" type="button" data-tab="liquids">Liquids</button>
+          <button class="tab" type="button" data-tab="physics">Physics</button>
+        </div>
+        <div class="pane" id="tools">
+          <div class="tools" id="toolBtns"></div>
+          <div id="toolSliders"></div>
+          <div class="ro"><span class="lbl">Pour liquid</span><div class="swatches" id="pourSw"></div></div>
+          <div class="bar"><button id="tiltBtn" type="button" hidden>Tilt to pour</button><button id="tiltRev" type="button" hidden title="If the liquid runs uphill, press this to turn the tilt round">Reverse tilt</button></div>
+          <p class="hint" id="tiltInfo" hidden></p>
+          <p class="hint" id="toolHint"></p>
+        </div>
+        <div class="pane" id="liquids" hidden>
+          <div id="liqRows" class="pane"></div>
+          <div id="liqSliders"></div>
+          <div class="bar"><button id="mixBtn" type="button" title="Throw every liquid all over the tank and let it settle">Mix all</button><button id="flipBtn" type="button" title="Stack the layers upside down, heaviest on top, and watch them turn over">Flip layers</button><button id="emptyBtn" type="button">Empty tank</button></div>
+        </div>
+        <div class="pane" id="physics" hidden>
+          <div id="physSliders"></div>
+          <div class="bar"><button id="physReset" type="button">Reset physics</button></div>
+          <p class="hint">Double-click any slider to put it back. Steps per frame drops by itself if the frame rate sinks too low.</p>
+        </div>
+      </div>
+      <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. Heavier liquids sink under lighter ones. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005), the same one behind Grant Kot's Liquid Layers. This is a from-scratch JavaScript version.</p>
+    </div>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+// ---- the liquid solver ----
+// Particle liquid after Clavet, Beaudoin & Poulin, "Particle-based Viscoelastic Fluid Simulation" (2005).
+// Every particle looks at its neighbours within radius h and pushes them apart (or pulls them together) so the
+// local crowding settles at a rest value. Positions are moved directly and velocity is read back afterwards,
+// which keeps it stable even with big steps.
+const CAP = 12000;                               // most particles the tank can hold
+const X = new Float32Array(CAP), Y = new Float32Array(CAP), PX = new Float32Array(CAP), PY = new Float32Array(CAP);
+const VX = new Float32Array(CAP), VY = new Float32Array(CAP), MAT = new Uint8Array(CAP), MS = new Float32Array(CAP);
+const RHO = new Float32Array(CAP), NEAR = new Float32Array(CAP), CELL = new Int32Array(CAP), ORDER = new Int32Array(CAP);
+let PAIRS = 0, PI = new Int32Array(CAP * 24), PJ = new Int32Array(CAP * 24), PQ = new Float32Array(CAP * 24), PNX = new Float32Array(CAP * 24), PNY = new Float32Array(CAP * 24);
+let START = new Int32Array(1), COUNT = new Int32Array(1);
+const sim = {
+  n: 0, W: 800, H: 600, h: 14,
+  gx: 0, gy: 1,                                  // gravity direction and strength (1 = normal)
+  same: 1.2, diff: 0.0,                          // rest crowding between the same liquid, and between two different ones
+  k: 0.35, kNear: 2.0, goo: 0,                   // stiffness, near stiffness (keeps particles from clumping), viscosity
+  mass: [1, 0.6, 0.36, 0.22],                    // heavier liquids sink below lighter ones
+};
+function addParticle(x, y, m, vx = 0, vy = 0) {
+  if (sim.n >= CAP) return;
+  const i = sim.n++;
+  X[i] = x; Y[i] = y; VX[i] = vx; VY[i] = vy; MAT[i] = m;
+}
+function removeParticle(i) {                     // swap the last particle into the hole
+  const l = --sim.n;
+  X[i] = X[l]; Y[i] = Y[l]; VX[i] = VX[l]; VY[i] = VY[l]; MAT[i] = MAT[l];
+}
+function buildGrid() {                           // bucket particles into h-sized cells so neighbours are quick to find
+  const h = sim.h, cols = Math.ceil(sim.W / h) + 2, rows = Math.ceil(sim.H / h) + 2, cells = cols * rows;
+  if (START.length < cells + 1) { START = new Int32Array(cells + 1); COUNT = new Int32Array(cells); }
+  COUNT.fill(0, 0, cells);
+  for (let i = 0; i < sim.n; i++) {
+    let cx = Math.floor(X[i] / h) + 1, cy = Math.floor(Y[i] / h) + 1;
+    cx = cx < 0 ? 0 : cx >= cols ? cols - 1 : cx; cy = cy < 0 ? 0 : cy >= rows ? rows - 1 : cy;
+    const c = cx + cy * cols; CELL[i] = c; COUNT[c]++;
+  }
+  START[0] = 0;
+  for (let c = 0; c < cells; c++) START[c + 1] = START[c] + COUNT[c];
+  for (let i = 0; i < sim.n; i++) ORDER[--COUNT[CELL[i]] + START[CELL[i]]] = i;   // reuses COUNT as a fill cursor
+  return cols;
+}
+function findPairs(cols) {                       // every pair closer than h, with its crowding weight added to both particles
+  const h = sim.h, h2 = h * h, n = sim.n;
+  RHO.fill(0, 0, n); NEAR.fill(0, 0, n);
+  let p = 0;
+  for (let i = 0; i < n; i++) {
+    const c = CELL[i], xi = X[i], yi = Y[i];
+    for (let dy = -cols; dy <= cols; dy += cols) for (let dx = -1; dx <= 1; dx++) {
+      const cc = c + dy + dx, e = START[cc + 1];
+      for (let s = START[cc]; s < e; s++) {
+        const j = ORDER[s];
+        if (j <= i) continue;
+        const rx = X[j] - xi, ry = Y[j] - yi, r2 = rx * rx + ry * ry;
+        if (r2 >= h2 || r2 < 1e-9) continue;
+        if (p >= PI.length) continue;
+        const r = Math.sqrt(r2), q = 1 - r / h, q2 = q * q, q3 = q2 * q;
+        RHO[i] += q2 * MS[j]; RHO[j] += q2 * MS[i]; NEAR[i] += q3 * MS[j]; NEAR[j] += q3 * MS[i];
+        PI[p] = i; PJ[p] = j; PQ[p] = q; PNX[p] = rx / r; PNY[p] = ry / r; p++;
+      }
+    }
+  }
+  PAIRS = p;
+}
+function relax() {                               // double density relaxation: push pairs apart (or together) toward the rest crowding
+  const k = sim.k, kn = sim.kNear, same = sim.same, diff = sim.diff, lim = sim.h * 0.25;
+  for (let p = 0; p < PAIRS; p++) {
+    const i = PI[p], j = PJ[p], q = PQ[p];
+    const r0 = MAT[i] === MAT[j] ? same : diff;
+    const P = k * ((RHO[i] + RHO[j]) * 0.5 - r0), Pn = kn * (NEAR[i] + NEAR[j]) * 0.5;
+    let D = P * q + Pn * q * q;
+    D = D > lim ? lim : D < -lim ? -lim : D;
+    const mi = MS[i], mj = MS[j], t = 1 / (mi + mj), dx = D * PNX[p], dy = D * PNY[p];
+    X[i] -= dx * mj * t; Y[i] -= dy * mj * t;    // the lighter one of the pair moves further
+    X[j] += dx * mi * t; Y[j] += dy * mi * t;
+  }
+}
+function viscosity() {                           // goo: neighbours moving toward each other trade some of that speed
+  const s = sim.goo;
+  if (s <= 0) return;
+  for (let p = 0; p < PAIRS; p++) {
+    const i = PI[p], j = PJ[p], nx = PNX[p], ny = PNY[p];
+    const u = (VX[i] - VX[j]) * nx + (VY[i] - VY[j]) * ny;
+    if (u <= 0) continue;
+    const I = 0.5 * PQ[p] * s * u;
+    VX[i] -= I * nx; VY[i] -= I * ny; VX[j] += I * nx; VY[j] += I * ny;
+  }
+}
+const GRAV = 0.05;                               // pixels per step² at gravity 1, scaled by h below
+function step(beforeAdvance, afterRelax) {
+  const n = sim.n, h = sim.h, g = GRAV * h / 14, gx = sim.gx * g, gy = sim.gy * g, vmax = h * 0.5;
+  for (let i = 0; i < n; i++) { MS[i] = sim.mass[MAT[i]]; VX[i] += gx; VY[i] += gy; }
+  if (beforeAdvance) beforeAdvance();
+  for (let i = 0; i < n; i++) {
+    let vx = VX[i], vy = VY[i];
+    const v2 = vx * vx + vy * vy;
+    if (v2 > vmax * vmax) { const f = vmax / Math.sqrt(v2); vx *= f; vy *= f; }
+    PX[i] = X[i]; PY[i] = Y[i]; X[i] += vx; Y[i] += vy;
+  }
+  findPairs(buildGrid());
+  relax();
+  if (afterRelax) afterRelax();
+  const W = sim.W, H = sim.H, b = sim.h * 0.4, mmax = Math.max(...sim.mass);
+  for (let i = 0; i < n; i++) {                  // walls: a soft push back from each edge, stronger for light liquids so they never get trapped under heavy ones
+    let x = X[i], y = Y[i];
+    const f = Math.min(1, 0.3 * mmax / MS[i]);
+    if (x < b) x += (b - x) * f; else if (x > W - b) x -= (x - W + b) * f;
+    if (y < b) y += (b - y) * f; else if (y > H - b) y -= (y - H + b) * f;
+    x = x < 0.5 ? 0.5 : x > W - 0.5 ? W - 0.5 : x; y = y < 0.5 ? 0.5 : y > H - 0.5 ? H - 0.5 : y;
+    X[i] = x; Y[i] = y; VX[i] = x - PX[i]; VY[i] = y - PY[i];   // velocity is how far it really moved
+  }
+  viscosity();
+}
+
+// ---- the controls ----
+const LIQ = [                                    // the four liquids, heaviest first
+  { name: "Ruby", color: "#ff4d6d", mass: 1 },
+  { name: "Amber", color: "#ffb703", mass: 0.6 },
+  { name: "Mint", color: "#3ddc97", mass: 0.36 },
+  { name: "Sky", color: "#3a86ff", mass: 0.22 },
+];
+const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
+const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, ...PHYS };
+const TOOLS = [
+  ["drag", "Drag", "Press and drag to push the liquid along with you."],
+  ["attract", "Attract", "Hold to pull liquid toward the pointer."],
+  ["repel", "Repel", "Hold to blow liquid away from the pointer."],
+  ["swirl", "Swirl", "Hold to stir the liquid around the pointer."],
+  ["pour", "Pour", "Hold to pour the liquid picked below. Heavier ones sink through the lighter ones."],
+  ["erase", "Erase", "Hold to soak up liquid under the pointer."],
+  ["push", "Ball", "A solid ball: move it through the liquid like a spoon."],
+];
+const defaultAmount = () => Math.round(Math.min(6000, Math.max(1200, sim.W * sim.H / 135)) / 4 / 50) * 50;   // about 4000 drops on a laptop screen, fewer on a phone
+const amountFor = size => Math.min(3000, Math.max(50, Math.round(1.72 * 1.72 * sim.W * sim.H / (4 * size * size) / 50) * 50));   // drops of each liquid that fill about half the tank at this particle size
+
+function slider(box, label, key, min, max, step, onSet, help) {   // a labelled slide control with a typed number box beside it
+  const row = document.createElement("div"), sp = document.createElement("span"), r = document.createElement("input"), num = document.createElement("input");
+  const dec = String(step).split(".")[1]?.length || 0, def = ctl[key];
+  row.className = "sl"; sp.textContent = label; if (help) row.title = help;
+  for (const el of [r, num]) { el.min = min; el.max = max; el.step = step; el.setAttribute("aria-label", label); }
+  r.type = "range"; num.type = "number"; num.className = "num";
+  const show = () => { r.value = ctl[key]; num.value = (+ctl[key]).toFixed(dec); };
+  const set = v => { ctl[key] = Math.min(max, Math.max(min, v)); show(); if (onSet) onSet(ctl[key]); };
+  r.oninput = () => set(+r.value);
+  num.onchange = () => { if (num.value !== "" && isFinite(+num.value)) set(+num.value); else show(); };
+  r.ondblclick = () => set(def);                 // double-click puts it back
+  row.append(sp, r, num); box.append(row); show();
+  return { show, set };
+}
+
+const sliders = {};
+sliders.brush = slider($("toolSliders"), "Brush size", "brush", 10, 300, 1);
+sliders.strength = slider($("toolSliders"), "Strength", "strength", 0, 1, 0.05);
+const physBox = $("physSliders"), applyPhys = () => {
+  sim.k = ctl.k; sim.kNear = ctl.kNear; sim.same = ctl.same; sim.diff = ctl.diff; sim.goo = ctl.goo;
+};
+sliders.grav = slider(physBox, "Gravity", "grav", 0, 3, 0.1);
+sliders.angle = slider(physBox, "Gravity angle", "angle", -180, 180, 5, null, "0 is straight down, 90 pulls to the right");
+sliders.k = slider(physBox, "Stiffness", "k", 0, 1, 0.05, applyPhys, "How hard crowded particles push apart");
+sliders.kNear = slider(physBox, "Near stiffness", "kNear", 0, 4, 0.1, applyPhys, "Keeps particles from clumping on top of each other; also gives surface tension");
+sliders.same = slider(physBox, "Same-liquid pull", "same", 0, 4, 0.1, applyPhys, "How tightly each liquid holds itself together");
+sliders.diff = slider(physBox, "Mixing", "diff", 0, 4, 0.1, applyPhys, "0 keeps different liquids apart like oil and water; raise it to let them blend");
+sliders.goo = slider(physBox, "Goo", "goo", 0, 1, 0.05, applyPhys, "Viscosity: higher is thicker, like honey");
+sliders.steps = slider(physBox, "Steps per frame", "steps", 1, 5, 1, null, "More steps is smoother and stiffer but slower");
+applyPhys();
+$("physReset").onclick = () => { for (const k in PHYS) sliders[k].set(PHYS[k]); };
+
+for (const [id, name, help] of TOOLS) {          // tool buttons
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = name; b.dataset.tool = id; b.title = help;
+  b.onclick = () => pickTool(id);
+  $("toolBtns").append(b);
+}
+function pickTool(id) {
+  ctl.tool = id;
+  document.querySelectorAll("#toolBtns button").forEach(b => b.classList.toggle("on", b.dataset.tool === id));
+  $("toolHint").textContent = TOOLS.find(t => t[0] === id)[2];
+}
+pickTool("drag");
+
+function buildLiquids() {                        // pour swatches and the liquid rows (colour, name, weight)
+  $("pourSw").replaceChildren(); $("liqRows").replaceChildren();
+  LIQ.forEach((L, m) => {
+    const s = document.createElement("button");
+    s.type = "button"; s.className = "swatch" + (ctl.pour === m ? " on" : ""); s.style.setProperty("--c", L.color); s.title = L.name; s.setAttribute("aria-label", "Pour " + L.name);
+    s.onclick = () => { ctl.pour = m; buildLiquids(); if (ctl.tool !== "pour") pickTool("pour"); };
+    $("pourSw").append(s);
+    const row = document.createElement("div"), c = document.createElement("input"), b = document.createElement("b"), r = document.createElement("input"), num = document.createElement("input");
+    row.className = "liq"; c.type = "color"; c.value = L.color; c.setAttribute("aria-label", L.name + " colour");
+    c.oninput = () => { L.color = c.value; s.style.setProperty("--c", c.value); setColors(); };
+    b.textContent = L.name;
+    r.type = "range"; num.type = "number"; num.className = "num";
+    for (const el of [r, num]) { el.min = 0.1; el.max = 1; el.step = 0.01; el.setAttribute("aria-label", L.name + " weight"); el.value = L.mass; }
+    const set = v => { L.mass = Math.min(1, Math.max(0.1, v)); sim.mass[m] = L.mass; r.value = L.mass; num.value = L.mass.toFixed(2); };
+    r.oninput = () => set(+r.value); num.onchange = () => set(+num.value || L.mass); set(L.mass);
+    row.title = "Weight: heavier liquids sink";
+    row.append(c, b, r, num); $("liqRows").append(row);
+  });
+}
+buildLiquids();
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  for (const p of ["tools", "liquids", "physics"]) $(p).hidden = p !== t.dataset.tab;
+});
+
+// ---- filling the tank ----
+function fill(mode) {
+  const per = ctl.amount, N = per * 4, W = sim.W, H = sim.H;
+  sim.n = 0; fillArea = W * H;
+  if (!N) return;
+  sim.h = ctl.size;                              // how far each particle reaches, which sets how far apart they settle
+  if (mode === "mix") {                          // everything thrown in at random; it sorts itself out
+    for (let m = 0; m < 4; m++) for (let k = 0; k < per; k++) addParticle(Math.random() * W, Math.random() * H, m);
+    return;
+  }
+  const s = Math.sqrt(W * H * 0.48 / N), cols = Math.max(1, Math.floor(W / s));   // upside-down stack: lightest at the bottom, heaviest on top
+  for (let k = 0; k < N; k++) {
+    const m = 3 - Math.floor(k / per), cx = k % cols, cy = Math.floor(k / cols);
+    addParticle((cx + 0.5 + (Math.random() - 0.5) * 0.2) * W / cols, H - (cy + 0.5) * s, m);
+  }
+}
+$("mixBtn").onclick = () => fill("mix");
+$("flipBtn").onclick = () => fill("flip");
+$("emptyBtn").onclick = () => { sim.n = 0; };
+
+// ---- pointers and tools ----
+const tank = $("tank"), cv = $("cv"), pointers = new Map();
+let hover = null;
+const local = e => { const r = tank.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+tank.addEventListener("pointerdown", e => {
+  tank.setPointerCapture(e.pointerId);
+  const p = local(e);
+  pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0 });
+  hover = p; showBrush();
+  e.preventDefault();
+});
+tank.addEventListener("pointermove", e => {
+  const p = local(e), q = pointers.get(e.pointerId);
+  if (q) { q.x = p.x; q.y = p.y; }
+  hover = p; showBrush();
+});
+const lift = e => { pointers.delete(e.pointerId); if (e.pointerType !== "mouse") { hover = null; showBrush(); } };
+tank.addEventListener("pointerup", lift);
+tank.addEventListener("pointercancel", lift);
+tank.addEventListener("pointerleave", e => { if (!pointers.size) { hover = null; showBrush(); } });
+tank.addEventListener("contextmenu", e => e.preventDefault());
+tank.addEventListener("wheel", e => {            // scroll over the tank to resize the brush
+  e.preventDefault();
+  sliders.brush.set(ctl.brush * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+  showBrush();
+}, { passive: false });
+function showBrush() {
+  const b = $("brush");
+  b.hidden = !hover;
+  if (!hover) return;
+  const r = ctl.tool === "pour" ? Math.min(ctl.brush, sim.h * 2) : ctl.brush;
+  b.style.width = b.style.height = 2 * r + "px";
+  b.style.transform = `translate(${hover.x - r}px, ${hover.y - r}px)`;
+}
+
+function applyTools() {                          // runs every step, before the particles move
+  const t = ctl.tool;
+  if (!pointers.size || t === "pour" || t === "erase" || t === "push") return;
+  const r = ctl.brush, r2 = r * r, str = ctl.strength, n = sim.n, pull = str * sim.h * 0.04;
+  for (const p of pointers.values()) {
+    for (let i = 0; i < n; i++) {
+      const dx = X[i] - p.x, dy = Y[i] - p.y, d2 = dx * dx + dy * dy;
+      if (d2 >= r2) continue;
+      const d = Math.sqrt(d2) || 1, f = 1 - d / r;
+      if (t === "drag") { const a = Math.min(1, f * str); VX[i] += (p.vx - VX[i]) * a; VY[i] += (p.vy - VY[i]) * a; }
+      else if (t === "swirl") { const a = f * pull / d; VX[i] -= dy * a; VY[i] += dx * a; }
+      else { const a = f * pull * (t === "attract" ? -1 : 1) / d; VX[i] += dx * a; VY[i] += dy * a; }
+    }
+  }
+}
+function applyBall() {                           // runs every step after the liquid relaxes: nothing may be inside the ball
+  if (ctl.tool !== "push" || !pointers.size) return;
+  const r = ctl.brush, r2 = r * r, n = sim.n;
+  for (const p of pointers.values()) for (let i = 0; i < n; i++) {
+    const dx = X[i] - p.x, dy = Y[i] - p.y, d2 = dx * dx + dy * dy;
+    if (d2 >= r2) continue;
+    const d = Math.sqrt(d2) || 1;
+    X[i] = p.x + dx / d * r; Y[i] = p.y + dy / d * r;
+  }
+}
+function perFrameTools() {                       // pouring and erasing happen once a frame
+  if (!pointers.size) return;
+  const r = ctl.brush, steps = ctl.steps;
+  for (const p of pointers.values()) {
+    if (ctl.tool === "pour") {
+      const k = Math.round(2 + ctl.strength * 10), rr = Math.min(r, sim.h * 2);
+      for (let j = 0; j < k; j++) {
+        const a = Math.random() * 2 * Math.PI, d = Math.sqrt(Math.random()) * rr;
+        addParticle(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, ctl.pour, p.vx, p.vy);
+      }
+    } else if (ctl.tool === "erase") {
+      for (let i = sim.n - 1; i >= 0; i--) { const dx = X[i] - p.x, dy = Y[i] - p.y; if (dx * dx + dy * dy < r * r) removeParticle(i); }
+    }
+  }
+}
+
+// ---- tilt a phone to steer gravity ----
+// Reads the motion sensor's gravity reading (in m/s², about 9.8 straight down). iPhones report it with the opposite
+// sign to Android, and the reading is in the phone's own frame, so it is turned to match how the screen is rotated.
+let tilt = null, tiltSeen = 0, tiltTimer = 0;
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const tiltInfo = msg => { $("tiltInfo").textContent = msg; $("tiltInfo").hidden = !msg; };
+const onMotion = e => {
+  const g = e.accelerationIncludingGravity;
+  if (!g || g.x == null || g.y == null) return;  // some browsers send empty readings when there is no sensor
+  const sign = (IOS ? 1 : -1) * ($("tiltRev").classList.contains("on") ? -1 : 1) / 9.8;
+  const dx = g.x * sign, dy = -g.y * sign;       // gravity in the phone's frame, y pointing down the screen
+  let deg = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  const a = ((deg % 360) + 360) % 360 * Math.PI / 180;
+  const gx = dx * Math.cos(a) + dy * Math.sin(a), gy = -dx * Math.sin(a) + dy * Math.cos(a);
+  tilt = tilt ? { gx: tilt.gx * 0.6 + gx * 0.4, gy: tilt.gy * 0.6 + gy * 0.4 } : { gx, gy };   // smooth out sensor jitter
+  if (!tiltSeen++) tiltInfo("Tilt is on. Hold the phone upright and lean it to pour; flat on a table there is no pull.");
+};
+function tiltOff(msg) {
+  removeEventListener("devicemotion", onMotion); clearTimeout(tiltTimer);
+  tilt = null; $("tiltBtn").classList.remove("on"); $("tiltBtn").textContent = "Tilt to pour"; $("tiltRev").hidden = true;
+  tiltInfo(msg || "");
+}
+if (matchMedia("(pointer: coarse)").matches) $("tiltBtn").hidden = false;
+$("tiltBtn").onclick = async () => {
+  if ($("tiltBtn").classList.contains("on")) return tiltOff();
+  if (!window.isSecureContext) return tiltInfo("Tilt needs the page opened from an https:// address. Phones block the motion sensor on files and plain http:// pages.");
+  if (!window.DeviceMotionEvent) return tiltInfo("This browser does not give pages access to the motion sensor.");
+  if (typeof DeviceMotionEvent.requestPermission === "function") {   // iPhone asks first, and only straight after a tap
+    let ok = "";
+    try { ok = await DeviceMotionEvent.requestPermission(); } catch (e) {}   // newer Chrome has this too and may answer "prompt"; only a clear no stops here
+    if (ok === "denied") return tiltInfo("Motion access was refused. On iPhone, close Safari fully, open this page again, tap Tilt to pour and choose Allow.");
+  }
+  tiltSeen = 0;
+  addEventListener("devicemotion", onMotion);
+  $("tiltBtn").classList.add("on"); $("tiltBtn").textContent = "Tilt on"; $("tiltRev").hidden = false;
+  tiltInfo("Waiting for the motion sensor…");
+  tiltTimer = setTimeout(() => { if (!tiltSeen) tiltOff("No readings came from the motion sensor. This device or browser may not have one, or it may be turned off in its settings."); }, 2500);
+};
+$("tiltRev").onclick = () => $("tiltRev").classList.toggle("on");   // for a device that reports the other way round
+
+// ---- stop / run ----
+function setRunning(on) {
+  ctl.running = on;
+  $("stopBtn").textContent = on ? "STOP" : "RUN";
+  $("stopBtn").classList.toggle("run", !on);
+  $("led").classList.toggle("on", on);
+}
+$("stopBtn").onclick = () => setRunning(!ctl.running);
+addEventListener("keydown", e => {
+  if (e.target.matches?.("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Escape" || e.key === " ") { e.preventDefault(); setRunning(!ctl.running); }
+  else if (e.key >= "1" && e.key <= String(TOOLS.length)) pickTool(TOOLS[+e.key - 1][0]);
+  else if (e.key === "[" || e.key === "]") { sliders.brush.set(ctl.brush * (e.key === "]" ? 1.1 : 1 / 1.1)); showBrush(); }
+});
+
+// ---- drawing: WebGL points, one per particle, coloured by liquid ----
+const gl = cv.getContext("webgl", { antialias: false, alpha: true, premultipliedAlpha: true, depth: false, stencil: false });
+const ctx2d = gl ? null : cv.getContext("2d");
+const POS = new Float32Array(CAP * 2), COLORS = new Float32Array(12);
+let prog, posBuf, matBuf, uRes, uSize, uCol;
+function setColors() {
+  LIQ.forEach((L, m) => { for (let c = 0; c < 3; c++) COLORS[m * 3 + c] = parseInt(L.color.substr(1 + c * 2, 2), 16) / 255; });
+}
+setColors();
+if (gl) {
+  const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, shader(gl.VERTEX_SHADER, `
+    attribute vec2 a_pos; attribute float a_mat;
+    uniform vec2 u_res; uniform float u_size; uniform vec3 u_col[4];
+    varying vec3 v_col;
+    void main() {
+      vec2 c = a_pos / u_res * 2.0 - 1.0;
+      gl_Position = vec4(c.x, -c.y, 0.0, 1.0);
+      gl_PointSize = u_size;
+      v_col = u_col[int(a_mat + 0.5)];
+    }`));
+  gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    varying vec3 v_col;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      float a = 1.0 - smoothstep(0.38, 0.5, d);  // a round drop with a soft edge
+      if (a <= 0.0) discard;
+      gl_FragColor = vec4(v_col * a, a);
+    }`));
+  gl.linkProgram(prog);
+  posBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, POS.byteLength, gl.DYNAMIC_DRAW);
+  matBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, matBuf); gl.bufferData(gl.ARRAY_BUFFER, CAP, gl.DYNAMIC_DRAW);
+  uRes = gl.getUniformLocation(prog, "u_res"); uSize = gl.getUniformLocation(prog, "u_size"); uCol = gl.getUniformLocation(prog, "u_col");
+}
+function render() {
+  const n = sim.n, dpr = devicePixelRatio || 1;
+  if (!gl) {                                     // no WebGL: plain squares on a 2D canvas
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0); ctx2d.clearRect(0, 0, sim.W, sim.H);
+    const s = sim.h * ctl.drop;
+    for (let m = 0; m < 4; m++) {
+      ctx2d.fillStyle = LIQ[m].color; ctx2d.beginPath();
+      for (let i = 0; i < n; i++) if (MAT[i] === m) ctx2d.rect(X[i] - s / 2, Y[i] - s / 2, s, s);
+      ctx2d.fill();
+    }
+    return;
+  }
+  for (let i = 0; i < n; i++) { POS[2 * i] = X[i]; POS[2 * i + 1] = Y[i]; }
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);   // see-through, so the tank's own background (and LabVIEW's grid) shows
+  if (!n) return;
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(prog);
+  gl.uniform2f(uRes, sim.W, sim.H); gl.uniform1f(uSize, Math.max(2, sim.h * ctl.drop * dpr)); gl.uniform3fv(uCol, COLORS);
+  const aPos = gl.getAttribLocation(prog, "a_pos"), aMat = gl.getAttribLocation(prog, "a_mat");
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, POS.subarray(0, 2 * n));
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(aPos);
+  gl.bindBuffer(gl.ARRAY_BUFFER, matBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, MAT.subarray(0, n));
+  gl.vertexAttribPointer(aMat, 1, gl.UNSIGNED_BYTE, false, 0, 0); gl.enableVertexAttribArray(aMat);
+  gl.drawArrays(gl.POINTS, 0, n);
+}
+
+// ---- frame-rate chart, drawn like a strip chart ----
+const fpsHist = [];
+const labview = () => document.documentElement.dataset.theme === "labview";
+function drawChart() {
+  const c = $("fpsChart"), x = c.getContext("2d"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  if (!W) return;
+  if (c.width !== Math.round(W * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const lv = labview(), top = Math.max(60, ...fpsHist) * 1.1, css = getComputedStyle(document.documentElement);
+  x.fillStyle = lv ? "#000" : css.getPropertyValue("--well"); x.fillRect(0, 0, W, H);
+  x.strokeStyle = lv ? "#ffffff30" : "#2a3a4d"; x.lineWidth = 1; x.beginPath();
+  for (let g = 1; g < 4; g++) { const y = Math.round(H * g / 4) + 0.5; x.moveTo(0, y); x.lineTo(W, y); }
+  for (let g = 1; g < 6; g++) { const xx = Math.round(W * g / 6) + 0.5; x.moveTo(xx, 0); x.lineTo(xx, H); }
+  x.stroke();
+  x.strokeStyle = lv ? "#fff" : "#1a9fff"; x.lineWidth = 1.5; x.beginPath();
+  fpsHist.forEach((f, i) => { const px = W - (fpsHist.length - 1 - i) * W / 59, py = H - f / top * H; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.stroke();
+  x.fillStyle = lv ? "#fff" : "#8f98a0"; x.font = "10px Tahoma, system-ui, sans-serif"; x.textBaseline = "top";
+  x.fillText(Math.round(top), 3, 2); x.textBaseline = "bottom"; x.fillText("0", 3, H - 1);
+}
+function setTheme(t) {                           // the look of the page: the default dark one, or LabVIEW's grey front panel
+  if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  $("themeBtn").textContent = t === "labview" ? "Dark theme" : "LabVIEW theme";
+  try { localStorage.setItem("liquidTheme", t); } catch (e) {}
+  drawChart();
+}
+$("themeBtn").onclick = () => setTheme(labview() ? "dark" : "labview");
+setTheme(labview() ? "labview" : "dark");
+
+// ---- the main loop ----
+let frames = 0, lastT = performance.now(), slow = 0, started = false, fillArea = 0;
+function sizeTank() {
+  const W = tank.clientWidth, H = tank.clientHeight, dpr = devicePixelRatio || 1;
+  if (!W || !H) return;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  sim.W = W; sim.H = H;
+  if (!started) {                                // first time the tank has a size: pick an amount that suits the screen and fill it
+    started = true;
+    ctl.amount = defaultAmount();
+    ctl.size = Math.round(1.72 * Math.sqrt(W * H / (4 * ctl.amount)));
+    slider($("liqSliders"), "Particle size", "size", 6, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
+    sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, 3000, 50, () => fill("mix"), "How many particles of each liquid");
+    slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, null, "How big each particle is drawn, without changing the physics");
+    fill("mix");
+  } else if (W * H < fillArea / 1.6 || W * H > fillArea * 1.6) sliders.amount.set(amountFor(ctl.size));   // a much smaller or bigger tank (a phone turned, a window resized) gets a fresh fill to suit it
+}
+new ResizeObserver(sizeTank).observe(tank);
+function frame(t) {
+  requestAnimationFrame(frame);
+  if (ctl.running && sim.n + pointers.size) {
+    const steps = ctl.steps;
+    if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
+    else { const a = ctl.angle * Math.PI / 180; sim.gx = Math.sin(a) * ctl.grav; sim.gy = Math.cos(a) * ctl.grav; }
+    for (const p of pointers.values()) { p.vx = (p.x - p.lx) / steps; p.vy = (p.y - p.ly) / steps; }
+    perFrameTools();
+    for (let s = 0; s < steps; s++) step(applyTools, applyBall);
+    for (const p of pointers.values()) { p.lx = p.x; p.ly = p.y; }
+  }
+  render();
+  frames++;
+  if (t - lastT >= 500) {                        // twice a second: frame rate, particle count, and ease off if it is struggling
+    const fps = frames * 1000 / (t - lastT);
+    frames = 0; lastT = t;
+    fpsHist.push(fps); if (fpsHist.length > 60) fpsHist.shift();
+    $("fpsOut").value = Math.round(fps); $("countOut").value = sim.n;
+    slow = fps < 40 && ctl.running ? slow + 1 : 0;
+    if (slow >= 4 && ctl.steps > 1) { sliders.steps.set(ctl.steps - 1); slow = 0; }
+    drawChart();
+  }
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
