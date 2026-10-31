@@ -109,14 +109,6 @@
           background: #000; border: 1px solid var(--c); box-shadow: 0 0 10px var(--c); border-radius: var(--radius); }
   .tile.locked { --c: transparent; color: #999; background: #444; filter: grayscale(1) brightness(.7); }
 
-  /* 10. EDIT MODE:  */
-  /* .editbtn { margin-left: auto; align-self: center; margin-bottom: .5rem; padding: .35rem .8rem;
-             background: #ffffff14; border-radius: var(--radius); transition: background .15s; }
-  .editbtn:hover { background: #ffffff2b; }
-  .editbtn[aria-pressed=true] { background: var(--accent); color: #fff; } */
-  /* body.editing .ed { outline: 1px dashed #1a9fffaa; outline-offset: 3px; cursor: text; }
-  body.editing .ed:focus { outline: 2px solid var(--accent); } */
-
   /* 9. SMALL SCREENS: stack everything */
   @media (max-width: 800px) {
     body { height: auto; }
@@ -132,7 +124,6 @@
 
 <nav class="top">
   <a href="#">Store</a><a href="#" class="on">Library</a><a href="#">Community</a>
-  <!-- <button id="edit" class="editbtn" aria-pressed="false">✎ Edit text</button> -->
 </nav>
 
 <div class="layout">
@@ -370,35 +361,6 @@ function randomStats() {
   }
   pick(document.querySelector(".games li.sel"), false);
   document.querySelectorAll(".games li").forEach(li => li.addEventListener("click", () => pick(li)));
-
-  play.addEventListener("click", e => { if (document.body.classList.contains("editing")) e.preventDefault(); });
-
-  // ---- EDIT MODE ----
-  // The key idea: the contenteditable attribute turns any element into a text box.
-  const eds = [...document.querySelectorAll(
-    ".play span, .stat small, .stat b, .tabs span, .card h2, .ask > span, .ask button span, .cols h3")];
-  eds.forEach(el => el.classList.add("ed"));
-
-  // Remember edits in this browser (localStorage), and put them back on load
-  const KEY = "home-text";
-  const saveText = () => { try { localStorage.setItem(KEY, JSON.stringify(eds.map(e => e.textContent))); } catch (e) {} };
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
-    eds.forEach((el, i) => { if (saved[i] != null) el.textContent = saved[i]; });
-  } catch (e) {}
-
-  document.getElementById("edit").addEventListener("click", e => {
-    const on = document.body.classList.toggle("editing");
-    eds.forEach(el => on ? el.setAttribute("contenteditable", "true") : el.removeAttribute("contenteditable"));
-    e.currentTarget.setAttribute("aria-pressed", on);
-  });
-  document.addEventListener("input", e => { if (e.target.classList?.contains("ed")) saveText(); });
-  document.addEventListener("keydown", e => {            // Enter finishes editing instead of adding a new line
-    if (e.key === "Enter" && e.target.classList?.contains("ed")) { e.preventDefault(); e.target.blur(); }
-  });
-  document.addEventListener("focusout", e => {           // strip any pasted formatting
-    if (e.target.classList?.contains("ed")) { e.target.textContent = e.target.textContent; saveText(); }
-  });
 </script>
 </body>
 </html>
