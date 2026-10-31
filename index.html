@@ -139,7 +139,7 @@
   <aside class="side">
     <input type="search" placeholder="Search" aria-label="Search games">
     <details open>
-      <summary>Recent (7)</summary>
+      <summary>Recent (8)</summary>
       <ul class="games">
         <li class="sel" data-page="notes.html"><button><i style="--c:#ffd43b"></i><span>Post</span></button></li>
         <li data-page="draw.html"><button><i style="--c:#9775fa"></i><span>Draw</span></button></li>
@@ -147,6 +147,7 @@
         <li data-page="mouse.html"><button><i style="--c:#e0a030"></i><span>mouse</span></button></li>
         <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Filter</span></button></li>
         <li data-page="sand.html"><button><i style="--c:#ff5a5a"></i><span>Falling Pixels</span></button></li>
+        <li data-page="liquid.html"><button><i style="--c:#3ddc97"></i><span>Liquid Lab</span></button></li>
         <li class="dim" data-page="earlysuppers.html"><button><i style="--c:#d6336c"></i><span>Early Suppers</span></button></li>
         <li class="dim" data-page="slothy.html"><button><i style="--c:#4dabf7"></i><span>Slothy and Friends</span></button></li>
       </ul>
@@ -216,6 +217,16 @@ function randomStats() {
 }
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
+    "liquid.html": [
+      { date: "October 31, 2026", title: "Liquid Lab opens, with a LabVIEW theme", notes: [
+        "Four coloured liquids of different weights share one tank. Throw them together and they sort themselves into layers, heaviest at the bottom, the way oil, water and syrup do.",
+        "Tools: Drag, Attract, Repel, Swirl, Pour, Erase and a solid Ball to stir with. Scroll over the tank to resize the brush, press 1 to 7 to switch tools, and Esc or Space to stop.",
+        "Liquids tab: pick each liquid's colour and weight, how much of each to use, and how big the drops are drawn. Mix all throws everything around; Flip layers stacks them upside down so you can watch them turn over.",
+        "Physics tab: gravity strength and direction, stiffness, how tightly each liquid holds together, mixing, goo (thickness) and steps per frame. Double-click any slider to put it back.",
+        "On a phone, Tilt to pour lets you steer gravity by tilting the phone.",
+        "LabVIEW theme button in the header: a grey front panel with a red STOP button, a Running LED, grey indicators, slide controls, and a black graph display with a frame-rate strip chart. It remembers your choice.",
+        "Built from scratch in JavaScript on the particle method from Clavet, Beaudoin and Poulin's 2005 paper, the same one behind Grant Kot's Liquid Layers." ] }
+    ],
     "plot.html": [
       { date: "October 26, 2026", title: "Saved spec sets, spec checkboxes and a tidier Modify tab", notes: [
         "Save a group of specs under a part number on the Specs tab, then pick it from the Saved sets list to load it in one click. They are kept in your browser only; nothing is uploaded.",
