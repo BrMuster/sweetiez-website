@@ -46,7 +46,7 @@
   .pane { display: grid; gap: .6rem; }
   .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
   .tools button { padding: .35rem .2rem; }
-  .sl { display: grid; grid-template-columns: 7.6rem minmax(0, 1fr) 4.4rem; gap: .5rem; align-items: center; }
+  .sl { display: grid; grid-template-columns: 7.6rem minmax(0, 1fr) 5rem; gap: .5rem; align-items: center; }
   .sl span { font-size: .9rem; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
   input.num { width: 100%; font: inherit; font-size: .9rem; padding: .1rem .3rem; text-align: right; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: 4px; }
@@ -214,12 +214,10 @@ const $ = id => document.getElementById(id);
 // Every particle looks at its neighbours within radius h and pushes them apart (or pulls them together) so the
 // local crowding settles at a rest value. Positions are moved directly and velocity is read back afterwards,
 // which keeps it stable even with big steps.
-const CAP = 12000;                               // most particles the tank can hold
-const X = new Float32Array(CAP), Y = new Float32Array(CAP), PX = new Float32Array(CAP), PY = new Float32Array(CAP);
-const VX = new Float32Array(CAP), VY = new Float32Array(CAP), MAT = new Uint8Array(CAP), MS = new Float32Array(CAP);
-const RHO = new Float32Array(CAP), NEAR = new Float32Array(CAP), CELL = new Int32Array(CAP), ORDER = new Int32Array(CAP);
-const LOCK = new Uint8Array(CAP);                // 1 = frozen in place (a poured plot) until a tool touches it; others bump into it like a wall
-let PAIRS = 0, PI = new Int32Array(CAP * 24), PJ = new Int32Array(CAP * 24), PQ = new Float32Array(CAP * 24), PNX = new Float32Array(CAP * 24), PNY = new Float32Array(CAP * 24);
+let CAP = 0;                                     // most particles the tank can hold (the Particle limit setting)
+let X, Y, PX, PY, VX, VY, MAT, MS, RHO, NEAR, CELL, ORDER;
+let LOCK;                                        // 1 = frozen in place (a poured plot) until a tool touches it; others bump into it like a wall
+let PAIRS = 0, PI, PJ, PQ, PNX, PNY;
 let START = new Int32Array(1), COUNT = new Int32Array(1);
 const sim = {
   n: 0, W: 800, H: 600, h: 14,
@@ -228,6 +226,15 @@ const sim = {
   k: 0.35, kNear: 2.0, goo: 0,                   // stiffness, near stiffness (keeps particles from clumping), viscosity
   mass: [1, 0.6, 0.36, 0.22],                    // heavier liquids sink below lighter ones
 };
+function setCap(cap) {                           // (re)size every per-particle list, keeping the particles already in the tank
+  const keep = (a, T) => { const b = new T(cap); if (a) b.set(a.subarray(0, Math.min(a.length, cap))); return b; };
+  X = keep(X, Float32Array); Y = keep(Y, Float32Array); PX = keep(PX, Float32Array); PY = keep(PY, Float32Array);
+  VX = keep(VX, Float32Array); VY = keep(VY, Float32Array); MAT = keep(MAT, Uint8Array); MS = keep(MS, Float32Array);
+  RHO = new Float32Array(cap); NEAR = new Float32Array(cap); CELL = new Int32Array(cap); ORDER = new Int32Array(cap); LOCK = keep(LOCK, Uint8Array);
+  PI = new Int32Array(cap * 24); PJ = new Int32Array(cap * 24); PQ = new Float32Array(cap * 24); PNX = new Float32Array(cap * 24); PNY = new Float32Array(cap * 24);   // room for about 24 neighbours each
+  CAP = cap; if (sim.n > cap) sim.n = cap;
+}
+setCap(12000);
 function addParticle(x, y, m, vx = 0, vy = 0) {
   if (sim.n >= CAP) return;
   const i = sim.n++;
@@ -358,7 +365,10 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
 const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, steps: 2 };
-const ctl = { tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
+let savedCap = 12000;
+try { savedCap = Math.min(60000, Math.max(2000, +localStorage.getItem("liquidCap") || 12000)); } catch (e) {}   // remembered from last time
+setCap(savedCap);
+const ctl = { cap: savedCap, tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
 const TOOLS = [
   ["drag", "Drag", "Press and drag to push the liquid along with you."],
   ["attract", "Attract", "Hold to pull liquid toward the pointer."],
@@ -369,7 +379,8 @@ const TOOLS = [
   ["push", "Ball", "A solid ball: move it through the liquid like a spoon."],
 ];
 const defaultAmount = () => Math.round(Math.min(6000, Math.max(1200, sim.W * sim.H / 135)) / 4 / 50) * 50;   // about 4000 drops on a laptop screen, fewer on a phone
-const amountFor = size => Math.min(3000, Math.max(50, Math.round(1.72 * 1.72 * sim.W * sim.H / (4 * size * size) / 50) * 50));   // drops of each liquid that fill about half the tank at this particle size
+const maxAmount = () => Math.floor(CAP / 4 / 50) * 50;   // each liquid gets a quarter of the limit
+const amountFor = size => Math.min(maxAmount(), Math.max(50, Math.round(1.72 * 1.72 * sim.W * sim.H / (4 * size * size) / 50) * 50));   // drops of each liquid that fill about half the tank at this particle size
 
 function slider(box, label, key, min, max, step, onSet, help) {   // a labelled slide control with a typed number box beside it
   const row = document.createElement("div"), sp = document.createElement("span"), r = document.createElement("input"), num = document.createElement("input");
@@ -383,7 +394,8 @@ function slider(box, label, key, min, max, step, onSet, help) {   // a labelled 
   num.onchange = () => { if (num.value !== "" && isFinite(+num.value)) set(+num.value); else show(); };
   r.ondblclick = () => set(def);                 // double-click puts it back
   row.append(sp, r, num); box.append(row); show();
-  return { show, set };
+  const setMax = m => { max = m; r.max = num.max = m; if (ctl[key] > m) set(m); else show(); };
+  return { show, set, setMax };
 }
 
 const sliders = {};
@@ -445,7 +457,7 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
 
 // ---- filling the tank ----
 function fill(mode) {
-  const per = ctl.amount, N = per * 4, W = sim.W, H = sim.H;
+  const per = Math.min(ctl.amount, maxAmount()), N = per * 4, W = sim.W, H = sim.H;
   sim.n = 0; fillArea = W * H;
   if (!N) return;
   sim.h = ctl.size;                              // how far each particle reaches, which sets how far apart they settle
@@ -908,7 +920,8 @@ addEventListener("keydown", e => {
 // ---- drawing: WebGL points, one per particle, coloured by liquid ----
 const gl = cv.getContext("webgl", { antialias: false, alpha: true, premultipliedAlpha: true, depth: false, stencil: false });
 const ctx2d = gl ? null : cv.getContext("2d");
-const POS = new Float32Array(CAP * 2), COLORS = new Float32Array(12);
+let POS = new Float32Array(CAP * 2);
+const COLORS = new Float32Array(12);
 let prog, posBuf, matBuf, uRes, uSize, uCol;
 function setColors() {
   LIQ.forEach((L, m) => { for (let c = 0; c < 3; c++) COLORS[m * 3 + c] = parseInt(L.color.substr(1 + c * 2, 2), 16) / 255; });
@@ -952,6 +965,11 @@ function render() {
       ctx2d.fill();
     }
     return;
+  }
+  if (POS.length !== CAP * 2) {                  // the limit changed: resize the GPU's lists to match
+    POS = new Float32Array(CAP * 2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, POS.byteLength, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, matBuf); gl.bufferData(gl.ARRAY_BUFFER, CAP, gl.DYNAMIC_DRAW);
   }
   for (let i = 0; i < n; i++) { POS[2 * i] = X[i]; POS[2 * i + 1] = Y[i]; }
   gl.viewport(0, 0, cv.width, cv.height);
@@ -1006,11 +1024,15 @@ function sizeTank() {
   sim.W = W; sim.H = H;
   if (!started) {                                // first time the tank has a size: pick an amount that suits the screen and fill it
     started = true;
-    ctl.amount = defaultAmount();
+    ctl.amount = Math.min(defaultAmount(), maxAmount());
     ctl.size = Math.round(1.72 * Math.sqrt(W * H / (4 * ctl.amount)));
     slider($("liqSliders"), "Particle size", "size", 6, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
-    sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, 3000, 50, () => fill("mix"), "How many particles of each liquid");
+    sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, maxAmount(), 50, () => fill("mix"), "How many particles of each liquid");
     slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, () => updateWalls(), "How big each particle is drawn, without changing the physics");
+    slider($("liqSliders"), "Particle limit", "cap", 2000, 60000, 1000, v => {
+      setCap(v); sliders.amount.setMax(maxAmount());
+      try { localStorage.setItem("liquidCap", v); } catch (e) {}
+    }, "Most particles the tank can hold. More lets you use smaller particles and bigger pours, but runs slower");
     fill("mix");
   } else {
     buildWalls();                                // the picture moves and scales with the tank

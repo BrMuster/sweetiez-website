@@ -209,6 +209,10 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid.html": [
+      { date: "October 31, 2026", title: "Adjustable particle limit", notes: [
+        "New Particle limit setting on the Liquids tab, from 2,000 up to 60,000 (it was fixed at 12,000). Raise it for smaller particles, deeper tanks and bigger pours; lower it if things get slow. It is remembered for next time.",
+        "Each liquid can use up to a quarter of the limit, and Amount of each grows or shrinks to match.",
+        "Lots of particles is hard work for the computer: past about 20,000 expect it to slow down, and Steps per frame will drop by itself to keep it moving." ] },
       { date: "October 31, 2026", title: "Your own picture as the tank, with walls the liquid hits", notes: [
         "New Picture tab: paste a screenshot with Ctrl+V (or Paste from clipboard), drop a picture on the tank, or choose a file. It becomes the tank's background, scaled to fit without stretching. Nothing is uploaded.",
         "The liquid bumps into what is in the picture. Shapes: everything that isn't the panel colour is solid, so liquid sits on top of buttons, controls and boxes and slides off their edges. Outlines: only the edges are solid, so liquid can get inside boxes.",
