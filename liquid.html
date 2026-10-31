@@ -1118,11 +1118,111 @@ function startRec() {
   $("recOut").textContent = "Recording 0:00";
 }
 function stopRec() {
-  rec.mr.stop(); rec = null;
+  rec.ms = performance.now() - rec.t0; rec.mr.stop(); rec = null;
   $("recBtn").classList.remove("on"); $("recBtn").lastChild.textContent = " REC";
 }
-function saveRec(r) {                            // hand the finished video to the browser as a download
-  const blob = new Blob(r.chunks, { type: r.type.split(";")[0] }), d = new Date(), two = n => String(n).padStart(2, "0");
+// The recorder writes the video in pieces and leaves its length blank (0), so players treat the file as a live stream:
+// no end time and no skipping around. These write the real length into the file before it is saved.
+async function fixLength(blob, ext, ms) {
+  try {
+    const b = new Uint8Array(await blob.arrayBuffer()), out = ext === "mp4" ? fixMp4(b) : fixWebm(b, ms);
+    return out ? new Blob([out], { type: blob.type }) : blob;
+  } catch (e) { return blob; }                   // anything unexpected: save the video as it came
+}
+function fixMp4(b) {                             // fragmented MP4: add up every piece's frame times
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength), u32 = i => v.getUint32(i), u64 = i => u32(i) * 2 ** 32 + u32(i + 4);
+  const boxes = (s, e) => {
+    const r = [];
+    while (s + 8 <= e) {
+      let n = u32(s), h = 8;
+      if (n === 1) { n = u64(s + 8); h = 16; } else if (n === 0) n = e - s;
+      if (n < h || s + n > e) break;
+      r.push({ t: String.fromCharCode(...b.subarray(s + 4, s + 8)), s, d: s + h, e: s + n }); s += n;
+    }
+    return r;
+  };
+  const inside = (box, t) => box && boxes(box.d, box.e).find(x => x.t === t);
+  const top = boxes(0, b.length), moov = top.find(x => x.t === "moov");
+  const mvhd = inside(moov, "mvhd"), trak = inside(moov, "trak"), mvex = inside(moov, "mvex");
+  const tkhd = inside(trak, "tkhd"), mdhd = inside(inside(trak, "mdia"), "mdhd"), trex = inside(mvex, "trex");
+  if (!mvhd || !tkhd || !mdhd) return null;
+  let end = 0, absolute = false;
+  for (const moof of top.filter(x => x.t === "moof")) for (const traf of boxes(moof.d, moof.e).filter(x => x.t === "traf")) {
+    const kids = boxes(traf.d, traf.e), tfhd = kids.find(x => x.t === "tfhd"), tfdt = kids.find(x => x.t === "tfdt");
+    const hf = tfhd ? u32(tfhd.d) & 0xffffff : 0;
+    if (hf & 1) absolute = true;                 // pieces point at fixed spots in the file, so nothing may move
+    let def = trex ? u32(trex.d + 12) : 0;
+    if (hf & 8) def = u32(tfhd.d + 8 + (hf & 1 ? 8 : 0) + (hf & 2 ? 4 : 0));
+    let t = tfdt ? (b[tfdt.d] === 1 ? u64(tfdt.d + 4) : u32(tfdt.d + 4)) : end;
+    for (const trun of kids.filter(x => x.t === "trun")) {
+      const f = u32(trun.d) & 0xffffff, n = u32(trun.d + 4);
+      let p = trun.d + 8 + (f & 1 ? 4 : 0) + (f & 4 ? 4 : 0);
+      for (let i = 0; i < n; i++) {
+        t += f & 0x100 ? u32(p) : def;
+        p += [0x100, 0x200, 0x400, 0x800].filter(x => f & x).length * 4;
+      }
+    }
+    end = Math.max(end, t);
+  }
+  if (!end) return null;
+  const mediaScale = u32(mdhd.d + (b[mdhd.d] === 1 ? 20 : 12)), movieScale = u32(mvhd.d + (b[mvhd.d] === 1 ? 20 : 12));
+  const movieLen = Math.round(end / mediaScale * movieScale);
+  const put = (i, wide, n) => { if (wide) { v.setUint32(i, Math.floor(n / 2 ** 32)); v.setUint32(i + 4, n % 2 ** 32); } else v.setUint32(i, n); };
+  put(mvhd.d + (b[mvhd.d] === 1 ? 24 : 16), b[mvhd.d] === 1, movieLen);
+  put(tkhd.d + (b[tkhd.d] === 1 ? 28 : 20), b[tkhd.d] === 1, movieLen);
+  put(mdhd.d + (b[mdhd.d] === 1 ? 24 : 16), b[mdhd.d] === 1, end);
+  const mehd = inside(mvex, "mehd");
+  if (mehd) { put(mehd.d + 4, b[mehd.d] === 1, movieLen); return b; }
+  if (!mvex || absolute || moov.d - moov.s !== 8 || mvex.d - mvex.s !== 8) return b;
+  const box = new Uint8Array(16), bv = new DataView(box.buffer);   // the "whole length" note inside mvex
+  bv.setUint32(0, 16); box.set([109, 101, 104, 100], 4); bv.setUint32(12, movieLen);
+  const out = new Uint8Array(b.length + 16);
+  out.set(b.subarray(0, mvex.d)); out.set(box, mvex.d); out.set(b.subarray(mvex.d), mvex.d + 16);
+  const ov = new DataView(out.buffer);
+  ov.setUint32(moov.s, ov.getUint32(moov.s) + 16); ov.setUint32(mvex.s, ov.getUint32(mvex.s) + 16);
+  return out;
+}
+function fixWebm(b, ms) {                        // WebM: add a Duration to the Info section, using the recording time
+  const width = x => { let n = 1; while (n < 8 && !(x & (0x80 >> (n - 1)))) n++; return n; };
+  const el = p => {
+    const il = width(b[p]); let id = 0;
+    for (let i = 0; i < il; i++) id = id * 256 + b[p + i];
+    const sp = p + il, sl = width(b[sp]), first = b[sp] & (0xff >> sl);
+    let size = first, unknown = first === 0xff >> sl;
+    for (let i = 1; i < sl; i++) { size = size * 256 + b[sp + i]; if (b[sp + i] !== 255) unknown = false; }
+    return { id, s: p, sp, sl, d: sp + sl, size: unknown ? -1 : size };
+  };
+  const head = el(0), seg = el(head.d + head.size);
+  if (seg.id !== 0x18538067) return null;
+  let info = null;
+  for (let p = seg.d; p < b.length && !info; ) {
+    const c = el(p);
+    if (c.id === 0x114d9b74 || c.size < 0) return null;   // a table of positions would go stale if anything moved
+    if (c.id === 0x1549a966) info = c; else p = c.d + c.size;
+  }
+  if (!info) return null;
+  let scale = 1e6, dur = null;
+  for (let p = info.d; p < info.d + info.size; ) {
+    const c = el(p);
+    if (c.id === 0x2ad7b1) { scale = 0; for (let i = 0; i < c.size; i++) scale = scale * 256 + b[c.d + i]; }
+    if (c.id === 0x4489) dur = c;
+    p = c.d + c.size;
+  }
+  const len = ms * 1e6 / scale, v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (dur) { if (dur.size === 8) v.setFloat64(dur.d, len); else v.setFloat32(dur.d, len); return b; }
+  const fits = (c, n) => n < 2 ** (7 * c.sl) - 1;
+  if (!fits(info, info.size + 11) || (seg.size >= 0 && !fits(seg, seg.size + 11))) return null;
+  const out = new Uint8Array(b.length + 11), at = info.d + info.size;
+  out.set(b.subarray(0, at)); out.set(b.subarray(at), at + 11);
+  out.set([0x44, 0x89, 0x88], at); new DataView(out.buffer).setFloat64(at + 3, len);
+  const size = (c, n) => { for (let i = c.sl - 1; i >= 0; i--) { out[c.sp + i] = n % 256; n = Math.floor(n / 256); } out[c.sp] |= 0x80 >> (c.sl - 1); };
+  size(info, info.size + 11);
+  if (seg.size >= 0) size(seg, seg.size + 11);
+  return out;
+}
+async function saveRec(r) {                      // hand the finished video to the browser as a download
+  $("recOut").textContent = "Saving the video…";
+  const blob = await fixLength(new Blob(r.chunks, { type: r.type.split(";")[0] }), r.ext, r.ms), d = new Date(), two = n => String(n).padStart(2, "0");
   const name = `liquid-lab-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}.${r.ext}`;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = name;
