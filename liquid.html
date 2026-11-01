@@ -1457,10 +1457,10 @@ function sizeTank() {
     started = true;
     ctl.amount = Math.min(defaultAmount(), maxAmount());
     ctl.size = Math.round(1.72 * Math.sqrt(W * H / (4 * ctl.amount)));
-    slider($("liqSliders"), "Particle size", "size", 6, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
+    slider($("liqSliders"), "Particle size", "size", .1, 40, 1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
     sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, maxAmount(), 50, () => fill("mix"), "How many particles of each liquid");
     slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, () => updateWalls(), "How big each particle is drawn, without changing the physics");
-    slider($("liqSliders"), "Particle limit", "cap", 2000, 60000, 1000, v => {
+    slider($("liqSliders"), "Particle limit", "cap", 2000, 120000, 1000, v => {
       setCap(v); sliders.amount.setMax(maxAmount());
       try { localStorage.setItem("liquidCap", v); } catch (e) {}
     }, "Most particles the tank can hold. More lets you use smaller particles and bigger pours, but runs slower");
