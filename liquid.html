@@ -437,7 +437,7 @@ const LIQ = [                                    // the four liquids, heaviest f
 ];
 const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, firm: 0, steps: 2 };
 let savedCap = 12000;
-try { savedCap = Math.min(60000, Math.max(2000, +localStorage.getItem("liquidCap") || 12000)); } catch (e) {}   // remembered from last time
+try { savedCap = Math.min(120000, Math.max(2000, +localStorage.getItem("liquidCap") || 12000)); } catch (e) {}   // remembered from last time
 setCap(savedCap);
 const ctl = { cap: savedCap, tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
 const TOOLS = [
