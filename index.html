@@ -130,7 +130,7 @@
   <aside class="side">
     <input type="search" placeholder="Search" aria-label="Search games">
     <details open>
-      <summary>Recent (8)</summary>
+      <summary>Recent (9)</summary>
       <ul class="games">
         <li class="sel" data-page="notes.html"><button><i style="--c:#ffd43b"></i><span>Post</span></button></li>
         <li data-page="draw.html"><button><i style="--c:#9775fa"></i><span>Draw</span></button></li>
@@ -139,6 +139,7 @@
         <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Filter</span></button></li>
         <li data-page="sand.html"><button><i style="--c:#ff5a5a"></i><span>Falling Pixels</span></button></li>
         <li data-page="liquid.html"><button><i style="--c:#3ddc97"></i><span>Liquid Lab</span></button></li>
+        <li data-page="liquid-gpu.html"><button><i style="--c:#3a86ff"></i><span>Liquid Lab GPU</span></button></li>
         <li class="dim" data-page="earlysuppers.html"><button><i style="--c:#d6336c"></i><span>Early Suppers</span></button></li>
         <li class="dim" data-page="slothy.html"><button><i style="--c:#4dabf7"></i><span>Slothy and Friends</span></button></li>
       </ul>
@@ -208,6 +209,16 @@ function randomStats() {
 }
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
+    "liquid-gpu.html": [
+      { date: "October 31, 2026", title: "Liquid Lab on the graphics card", notes: [
+        "A new version of Liquid Lab where every particle is worked out on the graphics card instead of the processor, so the tank can hold up to 300,000 tiny particles and still run smoothly. It starts with about 100,000.",
+        "Everything from the original is here: Drag, Attract, Repel, Swirl, Pour, Erase, Ball, Wall, Emitter, Trash and Shape, plus Sculpt, the presets, Plot a CSV, your own picture as walls, the dials, charts and scope, REC and ABORT.",
+        "New ready-made shapes on the Shape tool: Rake, Plow, Shovel, Ladle, Paddle and Ring. Grab one and drag it through the liquid, and turn it with Q and E. Shapes are solid now: the liquid no longer slips through them, even when you move them fast. Hand-drawn shapes come out smoother too.",
+        "Erase has a new Everything switch: besides liquid, it rubs out emitters, trash, drawn walls and any part of a shape you brush over. Snip tines off the rake, cut a gap in the ring, or turn the ladle into a hook.",
+        "New Zen sand preset: the tank becomes a sand tray seen from above. Pick the Rake and drag it around to comb calm, flowing grooves, like a zen garden. Press Sculpt to let the sand fall again.",
+        "Particle size, Amount of each and Particle limit are on the Liquids tab. Smaller particles make a finer, smoother liquid; the GPU version handles far more of them.",
+        "Needs Chrome or Edge on a computer. The CPU version link under STOP takes you back to the original, which works in every browser." ] }
+    ],
     "liquid.html": [
       { date: "October 31, 2026", title: "Blood, slime and frosting: liquid presets", notes: [
         "New Presets on the Liquids tab: Classic, Water, Oil, Honey, Frosting, Blood, Slime and Lava. Each one sets the four liquids' names and colours and how they behave.",
