@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Andover Wrapped</title>
+<style>
+  :root { --ink:#fff; --muted:#ffffffb3; --font:"Segoe UI",system-ui,sans-serif; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; background:#0b0f14; color:var(--ink); font-family:var(--font); overflow:hidden; }
+
+  /* Each slide gets its own gradient through --a / --b */
+  #stage { position:fixed; inset:0; background:linear-gradient(160deg,var(--a,#1d2b64),var(--b,#0f7b8a)); transition:background .5s; }
+  .slide { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center;
+           padding:4.5rem 1.5rem 5rem; text-align:center; gap:1rem; }
+  .slide > * { opacity:0; transform:translateY(18px); animation:in .6s forwards; }
+  .slide > *:nth-child(2){animation-delay:.15s} .slide > *:nth-child(3){animation-delay:.3s}
+  .slide > *:nth-child(4){animation-delay:.45s} .slide > *:nth-child(5){animation-delay:.6s}
+  @keyframes in { to { opacity:1; transform:none; } }
+
+  .kicker { text-transform:uppercase; letter-spacing:.18em; font-size:.85rem; color:var(--muted); }
+  h1 { font-size:clamp(2.4rem,9vw,5rem); line-height:1.05; letter-spacing:-.03em; }
+  h2 { font-size:clamp(1.6rem,5vw,2.6rem); line-height:1.15; letter-spacing:-.02em; max-width:18ch; }
+  .big { font-size:clamp(3.5rem,18vw,9rem); font-weight:800; letter-spacing:-.04em; line-height:1; }
+  .sub { color:var(--muted); font-size:1.1rem; max-width:34ch; }
+
+  /* Ranked list */
+  .rank { width:min(520px,100%); display:flex; flex-direction:column; gap:.6rem; text-align:left; }
+  .rank li { list-style:none; display:grid; grid-template-columns:2rem 1fr auto; gap:.6rem; align-items:center;
+             background:#ffffff1f; border-radius:14px; padding:.7rem 1rem; opacity:0; animation:in .5s forwards; animation-delay:calc(var(--i)*.25s + .4s); }
+  .rank li:first-child { background:#ffffff40; font-size:1.2rem; }
+  .rank .n { font-weight:800; opacity:.7; }
+  .rank .v { font-variant-numeric:tabular-nums; font-weight:700; }
+  .rank.rev li { animation-delay:calc((4 - var(--i))*.4s + .4s); }   /* #1 is revealed last */
+
+  /* Bar chart */
+  .bars { display:flex; align-items:flex-end; gap:clamp(.2rem,1.2vw,.6rem); height:min(38vh,280px); width:min(560px,100%); }
+  .bars div { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; font-size:.7rem; color:var(--muted); }
+  .bars i { display:block; width:100%; background:#ffffff59; border-radius:6px 6px 0 0; height:0; animation:grow .8s forwards; animation-delay:calc(var(--i)*.06s + .3s); }
+  .bars .top i { background:#fff; }
+  .bars .top { color:#fff; font-weight:700; }
+  @keyframes grow { to { height:var(--h); } }
+
+  /* Pills / cards */
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.7rem; width:min(560px,100%); }
+  .card { background:#ffffff1f; border-radius:16px; padding:1rem .8rem; }
+  .card b { display:block; font-size:1.6rem; }
+  .card span { color:var(--muted); font-size:.85rem; }
+
+  /* Top bar: progress segments, mode switch */
+  #prog { position:fixed; top:calc(.6rem + env(safe-area-inset-top,0px)); left:.8rem; right:.8rem; display:flex; gap:4px; z-index:5; }
+  #prog i { flex:1; height:3px; border-radius:2px; background:#ffffff40; overflow:hidden; }
+  #prog i.done::after,#prog i.cur::after { content:""; display:block; height:100%; background:#fff; }
+  #prog i.cur::after { animation:fill var(--dur,8s) linear forwards; }
+  @keyframes fill { from{width:0} to{width:100%} }
+  #mode { position:fixed; top:calc(1.6rem + env(safe-area-inset-top,0px)); right:.8rem; z-index:6; display:flex; background:#00000040; border-radius:999px; padding:3px; }
+  #mode button { font:inherit; font-size:.8rem; color:#fff; background:none; border:0; border-radius:999px; padding:.35rem .8rem; cursor:pointer; }
+  #mode button[aria-pressed=true] { background:#fff; color:#111; }
+  #hint { position:fixed; bottom:calc(1rem + env(safe-area-inset-bottom,0px)); left:0; right:0; text-align:center; color:var(--muted); font-size:.8rem; z-index:5; pointer-events:none; }
+  .home { position:fixed; top:calc(1.7rem + env(safe-area-inset-top,0px)); left:.8rem; z-index:6; color:var(--muted); text-decoration:none; font-size:.85rem; }
+  .tap { position:fixed; top:0; bottom:0; width:35%; z-index:3; background:none; border:0; cursor:pointer; }
+  #prev { left:0; } #next { right:0; width:65%; }
+  :focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) { .slide > *,.rank li,.bars i { animation-duration:.01s; animation-delay:0s !important; } #prog i.cur::after{animation:none;width:100%} }
+</style>
+</head>
+<body>
+
+<a class="home" href="index.html">← Home</a>
+<div id="mode" role="group" aria-label="Version">
+  <button data-m="serious" aria-pressed="true">Serious</button>
+  <button data-m="joke" aria-pressed="false">Inside joke</button>
+</div>
+<div id="prog"></div>
+<div id="stage"></div>
+<button class="tap" id="prev" aria-label="Previous slide"></button>
+<button class="tap" id="next" aria-label="Next slide"></button>
+<div id="hint">Tap right / left, swipe, or use arrow keys</div>
+
+<script>
+/* =====================================================================
+   EDIT THIS BLOCK ONLY. Everything below it just draws the slides.
+   All numbers here are FAKE placeholders.
+   NOTE: this site is public. Do not commit real customer names or
+   revenue figures. Keep real data in a private copy.
+   ===================================================================== */
+const DATA = {
+  company: "Andover Corporation",
+  place: "Salem, NH",
+  year: 2026,
+  revenue: { current: 24800000, prior: 21900000 },          // dollars
+  customers: [                                               // top 5, any order
+    { name: "Customer A", rev: 3200000 },
+    { name: "Customer B", rev: 2750000 },
+    { name: "Customer C", rev: 2100000 },
+    { name: "Customer D", rev: 1640000 },
+    { name: "Customer E", rev: 1210000 },
+  ],
+  months: [1.6,1.7,1.9,2.0,2.2,2.3,1.8,1.9,2.4,2.6,2.5,1.9], // profit or revenue, $M, Jan..Dec
+  chambers: [                                                // coating chambers
+    { name: "Sputtering",          units: "SP-1", rev: 9400000, hours: 5200 },
+    { name: "E-Beam",              units: "EB-2", rev: 6900000, hours: 4700 },
+    { name: "Thermal Evaporator",  units: "TE-1", rev: 5100000, hours: 4100 },
+    { name: "DLC",                 units: "DL-1", rev: 3400000, hours: 3300 },
+  ],
+  bigDeal:   { who: "Customer B", amount: 640000, note: "One custom multi-band filter order" },
+  recordDay: { date: "Sept 18", amount: 410000 },
+  mvp:       { name: "Team Member", stat: "Hit every ship date in Q3" },
+  awards: [
+    { title: "Most loyal customer", winner: "Customer A", note: "Ordered every single month" },
+    { title: "Busiest month",       winner: "October",    note: "Chambers never cooled down" },
+    { title: "Fastest turnaround",  winner: "Team Member", note: "Quote to shipment in record time" },
+  ],
+};
+
+/* Inside-joke version: same data, different words. Rewrite these freely. */
+const JOKE = {
+  intro:   { kicker: "Totally unofficial", title: "Your 2026<br>Wrapped, but make it nanometers" },
+  growth:  { kicker: "Growth", title: "We grew, and so did the vacuum pumpdown time" },
+  custs:   { kicker: "Customers we think about at 2 a.m.", title: "The Top 5" },
+  months:  { kicker: "Peak performance", title: "The month everything coated on the first try" },
+  chambers:{ kicker: "Chamber therapy", title: "Who worked hardest (besides us)" },
+  deal:    { kicker: "Big one", title: "One order to rule them all" },
+  mvp:     { kicker: "Legend status", title: "Holding the whole thing together" },
+  awards:  { kicker: "The Andy Awards", title: "Superlatives" },
+  outro:   { kicker: "See you in the cleanroom", title: "Same time next year?" },
+  awardOverrides: [
+    { title: "Most likely to say \"just one more layer\"", winner: "Customer A", note: "Never a short spec" },
+    { title: "Month we don't talk about", winner: "July", note: "The chamber knows what it did" },
+    { title: "Fastest hands in the cleanroom", winner: "Team Member", note: "Gloves on, no questions" },
+  ],
+};
+/* ===================== end of editable block ===================== */
+
+const $ = s => document.querySelector(s);
+const money = n => n >= 1e6 ? "$" + (n/1e6).toFixed(1).replace(/\.0$/,"") + "M" : "$" + Math.round(n/1e3) + "K";
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+let mode = "serious", idx = 0, timer = null;
+
+/* Builds the list of slides for the current mode */
+function slides() {
+  const J = mode === "joke", T = (k, s) => (J ? JOKE[k] : s);
+  const d = DATA, growth = (d.revenue.current / d.revenue.prior - 1) * 100;
+  const cust = [...d.customers].sort((a,b)=>b.rev-a.rev).slice(0,5);
+  const topM = d.months.indexOf(Math.max(...d.months)), max = Math.max(...d.months);
+  const ch = [...d.chambers].sort((a,b)=>b.rev-a.rev);
+  const aw = J ? JOKE.awardOverrides : d.awards;
+  return [
+    { a:"#1d2b64", b:"#7b2ff7", html:() => {
+        const t = T("intro", { kicker: d.company + " · " + d.place, title: "Your " + d.year + "<br>Wrapped" });
+        return `<div class="kicker">${t.kicker}</div><h1>${t.title}</h1><p class="sub">${J ? "Warning: contains jokes about vacuum" : "A look back at the year we made things that bend light"}</p>`; } },
+    { a:"#0f7b8a", b:"#134e5e", html:() => {
+        const t = T("growth", { kicker: "The big picture", title: "We brought in" });
+        return `<div class="kicker">${t.kicker}</div><h2>${t.title}</h2><div class="big" data-count="${d.revenue.current}" data-fmt="money">$0</div><p class="sub">${growth >= 0 ? "Up" : "Down"} ${Math.abs(growth).toFixed(1)}% from ${money(d.revenue.prior)} last year</p>`; } },
+    { a:"#f12711", b:"#f5af19", html:() => {
+        const t = T("custs", { kicker: "Our best customers", title: "Top 5 customers" });
+        return `<div class="kicker">${t.kicker}</div><h2>${t.title}</h2><ul class="rank rev">${cust.map((c,i)=>`<li style="--i:${i}"><span class="n">${i+1}</span><span>${c.name}</span><span class="v">${money(c.rev)}</span></li>`).join("")}</ul>`; } },
+    { a:"#11998e", b:"#38ef7d", html:() => {
+        const t = T("months", { kicker: "Most profitable months", title: FULL[topM] + " took the crown" });
+        return `<div class="kicker">${t.kicker}</div><h2>${J ? t.title : FULL[topM] + " took the crown"}</h2><div class="bars">${d.months.map((v,i)=>`<div class="${i===topM?"top":""}"><i style="--i:${i};--h:${v/max*100}%"></i>${MONTHS[i][0]}</div>`).join("")}</div><p class="sub">${money(max*1e6)} in ${FULL[topM]}</p>`; } },
+    { a:"#232526", b:"#414345", html:() => {
+        const t = T("chambers", { kicker: "Coating chambers", title: ch[0].name + " ran the show" });
+        return `<div class="kicker">${t.kicker}</div><h2>${J ? t.title : ch[0].name + " ran the show"}</h2><ul class="rank">${ch.map((c,i)=>`<li style="--i:${i}"><span class="n">${i+1}</span><span>${c.name}<br><small style="opacity:.7">${c.hours.toLocaleString()} hrs coating</small></span><span class="v">${money(c.rev)}</span></li>`).join("")}</ul>`; } },
+    { a:"#8e2de2", b:"#4a00e0", html:() => {
+        const t = T("deal", { kicker: "Record breakers", title: "The biggest deal" });
+        return `<div class="kicker">${t.kicker}</div><h2>${t.title}</h2><div class="big" data-count="${d.bigDeal.amount}" data-fmt="money">$0</div><p class="sub">${d.bigDeal.who}: ${d.bigDeal.note}</p><div class="cards"><div class="card"><b>${d.recordDay.date}</b><span>Record day · ${money(d.recordDay.amount)}</span></div></div>`; } },
+    { a:"#ee0979", b:"#ff6a00", html:() => {
+        const t = T("mvp", { kicker: "Team MVP", title: "Couldn't have done it without" });
+        return `<div class="kicker">${t.kicker}</div><h2>${t.title}</h2><div class="big" style="font-size:clamp(2.5rem,12vw,6rem)">${d.mvp.name}</div><p class="sub">${d.mvp.stat}</p>`; } },
+    { a:"#2193b0", b:"#6dd5ed", html:() => {
+        const t = T("awards", { kicker: "Superlatives", title: "The awards go to" });
+        return `<div class="kicker">${t.kicker}</div><h2>${t.title}</h2><ul class="rank">${aw.map((a,i)=>`<li style="--i:${i};grid-template-columns:1fr"><span><small style="opacity:.7">${a.title}</small><br><b style="font-size:1.25rem">${a.winner}</b><br><small style="opacity:.8">${a.note}</small></span></li>`).join("")}</ul>`; } },
+    { a:"#1d2b64", b:"#0f7b8a", html:() => {
+        const t = T("outro", { kicker: "That's a wrap", title: "Thanks for " + d.year });
+        return `<div class="kicker">${t.kicker}</div><h1>${t.title}</h1><p class="sub">Sputtering · Thermal Evaporation · E-Beam · DLC</p>`; } },
+  ];
+}
+
+/* Draws the current slide, starts count-ups and the auto-advance timer */
+function show() {
+  const list = slides(), s = list[idx], dur = 8000;
+  $("#stage").style.setProperty("--a", s.a); $("#stage").style.setProperty("--b", s.b);
+  $("#stage").innerHTML = `<section class="slide" aria-live="polite">${s.html()}</section>`;
+  $("#prog").innerHTML = list.map((_,i)=>`<i class="${i<idx?"done":i===idx?"cur":""}" style="--dur:${dur}ms"></i>`).join("");
+  document.querySelectorAll("[data-count]").forEach(el => {
+    const end = +el.dataset.count, t0 = performance.now(), D = 1400;
+    const step = t => { const p = Math.min((t-t0)/D,1), e = 1-Math.pow(1-p,3); el.textContent = money(end*e); if (p<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+  clearTimeout(timer);
+  if (idx < list.length - 1) timer = setTimeout(() => go(1), dur);
+}
+function go(n) { const len = slides().length; idx = Math.max(0, Math.min(len-1, idx+n)); show(); }
+
+$("#next").onclick = () => go(1);
+$("#prev").onclick = () => go(-1);
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === " ") go(1);
+  if (e.key === "ArrowLeft") go(-1);
+});
+let x0 = null;
+addEventListener("touchstart", e => x0 = e.touches[0].clientX, { passive:true });
+addEventListener("touchend", e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); x0 = null; });
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => {
+  mode = b.dataset.m; idx = 0;
+  document.querySelectorAll("#mode button").forEach(o => o.setAttribute("aria-pressed", o === b));
+  show();
+});
+show();
+</script>
+</body>
+</html>
