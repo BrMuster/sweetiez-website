@@ -53,9 +53,9 @@
   #stopBtn.run { color: #4cd964; border-color: #4cd964; }
   #abortBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff9f1a; border-color: #ff9f1a; }
   #abortBtn:hover { color: #fff; background: #c96a00; border-color: #ff9f1a; }
-  #recBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff5a5a; border-color: #ff5a5a; }
-  #recBtn.on, #recBtn.on:hover { color: #fff; background: #d42a2a; border-color: #ff5a5a; }
-  #recBtn.on .recdot { animation: blink 1s steps(2, start) infinite; }
+  #recBtn, #winBtn { min-width: 5.5rem; font-weight: 700; letter-spacing: .05em; color: #ff5a5a; border-color: #ff5a5a; }
+  #recBtn.on, #recBtn.on:hover, #winBtn.on, #winBtn.on:hover { color: #fff; background: #d42a2a; border-color: #ff5a5a; }
+  #recBtn.on .recdot, #winBtn.on .recdot { animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
   #recOut { font-variant-numeric: tabular-nums; }
   #sculptTag { color: var(--accent); font-weight: 600; }
@@ -130,8 +130,8 @@
   [data-theme=labview] button:hover { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
   [data-theme=labview] button:active, [data-theme=labview] button.on, [data-theme=labview] button.on:hover { color: #000; font-weight: 700; background: linear-gradient(#c4c4c4, #e6e6e6); border-color: #6b6b6b; box-shadow: inset 1px 1px 2px #0006; }
   [data-theme=labview] #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
-  [data-theme=labview] #recBtn { color: #c00000; }
-  [data-theme=labview] #recBtn.on, [data-theme=labview] #recBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
+  [data-theme=labview] #recBtn, [data-theme=labview] #winBtn { color: #c00000; }
+  [data-theme=labview] #recBtn.on, [data-theme=labview] #recBtn.on:hover, [data-theme=labview] #winBtn.on, [data-theme=labview] #winBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
   [data-theme=labview] #abortBtn { color: #fff; background: linear-gradient(#ffb357, #e06a00); border: 1px solid #6b3200; border-radius: 6px; box-shadow: inset 1px 1px #ffd9a8, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }
   [data-theme=labview] #abortBtn:active { background: linear-gradient(#e06a00, #ffb357); }
   [data-theme=labview] #stopBtn.run { background: linear-gradient(#7ee07e, #1b8a1b); border-color: #0a3d0a; box-shadow: inset 1px 1px #c4f5c4, 1px 1px 0 #0004; }
@@ -270,13 +270,17 @@
           <span class="ro"><span class="lbl">Frames/s</span><output id="fpsOut">0</output></span>
         </div>
         <div class="runrow">
-          <button id="recBtn" type="button" title="Record a video of the tank (R); press again to stop and save it"><span class="recdot">●</span> REC</button>
+          <button id="recBtn" type="button" title="Record a video of just the tank (R); press again to stop and save it"><span class="recdot">●</span> REC TANK</button>
+          <button id="winBtn" type="button" title="Record a video of the whole window, dials and all (W): the browser asks which window; press again to stop and save it"><span class="recdot">●</span> REC WINDOW</button>
+        </div>
+        <div class="runrow">
+          <button id="shotBtn" type="button" title="Save a picture of the tank (P)">SHOT</button>
           <button id="abortBtn" type="button" title="Clear the whole tank: liquid, walls, emitters, trash and your shape (the picture stays)">ABORT</button>
           <a id="homeBtn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><a class="link" href="liquid.html" title="The original Liquid Lab, worked out on the processor: works in every browser">CPU version</a>
         </div>
-        <p class="hint" id="recOut">Saves a video of the tank, picture and all.</p>
+        <p class="hint" id="recOut">Videos and pictures land in your downloads.</p>
       </div>
-      <p class="hint" id="keysHint"><span>Scroll to resize the brush</span> · <span><b>1</b>–<b>9</b>, <b>0</b> pick a tool</span> · <span><b>S</b> sculpts</span> · <span><b>R</b> records</span> · <span><b>Esc</b> stops</span></p>
+      <p class="hint" id="keysHint"><span>Scroll to resize the brush</span> · <span><b>1</b>–<b>9</b>, <b>0</b> pick a tool</span> · <span><b>S</b> sculpts</span> · <span><b>R</b> records the tank</span> · <span><b>W</b> the window</span> · <span><b>P</b> takes a picture</span> · <span><b>Esc</b> stops</span></p>
     </div>
   </div>
 </main>
@@ -1150,6 +1154,8 @@ addEventListener("keydown", e => {
   else if (e.key === "m" || e.key === "M") melt();
   else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && scoop) scoop.ta += (e.key.toLowerCase() === "q" ? -1 : 1) * Math.PI / 18;   // turn the scoop 10°
   else if ((e.key === "r" || e.key === "R") && !$("recBtn").disabled) $("recBtn").click();
+  else if ((e.key === "w" || e.key === "W") && !$("winBtn").disabled) $("winBtn").click();
+  else if (e.key === "p" || e.key === "P") $("shotBtn").click();
   else if (e.key === "[" || e.key === "]") { sliders.brush.set(ctl.brush * (e.key === "]" ? 1.1 : 1 / 1.1)); showBrush(); }
 });
 
@@ -1903,6 +1909,7 @@ function frame(t) {
   gpuFrame(steps);                               // the steps and the drawing, all on the card
   drawScoop();
   if (rec) recFrame();                            // straight after drawing, while the liquid's picture is still there to copy
+  if (shotNow) saveShot();
   drawInstruments();
   drawScope();
   frames++;
@@ -1915,7 +1922,7 @@ function frame(t) {
     slow = fps < 40 && ctl.running ? slow + 1 : 0;
     if (slow >= 4 && ctl.steps > 1) { sliders.steps.set(ctl.steps - 1); slow = 0; }
     drawChart();
-    if (rec) { const sec = Math.floor((t - rec.t0) / 1000); $("recOut").textContent = "Recording " + Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+    if (rec || winRec) $("recOut").textContent = [rec && "Recording tank " + clock(t - rec.t0), winRec && "Recording window " + clock(t - winRec.t0)].filter(Boolean).join(" · ");
   }
 }
 
@@ -1928,9 +1935,9 @@ if (!recType() || !HTMLCanvasElement.prototype.captureStream) {
   $("recBtn").disabled = true; $("recBtn").title = "This browser can't record video from the page";
   $("recOut").textContent = "Recording isn't available in this browser.";
 }
-function recFrame() {
-  const { cvs, ctx, lv } = rec, W = cvs.width, H = cvs.height, k = W / sim.W;
-  ctx.fillStyle = rec.bg; ctx.fillRect(0, 0, W, H);
+function drawTank(ctx, W, H, bg, lv) {            // the tank's background, the picture, the liquid and the shape, all on one canvas
+  const k = W / sim.W;
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   if (lv) {                                      // LabVIEW's graph grid
     ctx.strokeStyle = "#ffffff26"; ctx.lineWidth = 1; ctx.beginPath();
     for (let x = 0; x < sim.W; x += 50) { ctx.moveTo(Math.round(x * k) + 0.5, 0); ctx.lineTo(Math.round(x * k) + 0.5, H); }
@@ -1941,23 +1948,80 @@ function recFrame() {
   ctx.drawImage(cv, 0, 0, W, H);
   ctx.drawImage(ov, 0, 0, W, H);                 // the scoop, on top
 }
+const wellColor = () => labview() ? "#000" : getComputedStyle(document.documentElement).getPropertyValue("--well").trim();
+function recFrame() { drawTank(rec.ctx, rec.cvs.width, rec.cvs.height, rec.bg, rec.lv); }
+const clock = ms => { const sec = Math.floor(ms / 1000); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
+function fileStamp() { const d = new Date(), two = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`; }
+function download(blob, name) {                  // hand a finished file to the browser
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+// ---- a picture of the tank ----
+// The card's picture only lasts until the frame is shown, so the button just asks and the main loop copies it straight after drawing.
+let shotNow = false;
+$("shotBtn").onclick = () => { shotNow = true; };
+function saveShot() {
+  shotNow = false;
+  const c = document.createElement("canvas"), dpr = devicePixelRatio || 1;
+  c.width = Math.round(sim.W * dpr); c.height = Math.round(sim.H * dpr);
+  drawTank(c.getContext("2d"), c.width, c.height, wellColor(), labview());
+  c.toBlob(blob => {
+    if (!blob) { $("recOut").textContent = "The browser couldn't make the picture."; return; }
+    const name = `liquid-lab-gpu-${fileStamp()}.png`;
+    download(blob, name);
+    if (!rec && !winRec) $("recOut").textContent = "Saved " + name + " to your downloads.";
+  }, "image/png");
+}
+// ---- a video of the whole window ----
+// The browser's own screen-sharing box asks which window to film, every time; a page can't film anything without that.
+let winRec = null, winAsking = false;            // { mr, stream, chunks, t0, type, ext, label }
+if (!recType() || !navigator.mediaDevices?.getDisplayMedia) { $("winBtn").disabled = true; $("winBtn").title = "This browser can't record the window"; }
+async function startWinRec() {
+  if (winAsking) return;
+  winAsking = true;
+  $("recOut").textContent = "Pick the window to record in the box the browser shows.";
+  let stream;
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "window", frameRate: 60 }, audio: false, selfBrowserSurface: "include" }); }
+  catch (e) { winAsking = false; $("recOut").textContent = e.name === "NotAllowedError" ? "Window recording cancelled." : "The browser wouldn't share the window."; return; }
+  winAsking = false;
+  const type = recType(), r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-" };
+  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 16e6 }); }
+  catch (e) { stream.getTracks().forEach(t => t.stop()); $("recOut").textContent = "The browser wouldn't start recording."; return; }
+  r.mr.ondataavailable = e => { if (e.data.size) r.chunks.push(e.data); };
+  r.mr.onstop = () => saveRec(r);
+  stream.getVideoTracks()[0].addEventListener("ended", () => { if (winRec === r) stopWinRec(); });   // the browser's own Stop sharing button
+  r.mr.start(1000);
+  winRec = r;
+  $("winBtn").classList.add("on"); $("winBtn").lastChild.textContent = " STOP WINDOW";
+  $("recOut").textContent = "Recording window 0:00";
+}
+function stopWinRec() {
+  const r = winRec;
+  winRec = null; r.ms = performance.now() - r.t0;
+  if (r.mr.state !== "inactive") r.mr.stop();
+  r.stream.getTracks().forEach(t => t.stop());
+  $("winBtn").classList.remove("on"); $("winBtn").lastChild.textContent = " REC WINDOW";
+}
+$("winBtn").onclick = () => winRec ? stopWinRec() : startWinRec();
 function startRec() {
   const type = recType(), sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H)), cvs = document.createElement("canvas");
   cvs.width = Math.round(sim.W * sc / 2) * 2; cvs.height = Math.round(sim.H * sc / 2) * 2;   // even sizes keep video encoders happy
   const r = rec = { cvs, ctx: cvs.getContext("2d"), chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm",
-    lv: labview(), bg: labview() ? "#000" : getComputedStyle(document.documentElement).getPropertyValue("--well").trim() };
+    lv: labview(), bg: wellColor() };
   recFrame();
   try { r.mr = new MediaRecorder(cvs.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }); }
   catch (e) { rec = null; $("recOut").textContent = "The browser wouldn't start recording."; return; }
   r.mr.ondataavailable = e => { if (e.data.size) r.chunks.push(e.data); };
   r.mr.onstop = () => saveRec(r);
   r.mr.start(1000);
-  $("recBtn").classList.add("on"); $("recBtn").lastChild.textContent = " STOP REC";
+  $("recBtn").classList.add("on"); $("recBtn").lastChild.textContent = " STOP TANK";
   $("recOut").textContent = "Recording 0:00";
 }
 function stopRec() {
   rec.ms = performance.now() - rec.t0; rec.mr.stop(); rec = null;
-  $("recBtn").classList.remove("on"); $("recBtn").lastChild.textContent = " REC";
+  $("recBtn").classList.remove("on"); $("recBtn").lastChild.textContent = " REC TANK";
 }
 // The recorder writes the video in pieces and leaves its length blank (0), so players treat the file as a live stream:
 // no end time and no skipping around. These write the real length into the file before it is saved.
@@ -2059,14 +2123,11 @@ function fixWebm(b, ms) {                        // WebM: add a Duration to the 
   return out;
 }
 async function saveRec(r) {                      // hand the finished video to the browser as a download
-  $("recOut").textContent = "Saving the video…";
-  const blob = await fixLength(new Blob(r.chunks, { type: r.type.split(";")[0] }), r.ext, r.ms), d = new Date(), two = n => String(n).padStart(2, "0");
-  const name = `liquid-lab-gpu-${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}.${r.ext}`;
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-  $("recOut").textContent = "Saved " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB) to your downloads.";
+  if (!rec && !winRec) $("recOut").textContent = "Saving the video…";
+  const blob = await fixLength(new Blob(r.chunks, { type: r.type.split(";")[0] }), r.ext, r.ms ?? performance.now() - r.t0);
+  const name = `liquid-lab-gpu-${r.label || ""}${fileStamp()}.${r.ext}`;
+  download(blob, name);
+  if (!rec && !winRec) $("recOut").textContent = "Saved " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB) to your downloads.";
 }
 $("recBtn").onclick = () => rec ? stopRec() : startRec();
 initGPU().then(() => requestAnimationFrame(frame), e => { console.error(e); gpuFail(NO_GPU); });
