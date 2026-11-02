@@ -58,6 +58,11 @@
   #recBtn.on .recdot, #winBtn.on .recdot { animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
   #recOut { font-variant-numeric: tabular-nums; }
+  #recSet summary { cursor: pointer; font-size: .85rem; color: var(--muted); }
+  #recSet[open] summary { margin-bottom: .5rem; }
+  .recgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .8rem; }
+  .recgrid label { display: grid; gap: .1rem; }
+  .recgrid select { width: 100%; font: inherit; font-size: .9rem; padding: .15rem .25rem; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: 4px; }
   #sculptTag { color: var(--accent); font-weight: 600; }
   .ledbox { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; }
   .led { width: 1rem; height: 1rem; border-radius: 50%; background: #2a3a4d; }
@@ -131,6 +136,8 @@
   [data-theme=labview] button:active, [data-theme=labview] button.on, [data-theme=labview] button.on:hover { color: #000; font-weight: 700; background: linear-gradient(#c4c4c4, #e6e6e6); border-color: #6b6b6b; box-shadow: inset 1px 1px 2px #0006; }
   [data-theme=labview] #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
   [data-theme=labview] #recBtn, [data-theme=labview] #winBtn { color: #c00000; }
+  [data-theme=labview] .recgrid select { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
+  [data-theme=labview] #recSet summary { color: #000; }
   [data-theme=labview] #recBtn.on, [data-theme=labview] #recBtn.on:hover, [data-theme=labview] #winBtn.on, [data-theme=labview] #winBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
   [data-theme=labview] #abortBtn { color: #fff; background: linear-gradient(#ffb357, #e06a00); border: 1px solid #6b3200; border-radius: 6px; box-shadow: inset 1px 1px #ffd9a8, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }
   [data-theme=labview] #abortBtn:active { background: linear-gradient(#e06a00, #ffb357); }
@@ -271,13 +278,22 @@
         </div>
         <div class="runrow">
           <button id="recBtn" type="button" title="Record a video of just the tank (R); press again to stop and save it"><span class="recdot">●</span> REC TANK</button>
-          <button id="winBtn" type="button" title="Record a video of the whole window, dials and all (W): the browser asks which window; press again to stop and save it"><span class="recdot">●</span> REC WINDOW</button>
+          <button id="winBtn" type="button" title="Record a video of the whole tab or window, dials and all (W): the browser asks which one; press again to stop and save it"><span class="recdot">●</span> REC WINDOW</button>
         </div>
         <div class="runrow">
           <button id="shotBtn" type="button" title="Save a picture of the tank (P)">SHOT</button>
           <button id="abortBtn" type="button" title="Clear the whole tank: liquid, walls, emitters, trash and your shape (the picture stays)">ABORT</button>
           <a id="homeBtn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><a class="link" href="liquid.html" title="The original Liquid Lab, worked out on the processor: works in every browser">CPU version</a>
         </div>
+        <details id="recSet">
+          <summary id="recSum">Video settings</summary>
+          <div class="recgrid">
+            <label><span class="lbl">Resolution</span><select id="recRes" title="How many pixels tall the video is, at most. Fewer pixels look softer on a big screen"><option value="0">Full size</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option></select></label>
+            <label><span class="lbl">Quality</span><select id="recBits" title="How much the video is squeezed. At big sizes and high frame rates it can only shrink so far: lower the Resolution or Frames/s for a smaller file"><option value="16">High</option><option value="8">Medium</option><option value="4">Low</option><option value="2">Smallest</option></select></label>
+            <label><span class="lbl">Frames/s</span><select id="recFps" title="Higher is smoother and makes bigger files. Monitor matches your screen's refresh rate, as far as the computer can keep up: it skips frames it can't save in time"><option value="30">30</option><option value="60">60</option><option value="-1" id="recHz">Monitor</option></select></label>
+            <label><span class="lbl">Stop after</span><select id="recMax" title="Stops and saves the video by itself"><option value="0">No limit</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+          </div>
+        </details>
         <p class="hint" id="recOut">Videos and pictures land in your downloads.</p>
       </div>
       <p class="hint" id="keysHint"><span>Scroll to resize the brush</span> · <span><b>1</b>–<b>9</b>, <b>0</b> pick a tool</span> · <span><b>S</b> sculpts</span> · <span><b>R</b> records the tank</span> · <span><b>W</b> the window</span> · <span><b>P</b> takes a picture</span> · <span><b>Esc</b> stops</span></p>
@@ -1890,8 +1906,18 @@ function sizeTank() {
   }
 }
 new ResizeObserver(sizeTank).observe(tank);
+let hz = 0, rafLast = 0, rafGaps = [];            // the monitor's refresh rate, from how often the browser asks for a frame
+function watchHz(t) {
+  if (rafLast) rafGaps.push(t - rafLast);
+  rafLast = t;
+  if (rafGaps.length < 60) return;
+  const rate = Math.round(1000 / rafGaps.sort((a, b) => a - b)[30]);   // the middle gap, so a hiccup doesn't count
+  rafGaps = [];
+  if (rate > hz && rate <= 500) { hz = rate; $("recHz").textContent = "Monitor (" + hz + ")"; showRecSet(); }   // the highest seen: a busy spell only ever slows it down
+}
 function frame(t) {
   requestAnimationFrame(frame);
+  watchHz(t);
   if (!device || inFlight >= 2) return;          // no card yet, or it is still busy with two frames: wait, so the frame rate shown is the real one
   if (inkDirty && (!pointers.size || t - inkT > 60)) { inkT = t; devDirty = false; buildSink(); mergeWalls(); }   // fresh walls, a few times a second while drawing
   if (devDirty) { devDirty = false; buildSink(); drawPic(); }
@@ -1922,7 +1948,8 @@ function frame(t) {
     slow = fps < 40 && ctl.running ? slow + 1 : 0;
     if (slow >= 4 && ctl.steps > 1) { sliders.steps.set(ctl.steps - 1); slow = 0; }
     drawChart();
-    if (rec || winRec) $("recOut").textContent = [rec && "Recording tank " + clock(t - rec.t0), winRec && "Recording window " + clock(t - winRec.t0)].filter(Boolean).join(" · ");
+    showRecSet();                                // the window may have changed size
+    if (rec || winRec) $("recOut").textContent = [rec && recLine("tank", rec, t), winRec && recLine("window", winRec, t)].filter(Boolean).join(" · ");
   }
 }
 
@@ -1930,7 +1957,8 @@ function frame(t) {
 // The browser's own recorder films a hidden canvas that each frame gets the tank's background, the picture and the
 // liquid copied onto it. MP4 where the browser can make one (Chrome, Edge, Safari), WebM otherwise. Nothing is uploaded.
 let rec = null;                                  // { mr, cvs, ctx, chunks, t0, type, ext, bg, lv }
-const recType = () => ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder?.isTypeSupported?.(t));
+// VP9 first: on swirling particles H.264 ignores the size it is asked for (measured: about 11 Mbps whether asked for 2 or 8), and VP9 keeps close to it.
+const recType = () => ["video/mp4;codecs=vp9", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder?.isTypeSupported?.(t));
 if (!recType() || !HTMLCanvasElement.prototype.captureStream) {
   $("recBtn").disabled = true; $("recBtn").title = "This browser can't record video from the page";
   $("recOut").textContent = "Recording isn't available in this browser.";
@@ -1958,6 +1986,35 @@ function download(blob, name) {                  // hand a finished file to the 
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 }
+// ---- video settings, shared by both recorders ----
+// Quality asks for a number of megabits a second, but on swirling particles the encoder only goes so low: measured, about 0.19 Mbit per
+// million pixels saved, and it saves about 100 million pixels a second at most (150 frames a second on small videos), skipping frames beyond that.
+const recSet = { res: 0, bits: 8, fps: 30, max: 0 };
+try { Object.assign(recSet, JSON.parse(localStorage.getItem("liquidRecSet") || "{}")); } catch (e) {}   // remembered from last time, for this browser only
+const recSelects = { res: $("recRes"), bits: $("recBits"), fps: $("recFps"), max: $("recMax") };
+const recFps = () => recSet.fps < 0 ? hz || 60 : recSet.fps;   // Monitor: whatever the screen refreshes at
+function recMBmin(w, h) {                        // roughly how many MB a minute of video this many pixels makes
+  const p = recSet.res, sc = Math.min(1, p ? p / h : 1, p ? p * 16 / 9 / w : 1), mp = w * h * sc * sc / 1e6;
+  return Math.max(recSet.bits, 0.19 * mp * Math.min(recFps(), 150, 100 / mp)) * 60 / 8;
+}
+function showRecSet() {                          // the line you see with the settings folded away, and roughly how big the file will be
+  const dpr = devicePixelRatio || 1, tsc = Math.min(dpr, 2, 1920 / Math.max(sim.W, sim.H)), each = recSet.max ? recSet.max / 60 : 1;
+  const mb = (w, h) => Math.round(recMBmin(w, h) * each);
+  const text = "Video: " + (recSet.res ? recSet.res + "p" : "full size") + ", " + recSelects.bits.selectedOptions[0].text.toLowerCase() + " quality, " + recFps() + " frames/s. About "
+    + mb(sim.W * tsc, sim.H * tsc) + " MB (tank) or " + mb(innerWidth * dpr, innerHeight * dpr) + " MB (tab) " + (recSet.max ? "per video" : "a minute");
+  if ($("recSum").textContent !== text) $("recSum").textContent = text;
+}
+for (const k in recSelects) {
+  recSelects[k].value = recSet[k];
+  if (recSelects[k].selectedIndex < 0) { recSelects[k].selectedIndex = 0; recSet[k] = +recSelects[k].value; }   // an old saved value that is no longer offered
+  recSelects[k].onchange = () => {
+    recSet[k] = +recSelects[k].value; showRecSet(); fitScope();
+    try { localStorage.setItem("liquidRecSet", JSON.stringify(recSet)); } catch (e) {}
+  };
+}
+showRecSet();
+$("recSet").ontoggle = () => fitScope();
+const recLine = (what, r, t) => "Recording " + what + " " + clock(t - r.t0) + (r.limit ? " of " + clock(r.limit) : "") + (r.size ? " (" + r.size + ")" : "") + (r.bytes ? ", " + Math.round(r.bytes / 1e6) + " MB so far" : "");
 // ---- a picture of the tank ----
 // The card's picture only lasts until the frame is shown, so the button just asks and the main loop copies it straight after drawing.
 let shotNow = false;
@@ -1983,44 +2040,48 @@ async function startWinRec() {
   winAsking = true;
   $("recOut").textContent = "Pick the window to record in the box the browser shows.";
   let stream;
-  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "window", frameRate: 60 }, audio: false, selfBrowserSurface: "include" }); }
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: recFps(), ...(recSet.res ? { width: { max: Math.round(recSet.res * 16 / 9) }, height: { max: recSet.res } } : {}) }, audio: false, selfBrowserSurface: "include" }); }
   catch (e) { winAsking = false; $("recOut").textContent = e.name === "NotAllowedError" ? "Window recording cancelled." : "The browser wouldn't share the window."; return; }
   winAsking = false;
-  const type = recType(), r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-" };
-  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 16e6 }); }
+  const type = recType(), got = stream.getVideoTracks()[0].getSettings();
+  const r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-", limit: recSet.max * 1000, size: got.width ? got.width + " × " + got.height + (got.frameRate ? " at up to " + Math.round(got.frameRate) + " frames/s" : "") : "" };
+  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6 }); }
   catch (e) { stream.getTracks().forEach(t => t.stop()); $("recOut").textContent = "The browser wouldn't start recording."; return; }
-  r.mr.ondataavailable = e => { if (e.data.size) r.chunks.push(e.data); };
+  r.mr.ondataavailable = e => { if (e.data.size) { r.chunks.push(e.data); r.bytes = (r.bytes || 0) + e.data.size; } };
   r.mr.onstop = () => saveRec(r);
   stream.getVideoTracks()[0].addEventListener("ended", () => { if (winRec === r) stopWinRec(); });   // the browser's own Stop sharing button
   r.mr.start(1000);
   winRec = r;
+  if (r.limit) r.timer = setTimeout(() => { if (winRec === r) stopWinRec(); }, r.limit);
   $("winBtn").classList.add("on"); $("winBtn").lastChild.textContent = " STOP WINDOW";
-  $("recOut").textContent = "Recording window 0:00";
+  $("recOut").textContent = recLine("window", r, r.t0);
 }
 function stopWinRec() {
   const r = winRec;
-  winRec = null; r.ms = performance.now() - r.t0;
+  winRec = null; r.ms = performance.now() - r.t0; clearTimeout(r.timer);
   if (r.mr.state !== "inactive") r.mr.stop();
   r.stream.getTracks().forEach(t => t.stop());
   $("winBtn").classList.remove("on"); $("winBtn").lastChild.textContent = " REC WINDOW";
 }
 $("winBtn").onclick = () => winRec ? stopWinRec() : startWinRec();
 function startRec() {
-  const type = recType(), sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H)), cvs = document.createElement("canvas");
+  const type = recType(), p = recSet.res, cvs = document.createElement("canvas");
+  const sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H), p ? p / sim.H : 2, p ? p * 16 / 9 / sim.W : 2);
   cvs.width = Math.round(sim.W * sc / 2) * 2; cvs.height = Math.round(sim.H * sc / 2) * 2;   // even sizes keep video encoders happy
   const r = rec = { cvs, ctx: cvs.getContext("2d"), chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm",
-    lv: labview(), bg: wellColor() };
+    lv: labview(), bg: wellColor(), limit: recSet.max * 1000, size: cvs.width + " × " + cvs.height };
   recFrame();
-  try { r.mr = new MediaRecorder(cvs.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }); }
+  try { r.mr = new MediaRecorder(cvs.captureStream(recFps()), { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6 }); }
   catch (e) { rec = null; $("recOut").textContent = "The browser wouldn't start recording."; return; }
-  r.mr.ondataavailable = e => { if (e.data.size) r.chunks.push(e.data); };
+  r.mr.ondataavailable = e => { if (e.data.size) { r.chunks.push(e.data); r.bytes = (r.bytes || 0) + e.data.size; } };
   r.mr.onstop = () => saveRec(r);
   r.mr.start(1000);
+  if (r.limit) r.timer = setTimeout(() => { if (rec === r) stopRec(); }, r.limit);
   $("recBtn").classList.add("on"); $("recBtn").lastChild.textContent = " STOP TANK";
-  $("recOut").textContent = "Recording 0:00";
+  $("recOut").textContent = recLine("tank", r, r.t0);
 }
 function stopRec() {
-  rec.ms = performance.now() - rec.t0; rec.mr.stop(); rec = null;
+  rec.ms = performance.now() - rec.t0; clearTimeout(rec.timer); rec.mr.stop(); rec = null;
   $("recBtn").classList.remove("on"); $("recBtn").lastChild.textContent = " REC TANK";
 }
 // The recorder writes the video in pieces and leaves its length blank (0), so players treat the file as a live stream:
