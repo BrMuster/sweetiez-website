@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plot a CSV</title>
-<script>try { if (localStorage.getItem("plotTheme") === "labview") document.documentElement.dataset.theme = "labview"; } catch (e) {}</script>
+<script>let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (t === "classic") document.documentElement.dataset.theme = "classic"; else if (t !== "dark") document.documentElement.dataset.theme = "light";</script>
 <style>
   :root { --bg: #1b2838; --panel: #16202d; --line: #2a3a4d; --text: #c6d4df; --muted: #8f98a0; --accent: #1a9fff; --strong: #fff; }
   * { box-sizing: border-box; margin: 0; }
@@ -15,7 +15,7 @@
   main { max-width: 1500px; margin: 0 auto; display: grid; gap: 1rem; }
   .home { color: var(--muted); text-decoration: none; transition: color .15s; } .home:hover { color: #fff; }
   h1 { font-weight: 500; font-size: 1.8rem; color: #fff; }
-  .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; } #pageLogo { height: 5.2rem; width: auto; } .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pagehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; } #pageLogo { max-width: 100%; object-fit: contain; object-position: left; } #pageLogo { height: 5.2rem; width: auto; } .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .sub, .hint { color: var(--muted); }
   .drop { display: grid; gap: .5rem; place-items: center; padding: 2rem 1rem; text-align: center; cursor: pointer;
           border: 2px dashed var(--line); border-radius: 8px; transition: border-color .15s, background .15s; }
@@ -160,63 +160,120 @@
   td:first-child { font-weight: 600; }
   caption { caption-side: top; text-align: left; color: var(--muted); padding-bottom: .4rem; }
   .headr { display: inline-flex; align-items: center; gap: 1rem; }
-  #themeBtn { padding: .3rem .8rem; font-size: .85rem; }
-  /* LabVIEW theme: a grey front panel with raised 3D buttons, sunken white controls, bold labels and a black waveform graph. Screen only, so the printed report is unchanged */
+  .settings { position: relative; }
+  #setBtn { padding: .3rem .8rem; font-size: .85rem; }
+  .setbox { position: absolute; top: calc(100% + .4rem); right: 0; z-index: 40; min-width: 14rem; display: grid; gap: .8rem; padding: .8rem 1rem;
+            background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0008; font-size: 14px; }   /* the settings panel: one fieldset per setting */
+  .setbox fieldset { border: 0; padding: 0; display: grid; gap: .3rem; }
+  .setbox legend { font-weight: 600; margin-bottom: .3rem; }
+  .setbox label { display: flex; gap: .5rem; align-items: center; cursor: pointer; }
+  .setbox input { margin: 0; accent-color: var(--accent); }
+  /* Light theme (the default): a grey panel with raised 3D buttons, sunken white controls, bold labels and a black graph. Screen only, so the printed report is unchanged */
   @media screen {
-    :root[data-theme=labview] { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000;
+    :root[data-theme=light] { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000;
       --raised: inset 1px 1px #fff, inset -1px -1px #8a8a8a; --sunken: inset 1px 1px #6e6e6e, inset -1px -1px #fff; }
-    [data-theme=labview] body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
+    [data-theme=light] body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
       background-color: var(--bg); background-image: linear-gradient(#0000000a 1px, transparent 1px), linear-gradient(90deg, #0000000a 1px, transparent 1px); background-size: 12px 12px; }   /* faint panel grid, like the editor's alignment grid */
-    [data-theme=labview] .pagehead { padding: .4rem .8rem; background: linear-gradient(#f2f2f2, #cdcdcd); border: 1px solid #7a7a7a; box-shadow: var(--raised); border-radius: 3px; }
-    [data-theme=labview] #pageLogo { height: 3.6rem; }
-    [data-theme=labview] .home { color: #003fa3; font-weight: 700; } [data-theme=labview] .home:hover { color: #000; text-decoration: underline; }
-    [data-theme=labview] h1, [data-theme=labview] .rptdlg h3, [data-theme=labview] .bar b { color: #000; font-weight: 700; }
-    [data-theme=labview] .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
-    [data-theme=labview] .modcard { background: #d8d8d8; border: 1px solid #9a9a9a; border-radius: 2px; box-shadow: var(--sunken); }   /* a recessed frame decoration */
-    [data-theme=labview] .controls label, [data-theme=labview] .lim, [data-theme=labview] .typed b, [data-theme=labview] .prsel, [data-theme=labview] caption { color: #000; font-weight: 700; }
-    [data-theme=labview] select, [data-theme=labview] input[type=text], [data-theme=labview] #notes, [data-theme=labview] .anpop textarea {
+    [data-theme=light] .pagehead { padding: .4rem .8rem; background: linear-gradient(#f2f2f2, #cdcdcd); border: 1px solid #7a7a7a; box-shadow: var(--raised); border-radius: 3px; }
+    [data-theme=light] #pageLogo { height: 3.6rem; }
+    [data-theme=light] .home { color: #003fa3; font-weight: 700; } [data-theme=light] .home:hover { color: #000; text-decoration: underline; }
+    [data-theme=light] h1, [data-theme=light] .rptdlg h3, [data-theme=light] .bar b { color: #000; font-weight: 700; }
+    [data-theme=light] .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
+    [data-theme=light] .modcard { background: #d8d8d8; border: 1px solid #9a9a9a; border-radius: 2px; box-shadow: var(--sunken); }   /* a recessed frame decoration */
+    [data-theme=light] .controls label, [data-theme=light] .lim, [data-theme=light] .typed b, [data-theme=light] .prsel, [data-theme=light] caption { color: #000; font-weight: 700; }
+    [data-theme=light] select, [data-theme=light] input[type=text], [data-theme=light] #notes, [data-theme=light] .anpop textarea {
       color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; }
-    [data-theme=labview] input[type=text]:focus, [data-theme=labview] #notes:focus { background: #fffff0; }
-    [data-theme=labview] input[type=checkbox] { accent-color: #1b8a1b; }
-    [data-theme=labview] button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
-    [data-theme=labview] button:hover:not(:disabled) { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
-    [data-theme=labview] button:active:not(:disabled) { transform: none; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
-    [data-theme=labview] button.slot { background: linear-gradient(#fdfdfd, #d2d2d2); border: 2px solid var(--c); }
-    [data-theme=labview] button.slot.on, [data-theme=labview] button.slot.on:hover:not(:disabled) { background: var(--c); color: #000; box-shadow: inset 1px 1px 2px #0005; }
-    [data-theme=labview] button.slot.off { background: transparent; }
-    [data-theme=labview] .specrow button:hover, [data-theme=labview] .anrow button.del:hover { background: linear-gradient(#ffd6d6, #f2a8a8); border-color: #b00000; }
-    [data-theme=labview] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
-    [data-theme=labview] .tab { padding: .35rem 1rem; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; color: #333; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
-    [data-theme=labview] .tab.on, [data-theme=labview] .tab.on:hover:not(:disabled) { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); position: relative; top: -2px; padding-bottom: calc(.35rem + 2px); }
-    [data-theme=labview] canvas { background: #cfcfcf; border: 1px solid #6b6b6b; border-radius: 2px; box-shadow: var(--sunken); }
-    [data-theme=labview] .drop { border: 2px dashed #7a7a7a; border-radius: 3px; background: #ececec; }
-    [data-theme=labview] .drop:hover, [data-theme=labview] .drop.over { border-color: var(--accent); background: #fff; }
-    [data-theme=labview] .tbl { background: #fff; border: 1px solid #7a7a7a; box-shadow: var(--sunken); }   /* table control: white cells under grey column headers */
-    [data-theme=labview] th { color: #000; font-weight: 700; letter-spacing: .02em; background: linear-gradient(#f4f4f4, #d4d4d4); border-bottom: 1px solid #8c8c8c; }
-    [data-theme=labview] td { border-top: 1px solid #d0d0d0; }
-    [data-theme=labview] td.pass, [data-theme=labview] td.fail { font-weight: 700; } [data-theme=labview] td.pass { color: #007a00; } [data-theme=labview] td.fail { color: #c00000; }
-    [data-theme=labview] td.pass::before, [data-theme=labview] td.fail::before { content: ""; display: inline-block; width: .7rem; height: .7rem; margin-right: .4rem; border-radius: 50%; vertical-align: -.05rem;
+    [data-theme=light] input[type=text]:focus, [data-theme=light] #notes:focus { background: #fffff0; }
+    [data-theme=light] input[type=checkbox] { accent-color: #1b8a1b; }
+    [data-theme=light] button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
+    [data-theme=light] button:hover:not(:disabled) { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
+    [data-theme=light] button:active:not(:disabled) { transform: none; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
+    [data-theme=light] button.slot { background: linear-gradient(#fdfdfd, #d2d2d2); border: 2px solid var(--c); }
+    [data-theme=light] button.slot.on, [data-theme=light] button.slot.on:hover:not(:disabled) { background: var(--c); color: #000; box-shadow: inset 1px 1px 2px #0005; }
+    [data-theme=light] button.slot.off { background: transparent; }
+    [data-theme=light] .specrow button:hover, [data-theme=light] .anrow button.del:hover { background: linear-gradient(#ffd6d6, #f2a8a8); border-color: #b00000; }
+    [data-theme=light] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
+    [data-theme=light] .tab { padding: .35rem 1rem; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; color: #333; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
+    [data-theme=light] .tab.on, [data-theme=light] .tab.on:hover:not(:disabled) { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); position: relative; top: -2px; padding-bottom: calc(.35rem + 2px); }
+    [data-theme=light] canvas { background: #cfcfcf; border: 1px solid #6b6b6b; border-radius: 2px; box-shadow: var(--sunken); }
+    [data-theme=light] .drop { border: 2px dashed #7a7a7a; border-radius: 3px; background: #ececec; }
+    [data-theme=light] .drop:hover, [data-theme=light] .drop.over { border-color: var(--accent); background: #fff; }
+    [data-theme=light] .tbl { background: #fff; border: 1px solid #7a7a7a; box-shadow: var(--sunken); }   /* table control: white cells under grey column headers */
+    [data-theme=light] th { color: #000; font-weight: 700; letter-spacing: .02em; background: linear-gradient(#f4f4f4, #d4d4d4); border-bottom: 1px solid #8c8c8c; }
+    [data-theme=light] td { border-top: 1px solid #d0d0d0; }
+    [data-theme=light] td.pass, [data-theme=light] td.fail { font-weight: 700; } [data-theme=light] td.pass { color: #007a00; } [data-theme=light] td.fail { color: #c00000; }
+    [data-theme=light] td.pass::before, [data-theme=light] td.fail::before { content: ""; display: inline-block; width: .7rem; height: .7rem; margin-right: .4rem; border-radius: 50%; vertical-align: -.05rem;
       border: 1px solid #333; background: radial-gradient(circle at 35% 35%, #b6ffb6, #19c419 55%, #066b06); }   /* round LED beside the verdict */
-    [data-theme=labview] td.fail::before { background: radial-gradient(circle at 35% 35%, #ffc4c4, #e01a1a 55%, #6b0606); }
-    [data-theme=labview] .chip { background: #fff; border: 1px solid #8c8c8c; box-shadow: var(--sunken); }
-    [data-theme=labview] .tips b { color: #000; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; }
-    [data-theme=labview] .specline { border-top-color: #000; } [data-theme=labview] .specline.best { border-top-color: #1b8a1b; }
-    [data-theme=labview] .help { color: #000; border-color: #6b6b6b; background: linear-gradient(#fff, #d6d6d6); }
-    [data-theme=labview] .help:hover, [data-theme=labview] .help:focus-visible { color: #fff; background: var(--accent); border-color: #0d3c85; }
-    [data-theme=labview] .help::after { color: #000; background: #ffffe1; border: 1px solid #000; border-radius: 0; box-shadow: 2px 2px 0 #0004; }   /* tip strip */
-    [data-theme=labview] .anpop, [data-theme=labview] .ctxmenu, [data-theme=labview] .rptdlg { color: #000; background: #ececec; border: 1px solid #555; border-radius: 2px; box-shadow: var(--raised), 3px 3px 0 #0005; }
-    [data-theme=labview] .ctxmenu button { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
-    [data-theme=labview] .ctxmenu button:hover:not(:disabled) { background: #1f5fbf; color: #fff; }   /* menu highlight */
-    [data-theme=labview] .anfont .auto.on { background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
-    [data-theme=labview] .anfont .sw2.on { border-color: #000; box-shadow: 0 0 0 2px #fff inset; }
-    [data-theme=labview] .rptbg { background: #0006; }
-    [data-theme=labview] :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+    [data-theme=light] td.fail::before { background: radial-gradient(circle at 35% 35%, #ffc4c4, #e01a1a 55%, #6b0606); }
+    [data-theme=light] .chip { background: #fff; border: 1px solid #8c8c8c; box-shadow: var(--sunken); }
+    [data-theme=light] .tips b { color: #000; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; }
+    [data-theme=light] .specline { border-top-color: #000; } [data-theme=light] .specline.best { border-top-color: #1b8a1b; }
+    [data-theme=light] .help { color: #000; border-color: #6b6b6b; background: linear-gradient(#fff, #d6d6d6); }
+    [data-theme=light] .help:hover, [data-theme=light] .help:focus-visible { color: #fff; background: var(--accent); border-color: #0d3c85; }
+    [data-theme=light] .help::after { color: #000; background: #ffffe1; border: 1px solid #000; border-radius: 0; box-shadow: 2px 2px 0 #0004; }   /* tip strip */
+    [data-theme=light] .anpop, [data-theme=light] .ctxmenu, [data-theme=light] .rptdlg { color: #000; background: #ececec; border: 1px solid #555; border-radius: 2px; box-shadow: var(--raised), 3px 3px 0 #0005; }
+    [data-theme=light] .ctxmenu button { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+    [data-theme=light] .ctxmenu button:hover:not(:disabled) { background: #1f5fbf; color: #fff; }   /* menu highlight */
+    [data-theme=light] .anfont .auto.on { background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
+    [data-theme=light] .anfont .sw2.on { border-color: #000; box-shadow: 0 0 0 2px #fff inset; }
+    [data-theme=light] .rptbg { background: #0006; }
+    [data-theme=light] :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+    [data-theme=light] .setbox { color: #000; background: #ececec; border: 1px solid #555; border-radius: 2px; box-shadow: var(--raised), 3px 3px 0 #0005; }
+  }
+  /* Classic theme: a navy header band, rounded blue and white buttons, white fields with a blue focus glow, white cards and a white graph. Screen only */
+  @media screen {
+    :root[data-theme=classic] { --bg: #eef0f3; --panel: #fff; --line: #d3d7de; --text: #1f2933; --muted: #5f6b7a; --accent: #2f6fd6; --strong: #1f2933; --navy: #24364d; --blue: #2f6fd6; }
+    [data-theme=classic] body { font: 13px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif; background: var(--bg); padding-top: 0; }
+    [data-theme=classic] .pagehead { padding: .7rem 1.2rem; background: linear-gradient(#2e4562, var(--navy)); border-bottom: 3px solid var(--blue); border-radius: 0 0 8px 8px; }
+    [data-theme=classic] #pageLogo { height: 3.6rem; padding: .3rem .7rem; background: #fff; border-radius: 6px; }   /* the logo sits on a white plate so it reads on the navy band */
+    [data-theme=classic] .home { color: #dbe6f5; } [data-theme=classic] .home:hover { color: #fff; }
+    [data-theme=classic] #setBtn { color: #fff; background: #ffffff1f; border: 1px solid #ffffff55; } [data-theme=classic] #setBtn:hover:not(:disabled) { background: #ffffff33; }
+    [data-theme=classic] h1, [data-theme=classic] .rptdlg h3, [data-theme=classic] .bar b { color: var(--navy); font-weight: 700; }
+    [data-theme=classic] .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px #0000000f; }
+    [data-theme=classic] .modcard { background: #f7f9fc; border: 1px solid var(--line); border-radius: 8px; }
+    [data-theme=classic] .controls label, [data-theme=classic] .lim, [data-theme=classic] .typed b, [data-theme=classic] .prsel, [data-theme=classic] caption { color: var(--muted); font-weight: 600; }
+    [data-theme=classic] select, [data-theme=classic] input[type=text], [data-theme=classic] #notes, [data-theme=classic] .anpop textarea {
+      color: #1f2933; background: #fff; border: 1px solid #c3c9d2; border-radius: 4px; box-shadow: inset 0 1px 1px #0000000d; }
+    [data-theme=classic] select:focus, [data-theme=classic] input[type=text]:focus, [data-theme=classic] #notes:focus, [data-theme=classic] .anpop textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px #2f6fd640; }   /* the active field glows blue */
+    [data-theme=classic] input[type=checkbox], [data-theme=classic] input[type=radio] { accent-color: var(--blue); }
+    [data-theme=classic] button { color: #1f2933; background: linear-gradient(#fff, #eef0f3); border: 1px solid #b9c0ca; border-radius: 6px; box-shadow: 0 1px 1px #0000000f; }
+    [data-theme=classic] button:hover:not(:disabled) { background: linear-gradient(#fff, #e3e8ef); border-color: #9aa6b5; }
+    [data-theme=classic] button:active:not(:disabled) { transform: none; background: #dfe5ee; box-shadow: inset 0 1px 2px #0002; }
+    [data-theme=classic] button.slot { background: #fff; border: 2px solid var(--c); }
+    [data-theme=classic] button.slot.on, [data-theme=classic] button.slot.on:hover:not(:disabled) { background: var(--c); color: #fff; text-shadow: 0 1px 1px #0006; }
+    [data-theme=classic] button.slot.off { background: transparent; }
+    [data-theme=classic] .specrow button:hover, [data-theme=classic] .anrow button.del:hover { background: #fdecec; border-color: #c62828; color: #c62828; }
+    [data-theme=classic] .tabs { gap: 4px; border-bottom: 1px solid var(--line); }
+    [data-theme=classic] .tab { padding: .4rem 1rem; color: var(--muted); background: #e3e8ef; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; box-shadow: none; margin-bottom: -1px; }
+    [data-theme=classic] .tab:hover:not(:disabled) { background: #edf1f6; }
+    [data-theme=classic] .tab.on, [data-theme=classic] .tab.on:hover:not(:disabled) { color: var(--navy); font-weight: 700; background: #fff; border-bottom: 1px solid #fff; box-shadow: inset 0 3px 0 var(--blue); }
+    [data-theme=classic] canvas { background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+    [data-theme=classic] .drop { background: #fff; border: 2px dashed #b9c0ca; border-radius: 8px; }
+    [data-theme=classic] .drop:hover, [data-theme=classic] .drop.over { border-color: var(--blue); background: #f2f7ff; }
+    [data-theme=classic] .tbl { border: 1px solid var(--line); border-radius: 6px; }   /* header row, banded rows */
+    [data-theme=classic] th { color: var(--navy); font-weight: 700; background: #e8eef7; border-bottom: 1px solid #c9d4e3; }
+    [data-theme=classic] td { border-top: 1px solid #edf0f4; } [data-theme=classic] tbody tr:nth-child(even) td { background: #f6f8fb; }
+    [data-theme=classic] td.pass { color: #1b7f3a; } [data-theme=classic] td.fail { color: #c62828; }
+    [data-theme=classic] .chip { background: #e8eef7; border-radius: 99px; }
+    [data-theme=classic] .tips b { color: var(--navy); background: #fff; border: 1px solid #c3c9d2; border-radius: 5px; box-shadow: 0 1px 0 #c3c9d2; }
+    [data-theme=classic] .specline { border-top-color: #1f2933; } [data-theme=classic] .specline.best { border-top-color: #1b7f3a; }
+    [data-theme=classic] .help { color: var(--blue); border-color: #9fb6d9; background: #fff; }
+    [data-theme=classic] .help:hover, [data-theme=classic] .help:focus-visible { color: #fff; background: var(--blue); border-color: var(--blue); }
+    [data-theme=classic] .help::after { color: #1f2933; background: #fff; border: 1px solid #c3c9d2; border-radius: 8px; box-shadow: 0 8px 24px #0002; }
+    [data-theme=classic] .anpop, [data-theme=classic] .ctxmenu, [data-theme=classic] .rptdlg, [data-theme=classic] .settings .setbox { color: #1f2933; background: #fff; border: 1px solid #c3c9d2; border-radius: 10px; box-shadow: 0 10px 30px #0003; }
+    [data-theme=classic] .settings .setbox { top: calc(100% + .7rem); }
+    [data-theme=classic] .setbox::before { content: ""; position: absolute; top: -7px; right: 2.2rem; width: 12px; height: 12px; background: #fff; border-left: 1px solid #c3c9d2; border-top: 1px solid #c3c9d2; transform: rotate(45deg); }   /* the popover's little pointer */
+    [data-theme=classic] .ctxmenu button { background: transparent; border: 0; box-shadow: none; }
+    [data-theme=classic] .ctxmenu button:hover:not(:disabled) { background: var(--blue); color: #fff; }
+    [data-theme=classic] .anfont .auto.on { color: #fff; background: var(--blue); border-color: #2459ad; }
+    [data-theme=classic] .anfont .sw2.on { border-color: var(--navy); box-shadow: 0 0 0 2px #fff inset; }
+    [data-theme=classic] .rptbg { background: #24364d66; }
   }
 </style>
 </head>
 <body>
 <main>
-  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><button id="themeBtn" type="button">LabVIEW theme</button><a class="home" href="index.html">← Home</a></span></div>
+  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">&#9881; Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
 
   <section id="app" class="card">
     <div id="printHead" class="keep"><p id="printStamp"></p><img id="printLogo" alt="Andover Corporation" src="data:image/png;base64,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"></div>
@@ -1121,8 +1178,9 @@ function render() {
   const px = x => L + (x - view.a) / (view.b - view.a) * pw, py = y => T + ph - (y - lo) / (hi - lo) * ph;
   G = { L, pw, W, T, ph, lo, hi };
   const P = light ? { bg: "#fff", tick: "#444", grid: "#d5d5d5", label: "#000", title: "#000", spec: "#000", noteBg: "#fff", noteLine: "#444", noteText: "#000" }
-          : labview() ? { frame: "#cfcfcf", bg: "#000", tick: "#000", grid: "#3c3c3c", label: "#000", title: "#000", spec: "#fff", noteBg: "#ffffe1", noteLine: "#ffd84a", noteText: "#000" }   // LabVIEW waveform graph: grey frame, black plot area
-                  : { bg: "#0e141b", tick: "#8f98a0", grid: "#2a3a4d", label: "#c6d4df", title: "#fff", spec: "#fff", noteBg: "#16202df2", noteLine: "#f5a623", noteText: "#fff" };
+          : theme() === "light" ? { frame: "#cfcfcf", bg: "#000", ink: "#ffffff", tick: "#000", grid: "#3c3c3c", label: "#000", title: "#000", spec: "#fff", noteBg: "#ffffe1", noteLine: "#ffd84a", noteText: "#000" }   // Light: grey frame, black plot area
+          : theme() === "classic" ? { bg: "#fff", ink: "#1f2933", tick: "#5f6b7a", grid: "#e6e9ee", label: "#1f2933", title: "#24364d", spec: "#1f2933", noteBg: "#fff", noteLine: "#2f6fd6", noteText: "#1f2933" }   // Classic: white graph, light grid
+                  : { bg: "#0e141b", ink: "#ffffff", tick: "#8f98a0", grid: "#2a3a4d", label: "#c6d4df", title: "#fff", spec: "#fff", noteBg: "#16202df2", noteLine: "#f5a623", noteText: "#fff" };
   ctx.fillStyle = P.frame || P.bg; ctx.fillRect(0, 0, W, H);            // solid background so the printed picture isn't see-through
   if (P.frame) { ctx.fillStyle = P.bg; ctx.fillRect(L, T, pw, ph); }
   ctx.font = "15px system-ui"; ctx.lineWidth = 1;
@@ -1257,8 +1315,8 @@ function render() {
   }
   if (zbox) {                                                          // the right-drag zoom box
     const bx0 = px(Math.min(zbox.x0, zbox.x1)), bx1 = px(Math.max(zbox.x0, zbox.x1)), by0 = py(Math.max(zbox.y0, zbox.y1)), by1 = py(Math.min(zbox.y0, zbox.y1));
-    ctx.fillStyle = "#ffffff1a"; ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0); ctx.setLineDash([]);
+    ctx.fillStyle = (P.ink || "#ffffff") + "1a"; ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+    ctx.strokeStyle = P.ink || "#fff"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0); ctx.setLineDash([]);
   }
   ctx.restore();
 
@@ -1272,7 +1330,7 @@ function render() {
       return bi; });
     const x0 = bis[0] >= 0 ? S[0].X[bis[0]] : NaN, hx = px(x0);
     if (hx >= L && hx <= L + pw) {
-      ctx.strokeStyle = "#ffffff55"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, T + ph); ctx.stroke();
+      ctx.strokeStyle = (P.ink || "#ffffff") + "55"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, T + ph); ctx.stroke();
       const lines = [{ t: xs(x0), c: "#fff" }];
       S.forEach((s, j) => {
         const bi = bis[j]; if (bi < 0) return;
@@ -1354,10 +1412,9 @@ function filterTable(S) {                        // the results table under the 
     addRow([si ? "" : label, s.name, ...(c || head.map(() => "–"))], "td", k < 0 ? "var(--strong)" : RC[k]);
   });
 }
-const labview = () => document.documentElement.dataset.theme === "labview";
-function setTheme(t) {                        // the look of the page: the default dark one, or LabVIEW's grey front panel
-  if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
-  $("themeBtn").textContent = t === "labview" ? "Dark theme" : "LabVIEW theme";
+const theme = () => document.documentElement.dataset.theme || "dark";
+function setTheme(t) {                        // the look of the page: Light (the default), Dark or Classic, chosen in Settings
+  if (t === "dark") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   try { localStorage.setItem("plotTheme", t); } catch (e) {}
   draw();
 }
@@ -1365,9 +1422,9 @@ function paintEmpty() {                       // nothing loaded yet: a plain pro
   if (!cv.clientWidth) return;
   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
   cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const lv = labview();
-  ctx.fillStyle = lv ? "#000" : "#0e141b"; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = lv ? "#fff" : "#c6d4df"; ctx.font = "20px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const th = theme();
+  ctx.fillStyle = th === "light" ? "#000" : th === "classic" ? "#fff" : "#0e141b"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = th === "light" ? "#fff" : th === "classic" ? "#24364d" : "#c6d4df"; ctx.font = "20px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText("Open a CSV file to see your graph", W / 2, H / 2 - 16);
   ctx.fillStyle = "#8f98a0"; ctx.font = "15px system-ui";
   ctx.fillText("Use the Data tab below, drop a file on this page, or try the sample data.", W / 2, H / 2 + 16);
@@ -1752,8 +1809,14 @@ $("smgo").onclick = () => {
 };
 $("smreset").onclick = () => { for (const id of ["smfrom", "smto"]) $(id).value = ""; $("smw").value = "5"; targets().forEach(f => f.smooths = []); smoothed1(); };
 addEventListener("resize", draw);
-$("themeBtn").textContent = labview() ? "Dark theme" : "LabVIEW theme";
-$("themeBtn").addEventListener("click", () => setTheme(labview() ? "dark" : "labview"));
+{                                             // the Settings panel: click anywhere else or press Escape to close it
+  const btn = $("setBtn"), box = $("setBox"), open = on => { box.hidden = !on; btn.setAttribute("aria-expanded", on); };
+  btn.addEventListener("click", () => open(box.hidden));
+  document.addEventListener("click", e => { if (!box.hidden && !box.contains(e.target) && !btn.contains(e.target)) open(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !box.hidden) { open(false); btn.focus(); } });
+  box.querySelector(`input[name=theme][value=${theme()}]`).checked = true;
+  box.addEventListener("change", e => { if (e.target.name === "theme") setTheme(e.target.value); });
+}
 
 $("fAr").addEventListener("change", () => { if ($("fAr").checked) { $("kR").checked = true; $("kT").checked = false; draw(); } });   // AR coatings are measured as reflection
 
