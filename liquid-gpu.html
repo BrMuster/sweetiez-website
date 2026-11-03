@@ -5,8 +5,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Liquid Lab GPU</title>
-<script>try { if (localStorage.getItem("liquidTheme") === "labview") document.documentElement.dataset.theme = "labview"; } catch (e) {}</script>
+<title>SloshLab</title>
+<script>let savedLook = null; try { savedLook = localStorage.getItem("sloshTheme"); } catch (e) {} if (savedLook !== "dark") document.documentElement.dataset.theme = "labview";</script>
 <style>
   :root { --bg: #1b2838; --panel: #16202d; --line: #2a3a4d; --text: #c6d4df; --muted: #8f98a0; --accent: #1a9fff; --strong: #fff; --well: #0e141b; }
   * { box-sizing: border-box; margin: 0; }
@@ -173,11 +173,22 @@
   [data-theme=labview] .gpumsg { color: #fff; background: #000; }
   .gpumsg a, .link { color: var(--accent); }
   [data-theme=labview] .gpumsg a { color: #8fc3ff; }
+  .tabs { flex-wrap: wrap; } .tab, [data-theme=labview] .tab { flex: 0 0 auto; overflow: visible; padding-left: .32rem; padding-right: .32rem; }   /* seven tabs: whole names, on a second row if they must */
+  #tourRing { position: fixed; z-index: 40; border: 3px solid var(--accent); border-radius: 6px; box-shadow: 0 0 0 2px #fff8, 0 0 14px var(--accent); pointer-events: none; }
+  #tourCard { position: fixed; z-index: 41; left: 16px; top: 16px; width: 300px; max-width: calc(100vw - 16px); display: grid; padding: .9rem 1rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 24px #000a; }
+  #tourCard h2 { margin: .1rem 0 .4rem; font-size: 1.1rem; color: var(--strong); }
+  #tourCard p { margin-bottom: .6rem; }
+  #tourDone { color: #2fb344; font-weight: 700; }
+  [data-theme=labview] #tourCard { border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 3px 3px 0 #00000040; }
+  [data-theme=labview] #tourDone { color: #067a06; }
+  [data-theme=labview] #tourRing { border-color: #e06a00; box-shadow: 0 0 0 2px #fff, 0 0 12px #e06a00; border-radius: 3px; }
+  @media (max-width: 899px) { #tourCard { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; } }
+  #bgColor, .pick { width: 2.4rem; height: 1.8rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
 </style>
 </head>
 <body>
 <main>
-  <h1 class="sr">Liquid Lab GPU</h1>
+  <h1 class="sr">SloshLab</h1>
   <div class="rig">
     <div class="side">
       <div class="card" id="gaugeCard">
@@ -188,7 +199,7 @@
       </div>
     </div>
     <div class="tankcol">
-      <div class="tankhead"><span class="lbl">Tank · GPU physics<span id="sculptTag" hidden> · sculpting</span></span></div>
+      <div class="tankhead"><span class="lbl">Tank<span id="sculptTag" hidden> · sculpting</span></span></div>
       <div class="tank" id="tank"><canvas id="bg"></canvas><canvas id="cv"></canvas><canvas id="ov"></canvas><div class="brush" id="brush" hidden></div><div class="gpumsg" id="gpuMsg" hidden></div></div>
     </div>
     <div class="panel">
@@ -203,12 +214,18 @@
           <button class="tab" type="button" data-tab="physics">Physics</button>
           <button class="tab" type="button" data-tab="plot">Plot</button>
           <button class="tab" type="button" data-tab="picture">Picture</button>
-          <button class="tab" type="button" data-tab="about">About</button>
+          <button class="tab" type="button" data-tab="style">Style</button>
+          <button class="tab" type="button" data-tab="learn">Learn</button>
         </div>
         <div class="pane" id="tools">
           <div class="tools" id="toolBtns"></div>
-          <div class="bar" id="wallBar" hidden><span class="seg" id="inkSeg"><button type="button" class="on" data-ink="draw">Draw</button><button type="button" data-ink="erase" title="Or right-click, or hold Shift while drawing">Rub out</button></span><button id="wallClear" type="button">Clear walls</button></div>
-          <div class="pane" id="scoopBar" hidden><div class="ro"><span class="lbl">Ready-made shapes</span><div class="tools" id="shapeBtns"></div></div><div class="bar"><button id="scoopClear" type="button">Remove shape</button></div></div>
+          <div class="bar" id="wallBar" hidden><span class="seg" id="inkSeg"><button type="button" class="on" data-ink="draw">Draw</button><button type="button" data-ink="erase" title="Or right-click, or hold Shift while drawing">Rub out</button></span><button id="wallClear" type="button">Clear walls</button><input type="color" class="pick" id="wallColor" title="The colour of your walls" aria-label="Wall colour" value="#7c8fa5"><button id="wallColorOff" type="button" title="Back to the look's own colour">Default</button></div>
+          <div class="pane" id="scoopBar" hidden><div class="ro"><span class="lbl">Ready-made shapes</span><div class="tools" id="shapeBtns"></div></div><div class="bar"><button id="scoopClear" type="button">Remove shape</button><input type="color" class="pick" id="shapeColor" title="The colour of the shape, and of wheels without their own" aria-label="Shape colour" value="#b8c7d6"><button id="shapeColorOff" type="button" title="Back to the look's own colour">Default</button></div></div>
+          <div class="pane" id="wheelBar" hidden>
+            <div class="ro"><span class="lbl">Selected wheel</span><span class="seg" id="wheelMode"><button type="button" class="on" data-mode="free" title="Turns only when the liquid pushes it">Free spin</button><button type="button" data-mode="motor" title="Spins by itself and pushes the liquid">Motor</button></span></div>
+            <div id="wheelSliders"></div>
+            <div class="bar"><input type="color" class="pick" id="wheelColor" title="This wheel's colour" aria-label="Wheel colour" value="#b8c7d6"><button id="wheelRemove" type="button">Remove wheel</button><button id="wheelClear" type="button">Remove all</button></div>
+          </div>
           <div class="bar" id="eraseBar" hidden><span class="seg" id="eraseSeg"><button type="button" class="on" data-erase="liquid" title="Only soak up liquid">Liquid</button><button type="button" data-erase="all" title="Also rub out emitters, trash, drawn walls and bits of the shape">Everything</button></span></div>
           <div id="devBar" hidden><div id="flowBox"></div><div class="bar"><button id="devClear" type="button">Remove all emitters</button></div></div>
           <div class="bar"><button id="sculptBtn" type="button" title="Sculpt (S): the liquid stops flowing by itself and stays where you shape it">Sculpt</button></div>
@@ -262,11 +279,17 @@
             <p class="hint">LabVIEW tip: on Windows press <b>Win</b>+<b>Shift</b>+<b>S</b>, snip the front panel, then click this page and press <b>Ctrl</b>+<b>V</b>. If the liquid ignores something, raise Wall sensitivity; if it hits empty panel, lower it. Show walls tints what the liquid will hit.</p>
           </div>
         </div>
-        <div class="pane" id="about" hidden>
-          <div class="ro"><span class="lbl">Look</span><div class="bar"><button id="themeBtn" type="button">LabVIEW theme</button></div></div>
-          <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. Heavier liquids sink under lighter ones. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005), the same one behind Grant Kot's Liquid Layers. This is a from-scratch JavaScript version.</p>
-          <p class="hint">This page works the liquid out on the graphics card (WebGPU), so the tank can hold up to 300,000 particles. Each step the card sorts the particles into a grid of cells, so each one only checks the cells around it, and then every particle works out its own push from its neighbours at the same moment. Nothing is copied back to the page between frames: the card draws the liquid straight from its own memory. It needs Chrome or Edge on a computer. <span id="gpuName"></span></p>
-          <p class="hint"><a class="link" href="liquid.html">Liquid Lab, worked out on the processor</a>, works in every browser.</p>
+        <div class="pane" id="style" hidden>
+          <div class="ro"><span class="lbl">Panel look</span><span class="seg" id="themeSeg"><button type="button" data-look="labview">LabVIEW</button><button type="button" data-look="dark">Dark</button></span></div>
+          <div class="ro"><span class="lbl">Tank background</span><div class="tools" id="bgBtns"></div></div>
+          <div class="ro"><span class="lbl">Your own colour</span><div class="bar"><input type="color" id="bgColor" value="#2f4f6f" aria-label="Tank background colour"><button id="bgUse" type="button">Use this colour</button></div></div>
+          <p class="hint">The background shows up in your pictures and videos too.</p>
+        </div>
+        <div class="pane" id="learn" hidden>
+          <div class="bar"><button id="tourStart" type="button" title="Clears the tank and shows you around, one control at a time">Take the tour</button></div>
+          <div class="ro"><span class="lbl">Try a scene (each one clears the tank)</span><div class="tools" id="sceneBtns"></div></div>
+          <p class="hint" id="sceneMsg">Pick one to see what it does, then play with it.</p>
+          <p class="hint">Every dot is a particle that keeps checking its neighbours: too crowded and they push apart, too sparse and the same liquid pulls together. The method is from Clavet, Beaudoin and Poulin's paper <i>Particle-based Viscoelastic Fluid Simulation</i> (2005). It all runs on your graphics card with WebGPU, in Chrome or Edge on a computer. <span id="gpuName"></span> A <a class="link" href="liquid.html">simpler version</a> works in every browser.</p>
         </div>
       </div>
       <div class="card" id="runCard">
@@ -277,13 +300,13 @@
           <span class="ro"><span class="lbl">Frames/s</span><output id="fpsOut">0</output></span>
         </div>
         <div class="runrow">
-          <button id="recBtn" type="button" title="Record a video of just the tank (R); press again to stop and save it"><span class="recdot">●</span> REC TANK</button>
+          <button id="recBtn" type="button" title="Record a video of just the tank (R), with sound if Video settings says so; press again to stop and save it"><span class="recdot">●</span> REC TANK</button>
           <button id="winBtn" type="button" title="Record a video of the whole tab or window, dials and all (W): the browser asks which one; press again to stop and save it"><span class="recdot">●</span> REC WINDOW</button>
         </div>
         <div class="runrow">
           <button id="shotBtn" type="button" title="Save a picture of the tank (P)">SHOT</button>
           <button id="abortBtn" type="button" title="Clear the whole tank: liquid, walls, emitters, trash and your shape (the picture stays)">ABORT</button>
-          <a id="homeBtn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a><a class="link" href="liquid.html" title="The original Liquid Lab, worked out on the processor: works in every browser">CPU version</a>
+          <a id="homeBtn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></a>
         </div>
         <details id="recSet">
           <summary id="recSum">Video settings</summary>
@@ -292,7 +315,9 @@
             <label><span class="lbl">Quality</span><select id="recBits" title="How much the video is squeezed. At big sizes and high frame rates it can only shrink so far: lower the Resolution or Frames/s for a smaller file"><option value="16">High</option><option value="8">Medium</option><option value="4">Low</option><option value="2">Smallest</option></select></label>
             <label><span class="lbl">Frames/s</span><select id="recFps" title="Higher is smoother and makes bigger files. Monitor matches your screen's refresh rate, as far as the computer can keep up: it skips frames it can't save in time"><option value="30">30</option><option value="60">60</option><option value="-1" id="recHz">Monitor</option></select></label>
             <label><span class="lbl">Stop after</span><select id="recMax" title="Stops and saves the video by itself"><option value="0">No limit</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+            <label><span class="lbl">Sound</span><select id="recSnd" title="Records the sound from whatever you share in the browser's box"><option value="0">No sound</option><option value="1">Record sound</option></select></label>
           </div>
+          <p class="hint" id="recSndHint" hidden>The browser's box asks what to share, and only that sound is recorded. For music or anything else playing on your computer, pick <b>Entire screen</b> and turn on <b>Also share system audio</b>. SloshLab itself makes no sound, so sharing just its tab is silent, and a window has no sound option at all. REC TANK still films only the tank.</p>
         </details>
         <p class="hint" id="recOut">Videos and pictures land in your downloads.</p>
       </div>
@@ -300,6 +325,22 @@
     </div>
   </div>
 </main>
+<div id="tourRing" hidden></div>
+<div id="tourCard" hidden>
+  <div id="tourOffer">
+    <h2>Welcome to SloshLab</h2>
+    <p>A liquid you can poke, pour, rake and film. Want a quick look around? It takes about a minute, and you try each thing yourself.</p>
+    <div class="bar"><button id="tourGo" type="button" class="on">Show me around</button><button id="tourLater" type="button">Not now</button></div>
+    <p class="hint">The tour is on the Learn tab if you want it later.</p>
+  </div>
+  <div id="tourMain" hidden>
+    <span class="lbl" id="tourStep"></span>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <p id="tourDone" hidden>✓ Nice! That's it.</p>
+    <div class="bar"><button id="tourBack" type="button">Back</button><button id="tourNext" type="button">Next</button><button id="tourSkip" type="button">End tour</button></div>
+  </div>
+</div>
 <script>
 const $ = id => document.getElementById(id);
 // ---- the liquid solver ----
@@ -351,24 +392,25 @@ const LIQ = [                                    // the four liquids, heaviest f
   { name: "Mint", color: "#3ddc97", mass: 0.36 },
   { name: "Sky", color: "#3a86ff", mass: 0.22 },
 ];
-const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 2, same: 1.2, diff: 0, goo: 0, firm: 0, steps: 2 };
+const PHYS = { grav: 1, angle: 0, k: 0.35, kNear: 1.5, same: 1.2, diff: 0, goo: 0, firm: 0, calm: 0, steps: 2 };
 const MAXCAP = 1500000;
 let savedCap = 200000;
 try { savedCap = Math.min(MAXCAP, Math.max(2000, +localStorage.getItem("liquidGpuCap") || 200000)); } catch (e) {}   // remembered from last time
 setCap(savedCap);
-const ctl = { cap: savedCap, tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.6, running: true, sculpt: false, keep: 0, ...PHYS };
+const ctl = { cap: savedCap, tool: "drag", brush: 70, strength: 0.5, pour: 0, amount: 0, size: 0, drop: 0.45, running: true, sculpt: false, keep: 0, ...PHYS };
 const TOOLS = [
   ["drag", "Drag", "Press and drag to push the liquid along with you."],
-  ["attract", "Attract", "Hold to pull liquid toward the pointer."],
-  ["repel", "Repel", "Hold to blow liquid away from the pointer."],
-  ["swirl", "Swirl", "Hold to stir the liquid around the pointer."],
-  ["pour", "Pour", "Hold to pour the liquid picked below. Heavier ones sink through the lighter ones."],
-  ["erase", "Erase", "Hold to soak up liquid under the pointer. Switch to Everything to also rub out emitters, trash, drawn walls and bits of the shape, like snipping tines off the rake."],
+  ["attract", "Attract", "Hold to pull liquid toward the pointer. Right-click pushes it away."],
+  ["repel", "Repel", "Hold to blow liquid away from the pointer. Right-click pulls it in."],
+  ["swirl", "Swirl", "Hold to stir the liquid around the pointer. Right-click stirs the other way."],
+  ["pour", "Pour", "Hold to pour the liquid picked below. Heavier ones sink through the lighter ones. Right-click erases."],
+  ["erase", "Erase", "Hold to soak up liquid under the pointer. Right-click pours. Switch to Everything to also rub out emitters, trash, drawn walls and bits of the shape, like snipping tines off the rake."],
   ["push", "Ball", "A solid ball: move it through the liquid like a spoon."],
   ["wall", "Wall", "Draw walls the liquid flows around. Right-click or hold Shift to rub them out."],
-  ["emitter", "Emitter", "Tap to place a spout that keeps pouring the liquid picked below. Drag while placing to aim it: further is faster. Right-click one to remove it."],
+  ["emitter", "Emitter", "Tap to place a spout that keeps pouring the liquid picked below. Drag while placing to aim it: further is faster. Drag a spout to move it, scroll over it to turn it, and right-click to remove it."],
   ["drain", "Trash", "Paint trash: liquid that touches it disappears. Right-click or hold Shift to rub it out."],
-  ["scoop", "Shape", "Pick a ready-made shape below, or draw your own (like a cup or a hook). Grab it and drag it to scoop and push the liquid. Right-drag, or Q and E, turn it. Brush size sets how thick it is. Drawing somewhere else makes a new one."],
+  ["wheel", "Wheel", "Tap to add a paddle wheel, up to 8. Drag one to move it, scroll over it to resize it, right-click to remove it. Free spin turns only when the liquid pushes it; Motor spins by itself."],
+  ["scoop", "Shape", "Pick a ready-made shape below, or draw your own (like a cup or a hook). Grab it and drag it to scoop and push the liquid. Scroll over it to turn it (or Q and E). Brush size sets how thick it is. Drawing somewhere else makes a new one."],
 ];
 const maxAmount = () => Math.floor(CAP / 4 / 50) * 50;   // each liquid gets a quarter of the limit
 const amountFor = size => Math.min(maxAmount(), Math.max(50, Math.round(1.72 * 1.72 * sim.W * sim.H / (4 * size * size) / 50) * 50));   // drops of each liquid that fill about half the tank at this particle size
@@ -404,6 +446,7 @@ sliders.same = slider(physBox, "Same-liquid pull", "same", 0, 4, 0.1, applyPhys,
 sliders.diff = slider(physBox, "Mixing", "diff", 0, 4, 0.1, applyPhys, "0 keeps different liquids apart like oil and water; raise it to let them blend");
 sliders.goo = slider(physBox, "Goo", "goo", 0, 1, 0.05, applyPhys, "Viscosity: higher is thicker, like honey");
 sliders.firm = slider(physBox, "Firmness", "firm", 0, 1, 0.05, applyPhys, "Thick stuff like frosting keeps its shape until you push it");
+sliders.calm = slider(physBox, "Calm", "calm", 0, 1, 0.05, null, "Stills the rattling between neighbouring drops, so the liquid settles. Waves and splashes carry on. 0 is the restless original");
 sliders.steps = slider(physBox, "Steps per frame", "steps", 1, 8, 1, null, "More steps is smoother and stiffer but slower");
 applyPhys();
 $("physReset").onclick = () => { for (const k in PHYS) sliders[k].set(PHYS[k]); };
@@ -425,10 +468,13 @@ function pickTool(id) {
   $("devBar").hidden = id !== "emitter" && id !== "drain"; $("flowBox").hidden = id !== "emitter";
   $("scoopBar").hidden = id !== "scoop";
   $("eraseBar").hidden = id !== "erase";
+  $("wheelBar").hidden = id !== "wheel";
   $("devClear").textContent = id === "drain" ? "Remove all trash" : "Remove all emitters";
 }
 pickTool("drag");
 
+const pourLiq = m => m < 0 ? Math.random() * 4 | 0 : m;   // -1 is the full mix: each drop is any of the four
+const mixPaint = () => `conic-gradient(${LIQ.map((L, k) => `${L.color} ${k * 25}% ${(k + 1) * 25}%`).join(", ")})`;
 function buildLiquids() {                        // pour swatches and the liquid rows (colour, name, weight)
   $("pourSw").replaceChildren(); $("liqRows").replaceChildren();
   LIQ.forEach((L, m) => {
@@ -438,7 +484,7 @@ function buildLiquids() {                        // pour swatches and the liquid
     $("pourSw").append(s);
     const row = document.createElement("div"), c = document.createElement("input"), b = document.createElement("b"), r = document.createElement("input"), num = document.createElement("input");
     row.className = "liq"; c.type = "color"; c.value = L.color; c.setAttribute("aria-label", L.name + " colour");
-    c.oninput = () => { L.color = c.value; s.style.setProperty("--c", c.value); setColors(); devDirty = true; };   // emitters show their liquid's colour
+    c.oninput = () => { L.color = c.value; s.style.setProperty("--c", c.value); $("pourMix").style.setProperty("--c", mixPaint()); setColors(); devDirty = true; };   // emitters show their liquid's colour
     b.textContent = L.name;
     r.type = "range"; num.type = "number"; num.className = "num";
     for (const el of [r, num]) { el.min = 0.1; el.max = 1; el.step = 0.01; el.setAttribute("aria-label", L.name + " weight"); el.value = L.mass; }
@@ -447,6 +493,10 @@ function buildLiquids() {                        // pour swatches and the liquid
     row.title = "Weight: heavier liquids sink";
     row.append(c, b, r, num); $("liqRows").append(row);
   });
+  const mix = document.createElement("button");  // the full mix, after the four
+  mix.type = "button"; mix.id = "pourMix"; mix.className = "swatch" + (ctl.pour < 0 ? " on" : ""); mix.style.setProperty("--c", mixPaint()); mix.title = "The full mix: all four liquids together"; mix.setAttribute("aria-label", "Pour the full mix");
+  mix.onclick = () => { ctl.pour = -1; buildLiquids(); if (ctl.tool !== "pour" && ctl.tool !== "emitter") pickTool("pour"); };
+  $("pourSw").append(mix);
 }
 buildLiquids();
 // Presets: four liquids that go together (heaviest first) and the physics that makes them act like the real thing.
@@ -463,15 +513,18 @@ const PRESETS = [
   { name: "Zen sand", tip: "A zen garden seen from above: the tank fills with sand and Sculpt goes on. Comb it with the Rake (Tools tab, Shape); press Sculpt to let it fall again", tray: true,
     liq: [["Pebble", "#9a8f80"], ["Dune", "#c2a878"], ["Sand", "#dcc9a0"], ["Shell", "#efe6d2"]], phys: { k: 0.4, kNear: 2.2, same: 1.6, diff: 1.4, goo: 0.5, firm: 0.85 } },
 ];
+let trayDrop = false;                            // the Zen sand changed the Drawn size
 function usePreset(p) {
   p.liq.forEach(([name, color], m) => { LIQ[m].name = name; LIQ[m].color = color; });
   setColors(); buildLiquids(); if (plot) buildSeries(); devDirty = true;
   for (const k of ["k", "kNear", "same", "diff", "goo", "firm"]) sliders[k].set(p.phys[k] ?? PHYS[k]);
   document.querySelectorAll("#presetBtns button").forEach(b => b.classList.toggle("on", b.textContent === p.name));
   if (p.tray) {                                  // a sand tray seen from above: sand over the whole tank, and Sculpt so it stays where the rake leaves it
+    ctl.size = Math.min(ctl.size, ctl.fineSize); sliders.size.show();   // the rake needs fine grains to comb
     ctl.amount = Math.min(maxAmount(), Math.round(amountFor(ctl.size) * 2 / 50) * 50); sliders.amount.show();
+    sliders.drop.set(0.8); trayDrop = true;      // grains drawn big enough to cover the tray, so the grooves show
     fill("tray"); setSculpt(true); sliders.keep.set(0);
-  }
+  } else if (trayDrop) { sliders.drop.set(0.45); trayDrop = false; }
 }
 for (const p of PRESETS) {
   const b = document.createElement("button");
@@ -481,7 +534,7 @@ for (const p of PRESETS) {
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  for (const p of ["tools", "liquids", "physics", "plot", "picture", "about"]) $(p).hidden = p !== t.dataset.tab;
+  for (const p of ["tools", "liquids", "physics", "plot", "picture", "style", "learn"]) $(p).hidden = p !== t.dataset.tab;
   fitScope();
 });
 
@@ -655,6 +708,69 @@ for (const el of [$("csvDrop"), $("picDrop"), $("tank")]) {   // drop a CSV or a
   });
 }
 
+// ---- colours for the walls and the shape (null = the look's own) ----
+const colors = { wall: null, shape: null };
+try { Object.assign(colors, JSON.parse(localStorage.getItem("sloshColors") || "{}")); } catch (e) {}   // remembered from last time
+function setColor(k, v) {
+  colors[k] = v;
+  try { localStorage.setItem("sloshColors", JSON.stringify(colors)); } catch (e) {}
+  if (k === "wall") drawPic();
+}
+if (colors.wall) $("wallColor").value = colors.wall;
+if (colors.shape) $("shapeColor").value = colors.shape;
+$("wallColor").oninput = () => setColor("wall", $("wallColor").value);
+$("shapeColor").oninput = () => setColor("shape", $("shapeColor").value);
+$("wallColorOff").onclick = () => setColor("wall", null);
+$("shapeColorOff").onclick = () => setColor("shape", null);
+// ---- the tank's background style (the Style tab) ----
+// "panel" paints nothing, so the look's own tank shows. The others paint the canvas under the liquid, so pictures and videos get them too.
+function gridLines(x, W, H, gap, color) {
+  x.strokeStyle = color; x.lineWidth = 1; x.beginPath();
+  for (let a = gap; a < W; a += gap) { x.moveTo(Math.round(a) + 0.5, 0); x.lineTo(Math.round(a) + 0.5, H); }
+  for (let a = gap; a < H; a += gap) { x.moveTo(0, Math.round(a) + 0.5); x.lineTo(W, Math.round(a) + 0.5); }
+  x.stroke();
+}
+function fade(x, H, stops) { const g = x.createLinearGradient(0, 0, 0, H); stops.forEach((c, k) => g.addColorStop(k / (stops.length - 1), c)); return g; }
+const TANK_BGS = [
+  ["panel", "Panel", null],
+  ["black", "Black", (x, W, H) => { x.fillStyle = "#000"; x.fillRect(0, 0, W, H); }],
+  ["white", "White", (x, W, H) => { x.fillStyle = "#f7f5ee"; x.fillRect(0, 0, W, H); }],
+  ["sand", "Sand", (x, W, H) => { x.fillStyle = "#d9c7a0"; x.fillRect(0, 0, W, H); }],
+  ["graph", "Graph paper", (x, W, H) => { x.fillStyle = "#fbfcf8"; x.fillRect(0, 0, W, H); gridLines(x, W, H, 10, "#bcd6ea80"); gridLines(x, W, H, 50, "#6fa8d6"); }],
+  ["blueprint", "Blueprint", (x, W, H) => { x.fillStyle = "#123a6b"; x.fillRect(0, 0, W, H); gridLines(x, W, H, 10, "#ffffff14"); gridLines(x, W, H, 50, "#ffffff40"); }],
+  ["chalk", "Chalkboard", (x, W, H) => { x.fillStyle = "#24382e"; x.fillRect(0, 0, W, H); }],
+  ["night", "Night sky", (x, W, H) => {
+    x.fillStyle = fade(x, H, ["#050a1f", "#16204a", "#2a2f63"]); x.fillRect(0, 0, W, H);
+    let seed = 7; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;   // the same stars every time
+    x.fillStyle = "#fff";
+    for (let k = W * H / 3000 | 0; k > 0; k--) { const r = rnd() * 1.2 + 0.3; x.globalAlpha = rnd() * 0.7 + 0.3; x.beginPath(); x.arc(rnd() * W, rnd() * H * 0.8, r, 0, 2 * Math.PI); x.fill(); }
+    x.globalAlpha = 1;
+  }],
+  ["sunset", "Sunset", (x, W, H) => { x.fillStyle = fade(x, H, ["#2b1b54", "#a13670", "#f3784a", "#ffd27a"]); x.fillRect(0, 0, W, H); }],
+  ["sea", "Deep sea", (x, W, H) => { x.fillStyle = fade(x, H, ["#2f9fc4", "#0f4c81", "#04162e"]); x.fillRect(0, 0, W, H); }],
+];
+let tankBg = { id: "panel", color: "#2f4f6f" };
+try { Object.assign(tankBg, JSON.parse(localStorage.getItem("sloshTankBg") || "{}")); } catch (e) {}   // remembered from last time
+function paintTankBg(x, W, H) {
+  if (tankBg.id === "custom") { x.fillStyle = tankBg.color; x.fillRect(0, 0, W, H); return; }
+  TANK_BGS.find(b => b[0] === tankBg.id)?.[2]?.(x, W, H);
+}
+function setTankBg(id, color) {
+  tankBg.id = id; if (color) tankBg.color = color;
+  document.querySelectorAll("#bgBtns button").forEach(b => b.classList.toggle("on", b.dataset.bg === id));
+  $("bgUse").classList.toggle("on", id === "custom");
+  try { localStorage.setItem("sloshTankBg", JSON.stringify(tankBg)); } catch (e) {}
+  drawPic();
+}
+for (const [id, name] of TANK_BGS) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = name; b.dataset.bg = id; b.classList.toggle("on", id === tankBg.id);
+  b.onclick = () => setTankBg(id);
+  $("bgBtns").append(b);
+}
+$("bgColor").value = tankBg.color; $("bgUse").classList.toggle("on", tankBg.id === "custom");
+$("bgUse").onclick = () => setTankBg("custom", $("bgColor").value);
+$("bgColor").oninput = () => setTankBg("custom", $("bgColor").value);
 // ---- a picture as the tank's background, with walls the liquid bumps into ----
 let pic = null;                                  // { img, w, h, name }
 const bgc = $("bg"), bgx = bgc.getContext("2d");
@@ -766,7 +882,7 @@ const emitters = [];                             // { x, y, dx, dy: which way it
 const drains = [];                               // circles { x, y, r }; together they make the trash
 let sink = null, devDirty = false;               // sink: 4-pixel cells, 1 inside the trash
 ctl.flow = 0.4;
-slider($("flowBox"), "Emitter flow", "flow", 0, 1, 0.05, null, "How fast every emitter pours");
+sliders.flow = slider($("flowBox"), "Emitter flow", "flow", 0, 1, 0.05, null, "How fast every emitter pours");
 function buildSink() {
   const gw = Math.ceil(sim.W / 4), gh = Math.ceil(sim.H / 4);
   sink = new Uint8Array(gw * gh); sink.gw = gw; sink.gh = gh; sinkDirty = true;
@@ -785,13 +901,14 @@ function runDevices() {                          // once a frame: emitters pour 
     e.acc = Math.min(50, e.acc + ctl.flow * (2 * e.w / sp) * (v * ctl.steps / sp));   // about enough drops to keep a solid stream coming out
     for (; e.acc >= 1; e.acc--) {
       const s = (Math.random() * 2 - 1) * e.w;
-      addParticle(e.x - e.dy * s + e.dx * h * 0.4, e.y + e.dx * s + e.dy * h * 0.4, e.liq, e.dx * v, e.dy * v);
+      addParticle(e.x - e.dy * s + e.dx * h * 0.4, e.y + e.dx * s + e.dy * h * 0.4, pourLiq(e.liq), e.dx * v, e.dy * v);
     }
   }
 }
 function scaleDevices(sx, sy) {                  // the tank changed size: keep them in the same places
   for (const e of emitters) { e.x *= sx; e.y *= sy; }
   for (const d of drains) { d.x *= sx; d.y *= sy; }
+  for (const w of wheels) { w.x *= sx; w.y *= sy; w.tx *= sx; w.ty *= sy; }
   if (scoop) { scoop.x *= sx; scoop.y *= sy; scoop.tx *= sx; scoop.ty *= sy; }
   devDirty = true;
 }
@@ -804,13 +921,18 @@ function drawDevices() {                         // on the background canvas, un
   for (const e of emitters) {                    // a nozzle, its mouth in the liquid's colour
     bgx.save(); bgx.translate(e.x, e.y); bgx.rotate(Math.atan2(-e.dx, e.dy));   // now +y points the way it pours
     bgx.fillStyle = labview() ? "#9a9a9a" : "#3a4a5c"; bgx.fillRect(-e.w - 3, -12, 2 * e.w + 6, 12);
-    bgx.fillStyle = LIQ[e.liq].color; bgx.fillRect(-e.w, -4, 2 * e.w, 5);
+    if (e.liq < 0) LIQ.forEach((L, k) => { bgx.fillStyle = L.color; bgx.fillRect(-e.w + k * e.w / 2, -4, e.w / 2, 5); });   // the mix: a stripe of each
+    else { bgx.fillStyle = LIQ[e.liq].color; bgx.fillRect(-e.w, -4, 2 * e.w, 5); }
     bgx.restore();
   }
 }
 $("devClear").onclick = () => { (ctl.tool === "drain" ? drains : emitters).length = 0; devDirty = true; };
+const emitterAt = p => { for (let i = emitters.length - 1; i >= 0; i--) if (Math.hypot(emitters[i].x - p.x, emitters[i].y - p.y) < emitters[i].w + 12) return emitters[i]; return null; };
 function devPointer(p, q, down) {                // the Emitter and Trash tools, from the pointer handlers
   if (ctl.tool === "emitter") {
+    if (q.carry) { q.carry.e.x = p.x + q.carry.dx; q.carry.e.y = p.y + q.carry.dy; devDirty = true; return; }   // carrying a spout
+    const near = down && !q.rub && emitterAt(p);
+    if (near) { q.carry = { e: near, dx: near.x - p.x, dy: near.y - p.y }; return; }   // pressed on a spout: pick it up
     if (q.rub) { if (down) { const i = emitters.findIndex(e => Math.hypot(e.x - p.x, e.y - p.y) < e.w + 12); if (i >= 0) emitters.splice(i, 1); } }
     else if (down) emitters.push(q.em = { x: p.x, y: p.y, dx: 0, dy: 1, w: ctl.brush, speed: 0.3, liq: ctl.pour, acc: 0 });
     else if (q.em) {                             // dragging aims it
@@ -820,12 +942,13 @@ function devPointer(p, q, down) {                // the Emitter and Trash tools,
   } else if (ctl.tool === "drain") {
     if (q.rub) { for (let i = drains.length - 1; i >= 0; i--) if (Math.hypot(drains[i].x - p.x, drains[i].y - p.y) < drains[i].r + ctl.brush * 0.5) drains.splice(i, 1); }
     else if (down || Math.hypot(p.x - q.dx0, p.y - q.dy0) > ctl.brush * 0.4) { drains.push({ x: p.x, y: p.y, r: ctl.brush }); q.dx0 = p.x; q.dy0 = p.y; }
-  } else if (ctl.tool === "erase" && eraseAll) {  // Erase set to Everything: rub out whatever is under the brush, not just liquid
+  } else if (ctl.tool === "erase" && eraseAll && !q.rub) {  // Erase set to Everything: rub out whatever is under the brush, not just liquid
     const r = ctl.brush;
     for (let i = emitters.length - 1; i >= 0; i--) if (Math.hypot(emitters[i].x - p.x, emitters[i].y - p.y) < r + emitters[i].w * 0.5) emitters.splice(i, 1);
     for (let i = drains.length - 1; i >= 0; i--) if (Math.hypot(drains[i].x - p.x, drains[i].y - p.y) < r + drains[i].r * 0.5) drains.splice(i, 1);
     if (ink?.any) inkLine(q.x, q.y, p.x, p.y, 2 * r, 0);
     if (scoop) cutScoop(p.x, p.y, r);
+    for (let i = wheels.length - 1; i >= 0; i--) if (Math.hypot(wheels[i].x - p.x, wheels[i].y - p.y) < r + hubOf(wheels[i])) removeWheel(wheels[i]);
   } else return;
   devDirty = true;
 }
@@ -882,9 +1005,10 @@ function drawPic() {                             // the picture (and, if asked, 
   const dpr = devicePixelRatio || 1, W = sim.W, H = sim.H;
   bgc.width = Math.round(W * dpr); bgc.height = Math.round(H * dpr);
   bgx.setTransform(dpr, 0, 0, dpr, 0, 0); bgx.clearRect(0, 0, W, H);
+  paintTankBg(bgx, W, H);
   if (pic) { const r = picRect(); bgx.globalAlpha = ctl.picAlpha; bgx.drawImage(pic.img, r.x, r.y, r.w, r.h); bgx.globalAlpha = 1; }
   if (ink?.any) {                                // the drawn walls, soft-edged
-    const oc = document.createElement("canvas"), im = new ImageData(ink.gw, ink.gh), c = labview() ? [196, 196, 196] : [124, 143, 165];
+    const oc = document.createElement("canvas"), im = new ImageData(ink.gw, ink.gh), c = colors.wall ? [1, 3, 5].map(k => parseInt(colors.wall.substr(k, 2), 16)) : labview() ? [196, 196, 196] : [124, 143, 165];
     for (let k = 0; k < ink.length; k++) if (ink[k]) { im.data.set(c, k * 4); im.data[k * 4 + 3] = 255; }
     oc.width = ink.gw; oc.height = ink.gh; oc.getContext("2d").putImageData(im, 0, 0);
     bgx.drawImage(oc, 0, 0, ink.gw * 2, ink.gh * 2);
@@ -938,14 +1062,14 @@ tank.addEventListener("pointerdown", e => {
   pointers.set(e.pointerId, { x: p.x, y: p.y, lx: p.x, ly: p.y, vx: 0, vy: 0, rub });
   if (ctl.tool === "wall") inkLine(p.x, p.y, p.x, p.y, ctl.brush, rub ? 0 : 1);
   devPointer(p, pointers.get(e.pointerId), true);
-  scoopPointer(p, pointers.get(e.pointerId), "down");
+  if (!wheelPointer(p, pointers.get(e.pointerId), "down")) scoopPointer(p, pointers.get(e.pointerId), "down");
   hover = p; showBrush();
   e.preventDefault();
 });
 tank.addEventListener("pointermove", e => {
   const p = local(e), q = pointers.get(e.pointerId);
   if (q && ctl.tool === "wall") inkLine(q.x, q.y, p.x, p.y, ctl.brush, q.rub || e.shiftKey ? 0 : 1);
-  if (q) { q.rub ||= e.shiftKey; devPointer(p, q, false); scoopPointer(p, q, "move"); }
+  if (q) { q.rub ||= e.shiftKey; devPointer(p, q, false); wheelPointer(p, q, "move"); scoopPointer(p, q, "move"); }
   if (q) { q.x = p.x; q.y = p.y; }
   hover = p; showBrush();
 });
@@ -954,14 +1078,23 @@ tank.addEventListener("pointerup", lift);
 tank.addEventListener("pointercancel", lift);
 tank.addEventListener("pointerleave", e => { if (!pointers.size) { hover = null; showBrush(); } });
 tank.addEventListener("contextmenu", e => e.preventDefault());
-tank.addEventListener("wheel", e => {            // scroll over the tank to resize the brush
+tank.addEventListener("wheel", e => {            // scroll over the tank to resize the brush; over a paddle wheel, to resize it; over a shape, to turn it
   e.preventDefault();
+  if (hover && ctl.tool === "emitter") {         // over a spout: turn it
+    const em = emitterAt(hover);
+    if (em) { const a = (e.deltaY < 0 ? 1 : -1) * Math.PI / 18, c = Math.cos(a), s = Math.sin(a), dx = em.dx; em.dx = dx * c - em.dy * s; em.dy = dx * s + em.dy * c; devDirty = true; return; }
+  }
+  if (hover && (ctl.tool === "scoop" || ctl.tool === "wheel")) {
+    const w = wheelAt(hover);
+    if (w) { selectWheel(w); sliders.wheelSize.set(w.R * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); return; }
+    if (nearScoop(hover)) { scoop.ta += (e.deltaY < 0 ? 1 : -1) * Math.PI / 18; return; }
+  }
   sliders.brush.set(ctl.brush * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
   showBrush();
 }, { passive: false });
 function showBrush() {
   const b = $("brush");
-  b.hidden = !hover;
+  b.hidden = !hover || ctl.tool === "wheel";     // a wheel shows its own size
   if (!hover) return;
   const r = ctl.brush;
   b.style.width = b.style.height = 2 * r + "px";
@@ -1045,7 +1178,7 @@ function scoopWorld() {                          // its points where it sits now
   return scoop.pts.map(([x, y, st, g]) => [scoop.x + x * c - y * s, scoop.y + x * s + y * c, st, g]);
 }
 function scoopPointer(p, q, kind) {              // the Scoop tool, from the pointer handlers: kind is "down", "move" or "up"
-  if (ctl.tool !== "scoop") return;
+  if (ctl.tool !== "scoop" && !q.grab) return;   // the Wheel tool can still carry a shape it grabbed
   if (kind === "down") {
     if (q.rub && scoop) q.turn = { a0: Math.atan2(p.y - scoop.y, p.x - scoop.x), ta: scoop.ta };   // right-drag turns it about its middle
     else if (!q.rub && nearScoop(p)) q.grab = { dx: scoop.tx - p.x, dy: scoop.ty - p.y };
@@ -1061,18 +1194,19 @@ function scoopPointer(p, q, kind) {              // the Scoop tool, from the poi
   }
 }
 function drawScoop() {                           // on its own canvas above the liquid; only redrawn when it moves
-  const key = scoop ? [scoop.x, scoop.y, scoop.a, scoop.r].map(v => v.toFixed(1)).join() : "", dkey = scoopDraw ? scoopDraw.pts.length + "," + scoopDraw.r : "", all = key + "|" + dkey + "|" + labview();
+  const key = scoop ? [scoop.x, scoop.y, scoop.a, scoop.r].map(v => v.toFixed(1)).join() : "", dkey = scoopDraw ? scoopDraw.pts.length + "," + scoopDraw.r : "", wkey = wheels.map(w => [w.x.toFixed(1), w.y.toFixed(1), w.a.toFixed(3), w.R, w.nb, w.color, w.free, w === wheelSel && ctl.tool === "wheel"].join()).join(";"), all = key + "|" + dkey + "|" + labview() + "|" + colors.shape + "|" + wkey;
   if (all === scoopSeen && scoop === scoopShown) return;
   scoopSeen = all; scoopShown = scoop;
   const dpr = devicePixelRatio || 1;
   if (ov.width !== cv.width || ov.height !== cv.height) { ov.width = cv.width; ov.height = cv.height; }
   ovx.setTransform(dpr, 0, 0, dpr, 0, 0); ovx.clearRect(0, 0, sim.W, sim.H);
+  let color = colors.shape;
   const line = (pts, r, dashed) => {
     ovx.lineCap = ovx.lineJoin = "round";
     ovx.beginPath(); pts.forEach(([x, y, st], k) => k && !st ? ovx.lineTo(x, y) : (ovx.moveTo(x, y), ovx.lineTo(x + 0.01, y)));   // a new stroke starts with a dot, so a lone point still shows
     ovx.setLineDash(dashed ? [6, 5] : []);
     ovx.strokeStyle = labview() ? "#3a3a3a" : "#0b1118"; ovx.lineWidth = 2 * r + 3; ovx.stroke();
-    ovx.strokeStyle = labview() ? "#c8c8c8" : "#b8c7d6"; ovx.lineWidth = 2 * r; ovx.stroke();
+    ovx.strokeStyle = color || (labview() ? "#c8c8c8" : "#b8c7d6"); ovx.lineWidth = 2 * r; ovx.stroke();
     ovx.strokeStyle = "#ffffff55"; ovx.lineWidth = Math.max(1, r * 0.4); ovx.stroke();   // a shine down the middle
   };
   if (scoop) {
@@ -1081,8 +1215,80 @@ function drawScoop() {                           // on its own canvas above the 
     line(w.filter(q => !q[3]), scoop.r, false);
   }
   if (scoopDraw) line(scoopDraw.pts, scoopDraw.r, true);
+  for (const w of wheels) {
+    color = w.color || colors.shape;
+    const hub = hubOf(w), pts = [];
+    for (let k = 0; k < w.nb; k++) { const a = w.a + k * 2 * Math.PI / w.nb, c = Math.cos(a), s = Math.sin(a); pts.push([w.x + c * hub * 0.5, w.y + s * hub * 0.5, 1], [w.x + c * w.R, w.y + s * w.R, 0]); }
+    line(pts, bladeOf(w), false);
+    ovx.setLineDash([]);
+    ovx.beginPath(); ovx.arc(w.x, w.y, hub, 0, 2 * Math.PI);
+    ovx.fillStyle = color || (labview() ? "#c8c8c8" : "#b8c7d6"); ovx.fill();
+    ovx.strokeStyle = labview() ? "#3a3a3a" : "#0b1118"; ovx.lineWidth = 1.5; ovx.stroke();
+    ovx.beginPath(); ovx.arc(w.x, w.y, Math.max(2.5, hub * 0.32), 0, 2 * Math.PI);   // the axle: green when the motor is on
+    ovx.fillStyle = w.free ? "#555" : "#2fdc5a"; ovx.fill();
+    if (w === wheelSel && ctl.tool === "wheel") {   // which one the controls belong to
+      ovx.setLineDash([6, 5]); ovx.strokeStyle = labview() ? "#ffd60a" : "#8fd3ff"; ovx.lineWidth = 1.5;
+      ovx.beginPath(); ovx.arc(w.x, w.y, w.R + bladeOf(w) + 5, 0, 2 * Math.PI); ovx.stroke(); ovx.setLineDash([]);
+    }
+  }
 }
 $("scoopClear").onclick = () => { scoop = scoopDraw = null; };
+// ---- paddle wheels: up to 8, moved and resized by hand, spinning by motor or pushed round by the liquid ----
+const wheels = [];                               // { x, y, tx, ty: where the pointer wants it, a: its turn, om: how fast it turns (radians a step), R, nb: blades, free, speed -1 to 1, color }
+let wheelSel = null;
+const hubOf = w => Math.max(6, w.R * 0.18), bladeOf = w => Math.max(3, w.R * 0.05), tipSpeed = () => sim.h * 0.6;   // how fast a blade's tip moves at full speed, in pixels a step
+ctl.wheelSpeed = 0.5; ctl.wheelSize = 90; ctl.wheelBlades = 6;
+sliders.wheelSpeed = slider($("wheelSliders"), "Motor speed", "wheelSpeed", -1, 1, 0.05, v => { if (wheelSel) wheelSel.speed = v; }, "Below 0 it spins the other way");
+sliders.wheelSize = slider($("wheelSliders"), "Size", "wheelSize", 20, 300, 1, v => { if (wheelSel) wheelSel.R = v; }, "Or scroll over a wheel");
+sliders.wheelBlades = slider($("wheelSliders"), "Blades", "wheelBlades", 2, 12, 1, v => { if (wheelSel) wheelSel.nb = v; });
+const wheelAt = p => { for (let k = wheels.length - 1; k >= 0; k--) if (Math.hypot(wheels[k].x - p.x, wheels[k].y - p.y) < wheels[k].R + 8) return wheels[k]; return null; };
+function selectWheel(w) {                        // the controls show this wheel; new wheels start from them
+  wheelSel = w;
+  if (!w) return;
+  ctl.wheelSpeed = w.speed; ctl.wheelSize = w.R; ctl.wheelBlades = w.nb;
+  sliders.wheelSpeed.show(); sliders.wheelSize.show(); sliders.wheelBlades.show();
+  document.querySelectorAll("#wheelMode button").forEach(b => b.classList.toggle("on", (b.dataset.mode === "free") === w.free));
+  $("wheelColor").value = w.color || colors.shape || "#b8c7d6";
+}
+function addWheel(x, y, opts = {}) {
+  if (wheels.length >= 8) return null;
+  const w = { x, y, tx: x, ty: y, a: 0, om: 0, R: ctl.wheelSize, nb: ctl.wheelBlades, free: true, speed: ctl.wheelSpeed, color: null, ...opts };
+  wheels.push(w); selectWheel(w);
+  return w;
+}
+function removeWheel(w) {
+  wheels.splice(wheels.indexOf(w), 1);
+  if (wheelSel === w) selectWheel(wheels[wheels.length - 1] || null);
+}
+function wheelPointer(p, q, kind) {              // from the pointer handlers; true if it took the press
+  if (kind === "move") { if (q.wheel) { q.wheel.w.tx = p.x + q.wheel.dx; q.wheel.w.ty = p.y + q.wheel.dy; } return !!q.wheel; }
+  if (ctl.tool !== "scoop" && ctl.tool !== "wheel") return false;
+  const w = wheelAt(p);
+  if (w && q.rub && ctl.tool === "scoop") return false;   // right-drag in the Shape tool still turns the shape
+  if (w && q.rub) { removeWheel(w); return true; }
+  if (w) { selectWheel(w); q.wheel = { w, dx: w.tx - p.x, dy: w.ty - p.y }; return true; }
+  if (ctl.tool !== "wheel") return false;
+  if (q.rub) return true;
+  if (nearScoop(p)) { q.grab = { dx: scoop.tx - p.x, dy: scoop.ty - p.y }; return true; }
+  const added = addWheel(p.x, p.y);
+  if (added) q.wheel = { w: added, dx: 0, dy: 0 };
+  else $("toolHint").textContent = "That's the most: 8 wheels. Remove one to add another.";
+  return true;
+}
+document.querySelectorAll("#wheelMode button").forEach(b => b.onclick = () => {
+  if (wheelSel) { wheelSel.free = b.dataset.mode === "free"; wheelSel.om = 0; }
+  document.querySelectorAll("#wheelMode button").forEach(x => x.classList.toggle("on", x === b));
+});
+$("wheelColor").oninput = () => { if (wheelSel) wheelSel.color = $("wheelColor").value; };
+$("wheelRemove").onclick = () => { if (wheelSel) removeWheel(wheelSel); };
+$("wheelClear").onclick = () => { wheels.length = 0; selectWheel(null); };
+function updateCursor() {                        // a hand over anything you can pick up, closed while you carry it
+  let c = "";
+  if ([...pointers.values()].some(q => q.wheel || q.grab || q.turn || q.carry)) c = "grabbing";
+  else if (hover && (ctl.tool === "scoop" || ctl.tool === "wheel") && (wheelAt(hover) || nearScoop(hover))) c = "grab";
+  else if (hover && ctl.tool === "emitter" && emitterAt(hover)) c = "grab";
+  if (tank.style.cursor !== c) tank.style.cursor = c;
+}
 for (const [name, tip, make] of SHAPES) {        // the ready-made shape buttons
   const b = document.createElement("button");
   b.type = "button"; b.textContent = name; b.title = tip; b.onclick = () => placeShape(make);
@@ -1092,13 +1298,14 @@ function perFrameTools() {                       // pouring and erasing happen o
   if (!pointers.size) return;
   const r = ctl.brush, steps = ctl.steps;
   for (const p of pointers.values()) {
-    if (ctl.tool === "pour") {
+    const pours = ctl.tool === "pour" ? !p.rub : ctl.tool === "erase" && p.rub;   // right-click does the opposite: Pour erases, Erase pours
+    if (pours) {
       const k = Math.min(400, Math.round((2 + ctl.strength * 10) * Math.max(1, (r / (sim.h * 2)) ** 2)));   // a bigger brush pours more, so it stays as thick
       for (let j = 0; j < k; j++) {
         const a = Math.random() * 2 * Math.PI, d = Math.sqrt(Math.random()) * r;
-        addParticle(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, ctl.pour, p.vx, p.vy);
+        addParticle(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, pourLiq(ctl.pour), p.vx, p.vy);
       }
-    } else if (ctl.tool === "erase") {
+    } else if (ctl.tool === "pour" || ctl.tool === "erase") {
       eraseNow = true;                           // the card soaks up what is under the pointer
     }
   }
@@ -1153,7 +1360,7 @@ function setRunning(on) {
 }
 $("stopBtn").onclick = () => setRunning(!ctl.running);
 $("abortBtn").onclick = () => {                  // clear the whole tank; the picture stays (it has its own Remove button)
-  clearParticles(); emitters.length = 0; drains.length = 0; ink = null; scoop = scoopDraw = null;
+  clearParticles(); emitters.length = 0; drains.length = 0; ink = null; scoop = scoopDraw = null; wheels.length = 0; selectWheel(null);
   mergeWalls(); devDirty = true;
 };
 function setSculpt(on) {                         // sculpt: nothing flows by itself, so the liquid holds whatever shape you push it into
@@ -1190,11 +1397,11 @@ addEventListener("keydown", e => {
 // only goo differs slightly, as each particle trades speed with all its neighbours at once.
 const WG = 256, STATS = 96;                      // STATS: slices across the tank for the scope's surface trace
 const SIM_WGSL = /* wgsl */ `
-struct P { n: u32, cols: u32, rows: u32, cells: u32, W: f32, H: f32, h: f32, k: f32,
+struct P { stepI: u32, cols: u32, rows: u32, cells: u32, W: f32, H: f32, h: f32, k: f32,
            kNear: f32, same: f32, diff: f32, goo: f32, firm: f32, gx: f32, gy: f32, mmax: f32, mass: vec4f,
            cap: u32, spawnK: u32, tool: u32, npt: u32, brush: f32, strength: f32, pull: f32, keep: f32,
            ball: u32, hasMask: u32, hasSink: u32, melt: u32, scoop: vec4f, scoopR: f32, scoopN: u32, maskCs: f32, stats: u32,
-           ptr: array<vec4f, 4>, span: f32, scoopPrev: vec4f };   // scoopPrev: where the shape was at the end of the last step
+           ptr: array<vec4f, 4>, span: f32, wheelN: u32, calm: f32, pad2: u32, scoopPrev: vec4f };   // scoopPrev: where the shape was at the end of the last step
 @group(0) @binding(0) var<uniform> p: P;
 @group(0) @binding(1) var<storage, read_write> pA: array<vec4f>;    // position, previous position
 @group(0) @binding(2) var<storage, read_write> pS: array<vec4f>;    // the same, sorted into cells (and the queue of new ones)
@@ -1205,6 +1412,7 @@ struct P { n: u32, cols: u32, rows: u32, cells: u32, W: f32, H: f32, h: f32, k: 
 @group(0) @binding(7) var<storage, read_write> state: array<atomic<u32>>;   // [draw: 6, count, 0, 0 | -, speed sum, -, - | slice counts]
 @group(0) @binding(8) var<storage, read_write> grid: array<atomic<u32>>;    // [count per cell | start per cell | block sums]
 @group(0) @binding(9) var<uniform> sc: array<vec4f, 1024>;          // the shape's points around its middle: x, y, 1 where a new stroke starts
+@group(0) @binding(12) var<uniform> wh: array<vec4f, 80>;            // wheels: [size of each: reach, hub, half thickness, blades | where each is: x, y, cos, sin, once per step]
 @group(0) @binding(10) var mask: texture_2d<i32>;                   // walls: -1 open, else the nearest open cell (-2 none)
 @group(0) @binding(11) var sink: texture_2d<u32>;                   // trash: 1 inside
 var<workgroup> tmp: array<u32, ${WG}>;
@@ -1292,6 +1500,7 @@ fn cross2(a: vec2f, b: vec2f) -> f32 { return a.x * b.y - a.y * b.x; }
       m = m & 15u;                               // touching frozen liquid frees it
       if (p.tool == 1u) { v += (q.zw - v) * min(1.0, f * p.strength); }                 // drag
       else if (p.tool == 4u) { v += vec2f(-d.y, d.x) * (f * p.pull / dd); }              // swirl
+      else if (p.tool == 6u) { v -= vec2f(-d.y, d.x) * (f * p.pull / dd); }              // swirl the other way
       else { v += d * (f * p.pull * select(1.0, -1.0, p.tool == 2u) / dd); }            // attract, repel
     }
   }
@@ -1468,6 +1677,40 @@ fn scanTmp(l: u32) {                             // tmp becomes its own running 
     }
     x = toWorld(lx, p.scoop);
   }
+  for (var w = 0u; w < p.wheelN; w++) {          // paddle wheels: each drop stays on its own side of the blade, and pushes back on the wheel
+    let sh = wh[w];
+    let cur = wh[8u + (p.stepI + 1u) * 8u + w];
+    let prv = wh[8u + p.stepI * 8u + w];
+    if (distance(x, cur.xy) >= sh.x + sh.z + h) { continue; }
+    let was = x;
+    let l0 = toLocal(pr, prv);                   // seen from the wheel, so the wheel stands still
+    var lx = toLocal(x, cur);
+    let gap = 6.2831853 / sh.w;
+    let ba = round(atan2(lx.y, lx.x) / gap) * gap;   // the nearest blade, turned to lie along +x
+    let bc = cos(ba);
+    let bs = sin(ba);
+    var q = vec2f(lx.x * bc + lx.y * bs, -lx.x * bs + lx.y * bc);
+    let q0 = vec2f(l0.x * bc + l0.y * bs, -l0.x * bs + l0.y * bc);
+    var hit = false;
+    if (q.x > 0.0 && q.x < sh.x + sh.z && (abs(q.y) < sh.z || q0.y * q.y < 0.0)) {
+      var side = sign(q0.y);
+      if (side == 0.0) { side = 1.0; }
+      q.y = side * sh.z; hit = true;
+      lx = vec2f(q.x * bc - q.y * bs, q.x * bs + q.y * bc);
+    }
+    let lr = length(lx);
+    if (lr < sh.y) {                             // the hub
+      if (lr > 1e-4) { lx = lx / lr * sh.y; } else { lx = vec2f(sh.y, 0.0); }
+      hit = true;
+    }
+    if (hit) {
+      x = toWorld(lx, cur); mo = mo & 15u;
+      let moved = x - was;
+      let arm = x - cur.xy;
+      let twist = -msi * (arm.x * moved.y - arm.y * moved.x);   // the drop was pushed one way, so the wheel is pushed the other
+      atomicAdd(&state[104u + w], u32(i32(clamp(twist, -20000.0, 20000.0) * 16.0)));
+    }
+  }
   if ((mo & LOCKED) != 0u) { pr = x; }
   else {                                         // walls: a soft push back from each edge, stronger for light liquids so they never get trapped under heavy ones
     let b = h * 0.4;
@@ -1487,7 +1730,9 @@ fn scanTmp(l: u32) {                             // tmp becomes its own running 
   var v = vec2f(0.0);
   if ((mA[i] & LOCKED) == 0u) {
     var dv = vec2f(0.0);
-    if (p.goo > 0.0) {                           // goo: neighbours moving toward each other trade some of that speed
+    var avg = vec2f(0.0);
+    var total = 0.0;
+    if (p.goo > 0.0 || p.calm > 0.0) {           // goo: neighbours moving toward each other trade some of that speed
       let xi = pS[i].xy;
       let c = cellOf(xi);
       let h = p.h;
@@ -1503,14 +1748,17 @@ fn scanTmp(l: u32) {                             // tmp becomes its own running 
           let n = d / r;
           let b = pA[j];
           let u = dot(ui - (b.xy - b.zw), n);
+          let near = 1.0 - r / h;
+          avg += (b.xy - b.zw) * near; total += near;
           if (u <= 0.0) { continue; }
-          let w = 0.5 * (1.0 - r / h) * p.goo;
+          let w = 0.5 * near * p.goo;
           dv -= w * u * n; wsum += w;
         }
       }
       dv /= max(1.0, wsum);                      // all at once, so never trade away more than the whole difference
     }
     v = ui + dv;
+    if (total > 0.0) { v += (avg / total - ui) * p.calm; }   // calm: drawn toward the neighbours' average, which stills rattling but leaves waves and splashes alone
     let thr = p.h * 0.012;                       // firmness: slow drops are held back (like a yield stress), fast ones flow freely
     if (p.firm > 0.0 && dot(v, v) < thr * thr) { v *= 1.0 - 0.95 * p.firm; }
     if (p.keep >= 0.0) { v *= p.keep; }          // sculpt: drop (most of) each particle's speed
@@ -1546,12 +1794,13 @@ function setColors() {
 }
 setColors();
 let gctx, pipes = {}, drawPipe, simLayout, bindGroup = null, drawBinds = [], cellCap = 0, inFlight = 0, scoopSent = null;
+const wbuf = new Float32Array(80 * 4);            // the wheels for the card
 const PB = 256, MAXSTEPS = 8;                    // each step gets its own block of settings
 const pbuf = new ArrayBuffer(PB * MAXSTEPS), pU = new Uint32Array(pbuf), pF = new Float32Array(pbuf);
 const rparams = new ArrayBuffer(32), rU = new Uint32Array(rparams), rF = new Float32Array(rparams);
 const gstats = { cnt: new Uint32Array(STATS), speed: 0, fresh: false };   // the scope's readings, back from the card
 const readers = [];                              // small buffers the card copies its count into, read a frame or two later
-const NO_GPU = 'This version needs <b>WebGPU</b>, which works in Chrome or Edge on a computer. <span>Try it there, or use the <a href="liquid.html">regular Liquid Lab</a>, which works everywhere.</span>';
+const NO_GPU = 'This version needs <b>WebGPU</b>, which works in Chrome or Edge on a computer. <span>Try it there, or use the <a href="liquid.html">simpler version</a>, which works everywhere.</span>';
 function gpuFail(html) { $("gpuMsg").innerHTML = html; $("gpuMsg").hidden = false; }
 const SB = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;   // a function: GPUBufferUsage only exists where WebGPU does
 function makeParticleBuffers(cap) {              // (re)size the card's per-particle lists, keeping the particles already in the tank
@@ -1597,7 +1846,7 @@ function sendScoop() {                           // the shape's points (at most 
 function makeBindGroup() {
   const buf = (binding, buffer, size) => ({ binding, resource: size ? { buffer, size } : { buffer } });
   bindGroup = device.createBindGroup({ layout: simLayout, entries: [buf(0, B.params, 256), buf(1, B.pA), buf(2, B.pS), buf(3, B.mA), buf(4, B.mS), buf(5, B.aux),
-    buf(6, B.vel), buf(7, B.state), buf(8, B.grid), buf(9, B.scoop), { binding: 10, resource: B.mask.createView() }, { binding: 11, resource: B.sink.createView() }] });
+    buf(6, B.vel), buf(7, B.state), buf(8, B.grid), buf(9, B.scoop), buf(12, B.wheel), { binding: 10, resource: B.mask.createView() }, { binding: 11, resource: B.sink.createView() }] });
 }
 async function initGPU() {
   if (!navigator.gpu) return gpuFail(NO_GPU);
@@ -1615,7 +1864,7 @@ async function initGPU() {
   simLayout = dev.createBindGroupLayout({ entries: [
     { binding: 0, visibility: C, buffer: { type: "uniform", hasDynamicOffset: true } },
     ...[1, 2, 3, 4, 5, 6, 7, 8].map(binding => ({ binding, visibility: C, buffer: st })),
-    { binding: 9, visibility: C, buffer: { type: "uniform" } },
+    { binding: 9, visibility: C, buffer: { type: "uniform" } }, { binding: 12, visibility: C, buffer: { type: "uniform" } },
     { binding: 10, visibility: C, texture: { sampleType: "sint" } }, { binding: 11, visibility: C, texture: { sampleType: "uint" } }] });
   const sm = dev.createShaderModule({ code: SIM_WGSL }), layout = dev.createPipelineLayout({ bindGroupLayouts: [simLayout] });
   for (const e of ["spawn", "spawnEnd", "predict", "clear", "countCells", "scan1", "scan2", "scan3", "scatter", "setn", "density", "relax", "visc"])
@@ -1630,6 +1879,7 @@ async function initGPU() {
   device = dev;
   B.params = dev.createBuffer({ size: pbuf.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   B.scoop = dev.createBuffer({ size: 16384, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  B.wheel = dev.createBuffer({ size: wbuf.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   B.state = dev.createBuffer({ size: 512, usage: SB() | GPUBufferUsage.INDIRECT });
   dev.queue.writeBuffer(B.state, 0, new Uint32Array([6, 0, 0, 0]));
   B.draw = LIQ.map(() => dev.createBuffer({ size: rparams.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }));
@@ -1650,8 +1900,25 @@ function gotBack(r, g, total, stats) {
     r.buf.unmap(); r.free = true;
     if (g !== gen) return;                       // the tank was emptied since: this count is out of date
     sim.n = Math.min(CAP, a[1] + spawnTotal - total);   // plus whatever has been queued since
+    if (stats) { const tw = new Int32Array(a.buffer, 104 * 4, 8); wheels.forEach((w, k) => { if (w.free) spinWheel(w, tw[k] / 16); }); }   // the liquid's push on each free wheel
     if (stats) { gstats.cnt.set(a.subarray(8, 8 + STATS)); gstats.speed = a[1] ? a[5] / 64 / a[1] : 0; gstats.fresh = true; }
   }, () => { r.free = true; });
+}
+function wheelSizes() {                          // each wheel's size, for the card; a drop stops with its edge at the blade
+  const pad = Math.max(1, sim.h * ctl.drop * 0.45);
+  wheels.forEach((w, k) => wbuf.set([w.R, hubOf(w) + pad, bladeOf(w) + pad, w.nb], k * 4));
+}
+function wheelRow(row) { wheels.forEach((w, k) => wbuf.set([w.x, w.y, Math.cos(w.a), Math.sin(w.a)], (8 + row * 8 + k) * 4)); }   // where each wheel is after this many steps
+function wheelStep(w) {                          // one step: glide toward the pointer, and turn
+  const most = Math.max(3, w.R * 0.03), mx = w.tx - w.x, my = w.ty - w.y, d = Math.hypot(mx, my);
+  if (d > most) { w.x += mx / d * most; w.y += my / d * most; } else { w.x = w.tx; w.y = w.ty; }
+  if (w.free) w.om *= 0.995;                     // a little friction on the axle
+  else w.om = w.speed * tipSpeed() / w.R;
+  w.a += w.om;
+}
+function spinWheel(w, twist) {                   // the push from the liquid, added up on the card, turns a free wheel
+  const mass = 0.25 * Math.PI * w.R * w.R / (0.135 * sim.h * sim.h) * 0.5, lim = tipSpeed() / w.R;   // about a quarter as heavy as the same area of liquid
+  w.om = Math.max(-lim, Math.min(lim, w.om + twist / (0.5 * mass * w.R * w.R)));
 }
 function scoopGlide() {                          // each step the shape glides toward the pointer (the card checks each drop's whole move, so it can't jump past them)
   const s = scoop, most = Math.max(3, s.r * 1.5);
@@ -1668,7 +1935,7 @@ function gpuFrame(steps) {                       // one frame on the card: new p
   if (cells > cellCap) makeGrid(cells);
   if (!bindGroup) makeBindGroup();
   const t = ctl.tool, ptrs = [...pointers.values()].slice(0, 4), live = ptrs.length > 0;
-  const toolCode = live ? { drag: 1, attract: 2, repel: 3, swirl: 4 }[t] || 0 : 0;
+  const toolCode = live ? (ptrs.some(q => q.rub) ? { drag: 1, attract: 3, repel: 2, swirl: 6 } : { drag: 1, attract: 2, repel: 3, swirl: 4 })[t] || 0 : 0;   // right-click does the opposite
   const k = Math.min(spawnK, CAP), total = spawnTotal, g = gen;
   if (k) {                                       // the queue goes into the scratch lists; spawn copies it onto the end
     device.queue.writeBuffer(B.pS, 0, SP, 0, k * 4); device.queue.writeBuffer(B.mS, 0, SM, 0, k); device.queue.writeBuffer(B.aux, 0, SV, 0, k * 4);
@@ -1679,6 +1946,10 @@ function gpuFrame(steps) {                       // one frame on the card: new p
     const o = s * PB / 4;
     if (scoop) pF.set([scoop.x, scoop.y, Math.cos(scoop.a), Math.sin(scoop.a)], o + 60);   // where it was before this step
     if (scoop && steps) scoopGlide();
+    if (!s) wheelRow(0);                         // where the wheels were before the first step
+    for (const w of wheels) if (steps) wheelStep(w);
+    wheelRow(s + 1);
+    pU[o] = s; pU[o + 57] = wheels.length; pF[o + 58] = ctl.calm;
     pU[o + 1] = cols; pU[o + 2] = rows; pU[o + 3] = cells;
     pF.set([sim.W, sim.H, h, sim.k, sim.kNear, sim.same, sim.diff, sim.goo, sim.firm, sim.gx, sim.gy, Math.max(...sim.mass)], o + 4);
     pF.set(sim.mass, o + 16);
@@ -1692,9 +1963,10 @@ function gpuFrame(steps) {                       // one frame on the card: new p
     pF[o + 56] = scoop ? scoop.span : 0;
   }
   device.queue.writeBuffer(B.params, 0, pbuf, 0, blocks * PB);
+  if (wheels.length) { wheelSizes(); device.queue.writeBuffer(B.wheel, 0, wbuf); }
   eraseNow = meltNow = false;
   const enc = device.createCommandEncoder();
-  enc.clearBuffer(B.state, 20, 4 * (3 + STATS));   // the scope's readings start from zero
+  enc.clearBuffer(B.state, 20, 4 * (3 + STATS + 8));   // the scope's readings start from zero
   const pass = enc.beginComputePass(), n = Math.min(CAP, sim.n), np = Math.ceil(n / WG), nc = Math.ceil(cells / WG);
   const run = (e, x) => { pass.setPipeline(pipes[e]); pass.dispatchWorkgroups(x); };
   pass.setBindGroup(0, bindGroup, [0]);
@@ -1872,11 +2144,11 @@ function drawInstruments(force) {
 }
 function setTheme(t) {                           // the look of the page: the default dark one, or LabVIEW's grey front panel
   if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
-  $("themeBtn").textContent = t === "labview" ? "Dark theme" : "LabVIEW theme";
-  try { localStorage.setItem("liquidTheme", t); } catch (e) {}
+  document.querySelectorAll("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.look === t));
+  try { localStorage.setItem("sloshTheme", t); } catch (e) {}
   drawChart(); drawPic(); drawInstruments(true); // drawn walls and the dials take the theme's colours
 }
-$("themeBtn").onclick = () => setTheme(labview() ? "dark" : "labview");
+document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => setTheme(b.dataset.look));
 setTheme(labview() ? "labview" : "dark");
 
 // ---- the main loop ----
@@ -1890,11 +2162,12 @@ function sizeTank() {
   buildSink();
   if (!started) {                                // first time the tank has a size: pick an amount that suits the screen and fill it
     started = true;
-    ctl.amount = Math.min(25000, maxAmount());      // about 100,000 particles, half filling the tank
-    ctl.size = Math.round(10 * 1.72 * Math.sqrt(W * H / (4 * ctl.amount))) / 10;
-    slider($("liqSliders"), "Particle size", "size", 1, 40, 0.1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
+    ctl.size = ctl.size0 = 16;                      // opens with big drops, about 10,000 of them (fewer in a small window, so the tank isn't overfull)
+    ctl.amount = ctl.amount0 = Math.min(2500, amountFor(16));
+    ctl.fineSize = Math.round(10 * 1.72 * Math.sqrt(W * H / 100000)) / 10;   // what the Zen garden and Plot use: they need fine grains, about 100,000 half filling the tank
+    sliders.size = slider($("liqSliders"), "Particle size", "size", 1, 40, 0.1, v => sliders.amount.set(amountFor(v)), "Smaller particles give a smoother liquid but there are more of them, so it runs slower");
     sliders.amount = slider($("liqSliders"), "Amount of each", "amount", 50, maxAmount(), 50, () => fill("mix"), "How many particles of each liquid");
-    slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, () => updateWalls(), "How big each particle is drawn, without changing the physics");
+    sliders.drop = slider($("liqSliders"), "Drawn size", "drop", 0.3, 1.2, 0.05, () => updateWalls(), "How big each particle is drawn, without changing the physics");
     slider($("liqSliders"), "Particle limit", "cap", 2000, MAXCAP, 1000, v => {
       setCap(v); sliders.amount.setMax(maxAmount());
       try { localStorage.setItem("liquidGpuCap", v); } catch (e) {}
@@ -1922,7 +2195,8 @@ function frame(t) {
   if (inkDirty && (!pointers.size || t - inkT > 60)) { inkT = t; devDirty = false; buildSink(); mergeWalls(); }   // fresh walls, a few times a second while drawing
   if (devDirty) { devDirty = false; buildSink(); drawPic(); }
   let steps = 0;
-  if (ctl.running && (sim.n + pointers.size + emitters.length || scoop)) {
+  updateCursor();
+  if (ctl.running && (sim.n + pointers.size + emitters.length + wheels.length || scoop)) {
     steps = ctl.steps;
     if (ctl.sculpt) sim.gx = sim.gy = 0;          // no gravity while sculpting, so shapes don't sag
     else if (tilt) { sim.gx = tilt.gx * ctl.grav; sim.gy = tilt.gy * ctl.grav; }
@@ -1958,7 +2232,9 @@ function frame(t) {
 // liquid copied onto it. MP4 where the browser can make one (Chrome, Edge, Safari), WebM otherwise. Nothing is uploaded.
 let rec = null;                                  // { mr, cvs, ctx, chunks, t0, type, ext, bg, lv }
 // VP9 first: on swirling particles H.264 ignores the size it is asked for (measured: about 11 Mbps whether asked for 2 or 8), and VP9 keeps close to it.
-const recType = () => ["video/mp4;codecs=vp9", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder?.isTypeSupported?.(t));
+// AAC first: browsers play Opus inside an MP4, but many video players show the picture in silence
+const SOUND_TYPES = ["video/mp4;codecs=vp9,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=vp9,opus", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"];
+const recType = (sound = false) => (sound ? SOUND_TYPES.find(t => window.MediaRecorder?.isTypeSupported?.(t)) : null) || ["video/mp4;codecs=vp9", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder?.isTypeSupported?.(t));
 if (!recType() || !HTMLCanvasElement.prototype.captureStream) {
   $("recBtn").disabled = true; $("recBtn").title = "This browser can't record video from the page";
   $("recOut").textContent = "Recording isn't available in this browser.";
@@ -1989,9 +2265,10 @@ function download(blob, name) {                  // hand a finished file to the 
 // ---- video settings, shared by both recorders ----
 // Quality asks for a number of megabits a second, but on swirling particles the encoder only goes so low: measured, about 0.19 Mbit per
 // million pixels saved, and it saves about 100 million pixels a second at most (150 frames a second on small videos), skipping frames beyond that.
-const recSet = { res: 0, bits: 8, fps: 30, max: 0 };
+const SOUND_ASK = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false };   // the sound as it plays, unprocessed
+const recSet = { res: 0, bits: 8, fps: 30, max: 0, snd: 0 };
 try { Object.assign(recSet, JSON.parse(localStorage.getItem("liquidRecSet") || "{}")); } catch (e) {}   // remembered from last time, for this browser only
-const recSelects = { res: $("recRes"), bits: $("recBits"), fps: $("recFps"), max: $("recMax") };
+const recSelects = { res: $("recRes"), bits: $("recBits"), fps: $("recFps"), max: $("recMax"), snd: $("recSnd") };
 const recFps = () => recSet.fps < 0 ? hz || 60 : recSet.fps;   // Monitor: whatever the screen refreshes at
 function recMBmin(w, h) {                        // roughly how many MB a minute of video this many pixels makes
   const p = recSet.res, sc = Math.min(1, p ? p / h : 1, p ? p * 16 / 9 / w : 1), mp = w * h * sc * sc / 1e6;
@@ -2001,18 +2278,18 @@ function showRecSet() {                          // the line you see with the se
   const dpr = devicePixelRatio || 1, tsc = Math.min(dpr, 2, 1920 / Math.max(sim.W, sim.H)), each = recSet.max ? recSet.max / 60 : 1;
   const mb = (w, h) => Math.round(recMBmin(w, h) * each);
   const text = "Video: " + (recSet.res ? recSet.res + "p" : "full size") + ", " + recSelects.bits.selectedOptions[0].text.toLowerCase() + " quality, " + recFps() + " frames/s. About "
-    + mb(sim.W * tsc, sim.H * tsc) + " MB (tank) or " + mb(innerWidth * dpr, innerHeight * dpr) + " MB (tab) " + (recSet.max ? "per video" : "a minute");
+    + mb(sim.W * tsc, sim.H * tsc) + " MB (tank) or " + mb(innerWidth * dpr, innerHeight * dpr) + " MB (tab) " + (recSet.max ? "per video" : "a minute") + (recSet.snd ? ", with sound" : "");
   if ($("recSum").textContent !== text) $("recSum").textContent = text;
 }
 for (const k in recSelects) {
   recSelects[k].value = recSet[k];
   if (recSelects[k].selectedIndex < 0) { recSelects[k].selectedIndex = 0; recSet[k] = +recSelects[k].value; }   // an old saved value that is no longer offered
   recSelects[k].onchange = () => {
-    recSet[k] = +recSelects[k].value; showRecSet(); fitScope();
+    recSet[k] = +recSelects[k].value; showRecSet(); $("recSndHint").hidden = !recSet.snd; fitScope();
     try { localStorage.setItem("liquidRecSet", JSON.stringify(recSet)); } catch (e) {}
   };
 }
-showRecSet();
+showRecSet(); $("recSndHint").hidden = !recSet.snd;
 $("recSet").ontoggle = () => fitScope();
 const recLine = (what, r, t) => "Recording " + what + " " + clock(t - r.t0) + (r.limit ? " of " + clock(r.limit) : "") + (r.size ? " (" + r.size + ")" : "") + (r.bytes ? ", " + Math.round(r.bytes / 1e6) + " MB so far" : "");
 // ---- a picture of the tank ----
@@ -2026,7 +2303,7 @@ function saveShot() {
   drawTank(c.getContext("2d"), c.width, c.height, wellColor(), labview());
   c.toBlob(blob => {
     if (!blob) { $("recOut").textContent = "The browser couldn't make the picture."; return; }
-    const name = `liquid-lab-gpu-${fileStamp()}.png`;
+    const name = `sloshlab-${fileStamp()}.png`;
     download(blob, name);
     if (!rec && !winRec) $("recOut").textContent = "Saved " + name + " to your downloads.";
   }, "image/png");
@@ -2040,12 +2317,12 @@ async function startWinRec() {
   winAsking = true;
   $("recOut").textContent = "Pick the window to record in the box the browser shows.";
   let stream;
-  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: recFps(), ...(recSet.res ? { width: { max: Math.round(recSet.res * 16 / 9) }, height: { max: recSet.res } } : {}) }, audio: false, selfBrowserSurface: "include" }); }
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: recFps(), ...(recSet.res ? { width: { max: Math.round(recSet.res * 16 / 9) }, height: { max: recSet.res } } : {}) }, audio: recSet.snd ? SOUND_ASK : false, systemAudio: "include", selfBrowserSurface: "include" }); }
   catch (e) { winAsking = false; $("recOut").textContent = e.name === "NotAllowedError" ? "Window recording cancelled." : "The browser wouldn't share the window."; return; }
   winAsking = false;
-  const type = recType(), got = stream.getVideoTracks()[0].getSettings();
-  const r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-", limit: recSet.max * 1000, size: got.width ? got.width + " × " + got.height + (got.frameRate ? " at up to " + Math.round(got.frameRate) + " frames/s" : "") : "" };
-  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6 }); }
+  const heard = stream.getAudioTracks().length > 0, type = recType(heard), got = stream.getVideoTracks()[0].getSettings();
+  const r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-", limit: recSet.max * 1000, size: (got.width ? got.width + " × " + got.height + (got.frameRate ? " at up to " + Math.round(got.frameRate) + " frames/s" : "") : "") + (recSet.snd ? (got.width ? ", " : "") + (heard ? "with sound" : "no sound was shared") : "") };
+  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6, audioBitsPerSecond: 128e3 }); }
   catch (e) { stream.getTracks().forEach(t => t.stop()); $("recOut").textContent = "The browser wouldn't start recording."; return; }
   r.mr.ondataavailable = e => { if (e.data.size) { r.chunks.push(e.data); r.bytes = (r.bytes || 0) + e.data.size; } };
   r.mr.onstop = () => saveRec(r);
@@ -2064,15 +2341,30 @@ function stopWinRec() {
   $("winBtn").classList.remove("on"); $("winBtn").lastChild.textContent = " REC WINDOW";
 }
 $("winBtn").onclick = () => winRec ? stopWinRec() : startWinRec();
-function startRec() {
-  const type = recType(), p = recSet.res, cvs = document.createElement("canvas");
+let tankAsking = false;
+async function startRec() {
+  if (tankAsking) return;
+  let share = null, sound = null;
+  if (recSet.snd) {                              // the tank's picture comes from the page, but sound can only come from the browser's share box
+    tankAsking = true;
+    $("recOut").textContent = "Pick what to record the sound from in the box the browser shows.";
+    try { share = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: SOUND_ASK, systemAudio: "include", selfBrowserSurface: "include" }); }
+    catch (e) { tankAsking = false; $("recOut").textContent = e.name === "NotAllowedError" ? "Recording cancelled." : "The browser wouldn't share the sound."; return; }
+    tankAsking = false;
+    sound = share.getAudioTracks()[0] || null;
+    if (!sound) { share.getTracks().forEach(t => t.stop()); share = null; }   // nothing to hear: record the tank anyway, and say so
+  }
+  const type = recType(!!sound), p = recSet.res, cvs = document.createElement("canvas");
   const sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H), p ? p / sim.H : 2, p ? p * 16 / 9 / sim.W : 2);
   cvs.width = Math.round(sim.W * sc / 2) * 2; cvs.height = Math.round(sim.H * sc / 2) * 2;   // even sizes keep video encoders happy
   const r = rec = { cvs, ctx: cvs.getContext("2d"), chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm",
-    lv: labview(), bg: wellColor(), limit: recSet.max * 1000, size: cvs.width + " × " + cvs.height };
+    lv: labview(), bg: wellColor(), limit: recSet.max * 1000, size: cvs.width + " × " + cvs.height + (recSet.snd ? (sound ? ", with sound" : ", no sound was shared") : ""), share };
   recFrame();
-  try { r.mr = new MediaRecorder(cvs.captureStream(recFps()), { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6 }); }
-  catch (e) { rec = null; $("recOut").textContent = "The browser wouldn't start recording."; return; }
+  const stream = cvs.captureStream(recFps());
+  if (sound) stream.addTrack(sound);
+  try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6, audioBitsPerSecond: 128e3 }); }
+  catch (e) { rec = null; share?.getTracks().forEach(t => t.stop()); $("recOut").textContent = "The browser wouldn't start recording."; return; }
+  share?.getTracks().forEach(t => t.addEventListener("ended", () => { if (rec === r) stopRec(); }));   // the browser's own Stop sharing button
   r.mr.ondataavailable = e => { if (e.data.size) { r.chunks.push(e.data); r.bytes = (r.bytes || 0) + e.data.size; } };
   r.mr.onstop = () => saveRec(r);
   r.mr.start(1000);
@@ -2081,7 +2373,7 @@ function startRec() {
   $("recOut").textContent = recLine("tank", r, r.t0);
 }
 function stopRec() {
-  rec.ms = performance.now() - rec.t0; clearTimeout(rec.timer); rec.mr.stop(); rec = null;
+  rec.ms = performance.now() - rec.t0; clearTimeout(rec.timer); if (rec.mr.state !== "inactive") rec.mr.stop(); rec.share?.getTracks().forEach(t => t.stop()); rec = null;
   $("recBtn").classList.remove("on"); $("recBtn").lastChild.textContent = " REC TANK";
 }
 // The recorder writes the video in pieces and leaves its length blank (0), so players treat the file as a live stream:
@@ -2107,11 +2399,14 @@ function fixMp4(b) {                             // fragmented MP4: add up every
   const inside = (box, t) => box && boxes(box.d, box.e).find(x => x.t === t);
   const top = boxes(0, b.length), moov = top.find(x => x.t === "moov");
   const mvhd = inside(moov, "mvhd"), trak = inside(moov, "trak"), mvex = inside(moov, "mvex");
-  const tkhd = inside(trak, "tkhd"), mdhd = inside(inside(trak, "mdia"), "mdhd"), trex = inside(mvex, "trex");
+  const tkhd = inside(trak, "tkhd"), mdhd = inside(inside(trak, "mdia"), "mdhd");
   if (!mvhd || !tkhd || !mdhd) return null;
+  const trackId = u32(tkhd.d + (b[tkhd.d] === 1 ? 20 : 12));   // with sound there are two tracks, each with its own clock: only add up this one
+  const trex = mvex && boxes(mvex.d, mvex.e).find(x => x.t === "trex" && u32(x.d + 4) === trackId);
   let end = 0, absolute = false;
   for (const moof of top.filter(x => x.t === "moof")) for (const traf of boxes(moof.d, moof.e).filter(x => x.t === "traf")) {
     const kids = boxes(traf.d, traf.e), tfhd = kids.find(x => x.t === "tfhd"), tfdt = kids.find(x => x.t === "tfdt");
+    if (tfhd && u32(tfhd.d + 4) !== trackId) continue;
     const hf = tfhd ? u32(tfhd.d) & 0xffffff : 0;
     if (hf & 1) absolute = true;                 // pieces point at fixed spots in the file, so nothing may move
     let def = trex ? u32(trex.d + 12) : 0;
@@ -2186,12 +2481,169 @@ function fixWebm(b, ms) {                        // WebM: add a Duration to the 
 async function saveRec(r) {                      // hand the finished video to the browser as a download
   if (!rec && !winRec) $("recOut").textContent = "Saving the video…";
   const blob = await fixLength(new Blob(r.chunks, { type: r.type.split(";")[0] }), r.ext, r.ms ?? performance.now() - r.t0);
-  const name = `liquid-lab-gpu-${r.label || ""}${fileStamp()}.${r.ext}`;
+  const name = `sloshlab-${r.label || ""}${fileStamp()}.${r.ext}`;
   download(blob, name);
   if (!rec && !winRec) $("recOut").textContent = "Saved " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB) to your downloads.";
 }
 $("recBtn").onclick = () => rec ? stopRec() : startRec();
-initGPU().then(() => requestAnimationFrame(frame), e => { console.error(e); gpuFail(NO_GPU); });
+// ---- Learn: ready-made scenes, each set up in one click ----
+const LEARN = { pick: null };
+const preset = name => PRESETS.find(p => p.name === name);
+const shape = name => SHAPES.find(s => s[0] === name)[2];
+function freshTank(size, presetName) {           // an empty tank and everything back to normal; the particle size and liquids for the scene
+  if (pic) $("picClear").click();
+  $("abortBtn").click();
+  setRunning(true); setSculpt(false);
+  sliders.grav.set(PHYS.grav); sliders.angle.set(PHYS.angle); sliders.steps.set(PHYS.steps);
+  ctl.size = size; sim.h = size; sliders.size.show();
+  ctl.amount = amountFor(size); sliders.amount.show();
+  sliders.flow.set(0.4);
+  if (presetName) usePreset(preset(presetName));
+}
+function shelf(x0, y0, x1, y1, w = 10) { inkLine(sim.W * x0, sim.H * y0, sim.W * x1, sim.H * y1, w, 1); }
+function spout(x, y, dx, dy, w, speed, liq) { const l = Math.hypot(dx, dy); emitters.push({ x: sim.W * x, y: sim.H * y, dx: dx / l, dy: dy / l, w, speed, liq, acc: 0 }); devDirty = true; }
+function trash(x, y, r) { drains.push({ x: sim.W * x, y: sim.H * y, r }); devDirty = true; }
+const SCENES = [
+  ["Turn over", "The four liquids start upside down, heaviest on top, and swap places. Heavy ones sink through light ones. Press Drag in the tank to stir it up again.", () => {
+    freshTank(10, "Classic"); fill("flip"); pickTool("drag");
+  }],
+  ["Zen garden", "A sand tray seen from above. Grab the rake by its faint handle and drag it around to comb grooves. Q and E turn it. Pick Sculpt on the Tools tab to let the sand fall.", () => {
+    freshTank(ctl.fineSize, "Zen sand"); pickTool("scoop"); placeShape(shape("Rake"));
+  }],
+  ["Fountain", "An emitter shoots water up and the trash in the corners swallows it, so it never fills. Pick the Emitter tool and right-click the spout to remove it, or tap to add more.", () => {
+    freshTank(14, "Water"); sliders.flow.set(0.7); spout(0.5, 0.97, 0, -1, 18, 1, 2); trash(0.04, 0.97, 60); trash(0.96, 0.97, 60); pickTool("drag");
+  }],
+  ["Waterfall", "Liquid runs down drawn shelves into the trash. Pick Wall to draw your own, or use Erase set to Everything to rub a shelf out and watch the water find a new way.", () => {
+    freshTank(9, "Classic"); shelf(0.04, 0.2, 0.62, 0.34); shelf(0.96, 0.46, 0.38, 0.6); shelf(0.04, 0.72, 0.62, 0.86); spout(0.12, 0.04, 0, 1, 16, 0.3, 3); trash(0.93, 0.95, 50); pickTool("wall"); mergeWalls();
+  }],
+  ["Water wheel", "Water pours on the top wheel and pushes it round, then the green-axled motor wheel below throws it about. Pick the Wheel tool to drag them, scroll over one to resize it, or add more.", () => {
+    freshTank(9, "Water"); const S = Math.min(sim.W, sim.H); sliders.flow.set(0.8);
+    spout(0.56, 0.03, 0, 1, 18, 0.3, 2); addWheel(sim.W * 0.46, sim.H * 0.3, { R: S * 0.2, nb: 8, free: true }); addWheel(sim.W * 0.5, sim.H * 0.74, { R: S * 0.16, nb: 4, free: false, speed: 0.6 });
+    trash(0.04, 0.97, 50); trash(0.96, 0.97, 50); pickTool("wheel");
+  }],
+  ["Honey", "Thick liquid drips and slowly piles up instead of splashing. Try Goo and Firmness on the Physics tab to make it runnier or stiffer, and hold Drag to push it around.", () => {
+    freshTank(7, "Honey"); sliders.flow.set(0.9); spout(0.5, 0.04, 0, 1, 26, 0.15, 2); pickTool("drag");
+  }],
+  ["Ladle", "Grab the ladle's bowl, push it under the surface, wait for it to fill, then lift it out. Right-drag, or Q and E, tips it to pour.", () => {
+    freshTank(8, "Water"); fill("flip"); pickTool("scoop"); placeShape(shape("Ladle"));
+  }],
+  ["Stir", "Slime in potion colours that won't mix. Hold in the tank to swirl it, and scroll to change the brush size. Attract and Repel are worth a try too.", () => {
+    freshTank(8, "Slime"); fill("mix"); pickTool("swirl"); sliders.brush.set(120);
+  }],
+  ["Plot", "A chart drawn in liquid, from made-up data: yours can go on the Plot tab. Pick Drag and pull on a line; touched parts come loose. Press M to melt it all.", () => {
+    freshTank(ctl.fineSize, "Classic"); $("sampleBtn").click(); pickTool("drag");
+  }],
+];
+for (const [name, help, run] of SCENES) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = name; b.title = "Clears the tank and sets this up";
+  b.onclick = () => { run(); document.querySelectorAll("#sceneBtns button").forEach(x => x.classList.toggle("on", x === b)); $("sceneMsg").textContent = help; fitScope(); };
+  $("sceneBtns").append(b);
+}
+
+// ---- the guided tour: a card that points at the real controls and has you try each one ----
+const openTab = name => document.querySelector(`.tab[data-tab="${name}"]`).click();
+const toolBtn = id => document.querySelector(`#toolBtns [data-tool="${id}"]`);
+const sliderRow = label => [...document.querySelectorAll(".sl")].find(r => r.firstChild.textContent === label);
+const TOUR = [
+  { tab: "tools", tool: "drag", at: () => tank, title: "Push it around", text: "Press and drag in the tank to push the liquid along with you. Every dot is a drop, worked out live on your graphics card.", done: () => tour.pressed },
+  { tab: "tools", tool: "swirl", at: () => toolBtn("swirl"), title: "Stir it", text: "Swirl, Attract and Repel work the same way: hold in the tank and move. The right button does the opposite, so Swirl goes the other way. Scroll the mouse wheel to change the brush size.", done: () => tour.pressed },
+  { tab: "tools", tool: "pour", at: () => $("pourSw"), title: "Pour more in", text: "Pick a colour here, or the striped circle for the full mix, then hold in the tank. Each liquid has its own weight, so heavy ones sink through light ones. The right button erases.", start: s => { s.n0 = sim.n; }, done: s => sim.n > s.n0 + 20 },
+  { tab: "tools", tool: "erase", at: () => $("eraseSeg"), title: "Soak it up", text: "Hold in the tank to erase liquid. Switch to Everything and it also rubs out walls, emitters, trash and bits of a shape.", done: () => tour.pressed },
+  { tab: "tools", tool: "wall", at: () => tank, title: "Draw walls", text: "Draw a shelf or a funnel in the tank, and the liquid will flow around it.", done: () => !!ink?.any },
+  { tab: "tools", tool: "emitter", at: () => toolBtn("emitter"), title: "Add a spout", text: "Tap high up in the tank to place an emitter that keeps pouring. Drag while placing to aim it, and drag it later to move it. Trash, right beside it, makes liquid disappear.", done: () => emitters.length > 0 },
+  { tab: "tools", tool: "scoop", at: () => $("shapeBtns"), title: "Grab a tool", text: "Pick a shape here, or draw your own in the tank. Grab it and drag it through the liquid: the cursor turns into a hand when you can. Scroll over it to turn it.", done: () => !!scoop },
+  { tab: "tools", tool: "wheel", at: () => $("wheelBar"), title: "Add a paddle wheel", text: "Tap in the tank to add a wheel. On Free spin it only turns when liquid pushes it, and Motor spins by itself. Scroll over a wheel to resize it, and drag it when you see the hand.", done: () => wheels.length > 0 },
+  { tab: "liquids", at: () => $("presetBtns"), title: "Change the liquid", text: "Presets change how all four liquids look and behave, from thin Water to thick Frosting. Zen sand turns the tank into a sand tray for the Rake.", start: s => { s.on = document.querySelector("#presetBtns .on"); }, done: s => { const on = document.querySelector("#presetBtns .on"); return !!on && on !== s.on; } },
+  { tab: "liquids", at: () => sliderRow("Particle size"), title: "Finer or chunkier", text: "Smaller particles make a smoother liquid, and there are more of them. Particle limit, just below, sets the most the tank can hold: up to 300,000." },
+  { tab: "physics", at: () => $("physSliders"), title: "Bend the physics", text: "Tip the tank with Gravity angle, or make things sticky with Goo and Firmness. Double-click any slider to put it back." },
+  { at: () => document.querySelector('.tab[data-tab="plot"]'), title: "Bring your own", text: "Plot turns a CSV into a chart made of liquid. Picture, right beside it, turns a screenshot into walls the liquid bumps into." },
+  { tab: "style", at: () => $("bgBtns"), title: "Set the scene", text: "Pick a background for the tank, or your own colour. It shows up in your pictures and videos too.", },
+  { at: () => $("recBtn").parentElement, title: "Keep what you make", text: "REC TANK films the tank, and REC WINDOW films the whole page. SHOT, just below, saves a picture. Video settings sets the resolution and file size." },
+  { tab: "learn", at: () => $("sceneBtns"), title: "Now try a scene", text: "That's the tour! These buttons each set up something to play with, and you can come back here to take the tour again." },
+];
+const tour = { i: -1, timer: 0, state: null, doneShown: false, pressed: false };
+tank.addEventListener("pointerdown", () => { tour.pressed = true; });   // even a quick tap counts
+const tourCard = $("tourCard"), tourRing = $("tourRing");
+function seenTour() { try { localStorage.setItem("sloshTourSeen", "1"); } catch (e) {} }
+function placeTour(target) {                     // the ring around the control, and the card beside it without covering it
+  const phone = innerWidth < 900;
+  if (target && target.offsetParent !== null) {
+    const r = target.getBoundingClientRect();
+    tourRing.hidden = false;
+    Object.assign(tourRing.style, { left: r.left - 4 + "px", top: r.top - 4 + "px", width: r.width + 8 + "px", height: r.height + 8 + "px" });
+    if (phone) return;
+    const tr = tank.getBoundingClientRect(), w = tourCard.offsetWidth, h = tourCard.offsetHeight;
+    if (target === tank) { tourCard.style.left = tr.left + 14 + "px"; tourCard.style.top = tr.top + 14 + "px"; return; }
+    const left = r.left - w - 18 >= 8 ? r.left - w - 18 : Math.min(innerWidth - w - 8, r.right + 18);
+    tourCard.style.left = left + "px";
+    tourCard.style.top = Math.max(8, Math.min(innerHeight - h - 8, r.top + r.height / 2 - h / 2)) + "px";
+  } else {
+    tourRing.hidden = true;
+    if (phone) return;
+    const tr = tank.getBoundingClientRect();
+    tourCard.style.left = tr.left + Math.max(14, (tr.width - tourCard.offsetWidth) / 2) + "px";
+    tourCard.style.top = tr.top + Math.max(14, (tr.height - tourCard.offsetHeight) / 3) + "px";
+  }
+}
+function showTourStep(i) {
+  tour.i = i;
+  const s = TOUR[i], st = tour.state = {};
+  if (s.tab) openTab(s.tab);
+  if (s.tool) pickTool(s.tool);
+  if (s.start) s.start(st);
+  tour.doneShown = tour.pressed = false;
+  $("tourStep").textContent = (i + 1) + " of " + TOUR.length;
+  $("tourTitle").textContent = s.title;
+  $("tourText").textContent = s.text;
+  $("tourDone").hidden = true;
+  $("tourBack").hidden = i === 0;
+  $("tourSkip").hidden = i === TOUR.length - 1;
+  $("tourNext").textContent = i === TOUR.length - 1 ? "Finish" : "Next";
+  $("tourNext").classList.remove("on");
+  const t = s.at();
+  t?.scrollIntoView?.({ block: "nearest" });
+  placeTour(t);
+}
+function tourTick() {                            // keeps the ring on its control, and notices when you've tried the step
+  if (tour.i < 0) return;
+  const s = TOUR[tour.i];
+  placeTour(s.at());
+  if (s.done && !tour.doneShown && s.done(tour.state)) {
+    tour.doneShown = true;
+    $("tourDone").hidden = false; $("tourNext").classList.add("on");
+    placeTour(s.at());
+  }
+}
+function endTour() {
+  tour.i = -1; clearInterval(tour.timer);
+  tourCard.hidden = tourRing.hidden = true;
+  seenTour();
+}
+function startTour() {                           // starts from a fresh tank, half full of the classic liquids
+  seenTour();
+  freshTank(ctl.size0, "Classic"); ctl.amount = ctl.amount0; sliders.amount.show(); fill("mix");
+  document.querySelectorAll("#sceneBtns button").forEach(x => x.classList.remove("on"));
+  $("tourOffer").hidden = true; $("tourMain").hidden = false;
+  tourCard.hidden = false;
+  clearInterval(tour.timer); tour.timer = setInterval(tourTick, 200);
+  showTourStep(0);
+}
+function offerTour() {                           // the first time here: a welcome that asks, rather than starting by itself
+  let seen = false;
+  try { seen = !!localStorage.getItem("sloshTourSeen"); } catch (e) {}
+  if (seen) return;
+  $("tourOffer").hidden = false; $("tourMain").hidden = true;
+  tourCard.hidden = false;
+  placeTour(null);
+}
+$("tourGo").onclick = startTour;
+$("tourLater").onclick = endTour;
+$("tourStart").onclick = startTour;
+$("tourSkip").onclick = endTour;
+$("tourBack").onclick = () => showTourStep(tour.i - 1);
+$("tourNext").onclick = () => tour.i === TOUR.length - 1 ? endTour() : showTourStep(tour.i + 1);
+initGPU().then(() => { requestAnimationFrame(frame); if (device) offerTour(); }, e => { console.error(e); gpuFail(NO_GPU); });
 </script>
 </body>
 </html>

@@ -130,7 +130,7 @@
   <aside class="side">
     <input type="search" placeholder="Search" aria-label="Search games">
     <details open>
-      <summary>Recent (9)</summary>
+      <summary>Recent (8)</summary>
       <ul class="games">
         <li class="sel" data-page="notes.html"><button><i style="--c:#ffd43b"></i><span>Post</span></button></li>
         <li data-page="draw.html"><button><i style="--c:#9775fa"></i><span>Draw</span></button></li>
@@ -138,8 +138,8 @@
         <li data-page="mouse.html"><button><i style="--c:#e0a030"></i><span>mouse</span></button></li>
         <li data-page="plot.html"><button><i style="--c:#7b61ff"></i><span>Filter</span></button></li>
         <li data-page="sand.html"><button><i style="--c:#ff5a5a"></i><span>Falling Pixels</span></button></li>
-        <li data-page="liquid.html"><button><i style="--c:#3ddc97"></i><span>Liquid Lab</span></button></li>
-        <li data-page="liquid-gpu.html"><button><i style="--c:#3a86ff"></i><span>Liquid Lab GPU</span></button></li>
+        <!-- <li data-page="liquid.html"><button><i style="--c:#3ddc97"></i><span>Liquid Lab</span></button></li> -->
+        <li data-page="liquid-gpu.html"><button><i style="--c:#3a86ff"></i><span>SloshLab</span></button></li>
         <li class="dim" data-page="earlysuppers.html"><button><i style="--c:#d6336c"></i><span>Early Suppers</span></button></li>
         <li class="dim" data-page="slothy.html"><button><i style="--c:#4dabf7"></i><span>Slothy and Friends</span></button></li>
       </ul>
@@ -210,6 +210,18 @@ function randomStats() {
   // ---- UPDATE LOG: add a new post at the TOP of a game's list whenever you change it ----
   const UPDATES = {
     "liquid-gpu.html": [
+      { date: "November 2, 2026", title: "Liquid Lab GPU is now SloshLab", notes: [
+        "It opens with about 10,000 bigger drops, drawn a little smaller, so the liquid looks calmer. For a finer liquid, lower Particle size on the Liquids tab. A new Calm setting on the Physics tab stills the fizz when particles are tiny.",
+        "The right mouse button now does the opposite of the left: Pour erases and Erase pours, Attract and Repel swap, and Swirl stirs the other way.",
+        "Videos can record sound: choose Record sound in Video settings. To catch music or anything else playing on your computer, share your entire screen with system audio in the box the browser shows. REC TANK still films only the tank.",
+        "Emitters can be moved after you place them: drag one when you see the hand, and scroll over it to turn it.",
+        "Pour and Emitter have a new Mix choice, the striped circle after the four colours, which pours all the liquids together.",
+        "New Wheel tool: add up to 8 paddle wheels. On Free spin the liquid pushes them round, and Motor spins them at the speed you set. Drag to move, scroll over one to resize it, and pick its blades and colour.",
+        "The cursor turns into a hand over anything you can pick up, and scrolling over a shape turns it. Shapes and walls can have any colour you like.",
+        "A new name, and it opens in the LabVIEW look. You can switch to the dark one on the new Style tab.",
+        "New Style tab: pick the tank's background, like Graph paper, Blueprint, Night sky or Sunset, or your own colour. It shows up in your pictures and videos too.",
+        "New Learn tab: one-click scenes to play with, like a Fountain, a Waterfall, Honey and a Zen garden.",
+        "New guided tour, offered the first time you visit and on the Learn tab any time. It points at each control and has you try it." ] },
       { date: "November 2, 2026", title: "Smaller videos, your way", notes: [
         "New Video settings under the REC buttons: pick the Resolution, the Quality, the frame rate, and a Stop after time that ends and saves the video by itself. The line above them shows roughly how big the file will be, and while you record you see the real size so far.",
         "Frames/s has a Monitor choice that matches your screen's refresh rate, as far as your computer can keep up. It skips frames it can't save in time, and higher rates make bigger files.",
