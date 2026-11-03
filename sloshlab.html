@@ -316,6 +316,7 @@
             <label><span class="lbl">Frames/s</span><select id="recFps" title="Higher is smoother and makes bigger files. Monitor matches your screen's refresh rate, as far as the computer can keep up: it skips frames it can't save in time"><option value="30">30</option><option value="60">60</option><option value="-1" id="recHz">Monitor</option></select></label>
             <label><span class="lbl">Stop after</span><select id="recMax" title="Stops and saves the video by itself"><option value="0">No limit</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
             <label><span class="lbl">Sound</span><select id="recSnd" title="Records the sound from whatever you share in the browser's box"><option value="0">No sound</option><option value="1">Record sound</option></select></label>
+            <label><span class="lbl">Format</span><select id="recFmt" title="MP4 opens in most video players on your computer. WebM is for sharing online: try it if a chat site shows your video as a plain file with no preview"><option value="0">MP4</option><option value="1">WebM (for sharing)</option></select></label>
           </div>
           <p class="hint" id="recSndHint" hidden>The browser's box asks what to share, and only that sound is recorded. For music or anything else playing on your computer, pick <b>Entire screen</b> and turn on <b>Also share system audio</b>. SloshLab itself makes no sound, so sharing just its tab is silent, and a window has no sound option at all. REC TANK still films only the tank.</p>
         </details>
@@ -2234,7 +2235,11 @@ let rec = null;                                  // { mr, cvs, ctx, chunks, t0, 
 // VP9 first: on swirling particles H.264 ignores the size it is asked for (measured: about 11 Mbps whether asked for 2 or 8), and VP9 keeps close to it.
 // AAC first: browsers play Opus inside an MP4, but many video players show the picture in silence
 const SOUND_TYPES = ["video/mp4;codecs=vp9,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=vp9,opus", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"];
-const recType = (sound = false) => (sound ? SOUND_TYPES.find(t => window.MediaRecorder?.isTypeSupported?.(t)) : null) || ["video/mp4;codecs=vp9", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder?.isTypeSupported?.(t));
+// webm: the Format setting's sharing choice, because chat sites can show a preview of WebM but not of this kind of MP4. Falls back to whatever the browser can make.
+const recType = (sound = false, webm = false) => {
+  const ok = t => window.MediaRecorder?.isTypeSupported?.(t) && (!webm || t.includes("webm"));
+  return (sound ? SOUND_TYPES.find(ok) : null) || ["video/mp4;codecs=vp9", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(ok) || (webm ? recType(sound) : undefined);
+};
 if (!recType() || !HTMLCanvasElement.prototype.captureStream) {
   $("recBtn").disabled = true; $("recBtn").title = "This browser can't record video from the page";
   $("recOut").textContent = "Recording isn't available in this browser.";
@@ -2266,9 +2271,9 @@ function download(blob, name) {                  // hand a finished file to the 
 // Quality asks for a number of megabits a second, but on swirling particles the encoder only goes so low: measured, about 0.19 Mbit per
 // million pixels saved, and it saves about 100 million pixels a second at most (150 frames a second on small videos), skipping frames beyond that.
 const SOUND_ASK = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false };   // the sound as it plays, unprocessed
-const recSet = { res: 0, bits: 8, fps: 30, max: 0, snd: 0 };
+const recSet = { res: 0, bits: 8, fps: 30, max: 0, snd: 0, fmt: 0 };
 try { Object.assign(recSet, JSON.parse(localStorage.getItem("liquidRecSet") || "{}")); } catch (e) {}   // remembered from last time, for this browser only
-const recSelects = { res: $("recRes"), bits: $("recBits"), fps: $("recFps"), max: $("recMax"), snd: $("recSnd") };
+const recSelects = { res: $("recRes"), bits: $("recBits"), fps: $("recFps"), max: $("recMax"), snd: $("recSnd"), fmt: $("recFmt") };
 const recFps = () => recSet.fps < 0 ? hz || 60 : recSet.fps;   // Monitor: whatever the screen refreshes at
 function recMBmin(w, h) {                        // roughly how many MB a minute of video this many pixels makes
   const p = recSet.res, sc = Math.min(1, p ? p / h : 1, p ? p * 16 / 9 / w : 1), mp = w * h * sc * sc / 1e6;
@@ -2278,7 +2283,7 @@ function showRecSet() {                          // the line you see with the se
   const dpr = devicePixelRatio || 1, tsc = Math.min(dpr, 2, 1920 / Math.max(sim.W, sim.H)), each = recSet.max ? recSet.max / 60 : 1;
   const mb = (w, h) => Math.round(recMBmin(w, h) * each);
   const text = "Video: " + (recSet.res ? recSet.res + "p" : "full size") + ", " + recSelects.bits.selectedOptions[0].text.toLowerCase() + " quality, " + recFps() + " frames/s. About "
-    + mb(sim.W * tsc, sim.H * tsc) + " MB (tank) or " + mb(innerWidth * dpr, innerHeight * dpr) + " MB (tab) " + (recSet.max ? "per video" : "a minute") + (recSet.snd ? ", with sound" : "");
+    + mb(sim.W * tsc, sim.H * tsc) + " MB (tank) or " + mb(innerWidth * dpr, innerHeight * dpr) + " MB (tab) " + (recSet.max ? "per video" : "a minute") + (recSet.snd ? ", with sound" : "") + (recSet.fmt ? ", WebM" : "");
   if ($("recSum").textContent !== text) $("recSum").textContent = text;
 }
 for (const k in recSelects) {
@@ -2320,7 +2325,7 @@ async function startWinRec() {
   try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: recFps(), ...(recSet.res ? { width: { max: Math.round(recSet.res * 16 / 9) }, height: { max: recSet.res } } : {}) }, audio: recSet.snd ? SOUND_ASK : false, systemAudio: "include", selfBrowserSurface: "include" }); }
   catch (e) { winAsking = false; $("recOut").textContent = e.name === "NotAllowedError" ? "Window recording cancelled." : "The browser wouldn't share the window."; return; }
   winAsking = false;
-  const heard = stream.getAudioTracks().length > 0, type = recType(heard), got = stream.getVideoTracks()[0].getSettings();
+  const heard = stream.getAudioTracks().length > 0, type = recType(heard, recSet.fmt), got = stream.getVideoTracks()[0].getSettings();
   const r = { stream, chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm", label: "window-", limit: recSet.max * 1000, size: (got.width ? got.width + " × " + got.height + (got.frameRate ? " at up to " + Math.round(got.frameRate) + " frames/s" : "") : "") + (recSet.snd ? (got.width ? ", " : "") + (heard ? "with sound" : "no sound was shared") : "") };
   try { r.mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: recSet.bits * 1e6, audioBitsPerSecond: 128e3 }); }
   catch (e) { stream.getTracks().forEach(t => t.stop()); $("recOut").textContent = "The browser wouldn't start recording."; return; }
@@ -2354,7 +2359,7 @@ async function startRec() {
     sound = share.getAudioTracks()[0] || null;
     if (!sound) { share.getTracks().forEach(t => t.stop()); share = null; }   // nothing to hear: record the tank anyway, and say so
   }
-  const type = recType(!!sound), p = recSet.res, cvs = document.createElement("canvas");
+  const type = recType(!!sound, recSet.fmt), p = recSet.res, cvs = document.createElement("canvas");
   const sc = Math.min(devicePixelRatio || 1, 2, 1920 / Math.max(sim.W, sim.H), p ? p / sim.H : 2, p ? p * 16 / 9 / sim.W : 2);
   cvs.width = Math.round(sim.W * sc / 2) * 2; cvs.height = Math.round(sim.H * sc / 2) * 2;   // even sizes keep video encoders happy
   const r = rec = { cvs, ctx: cvs.getContext("2d"), chunks: [], t0: performance.now(), type, ext: type.includes("mp4") ? "mp4" : "webm",
