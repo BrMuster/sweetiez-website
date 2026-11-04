@@ -45,7 +45,7 @@
   .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
   .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  #printHead, #printImg, #printLegend, #printFields, #printStamp { display: none; }
+  #printHead, #printImg, #printLegend, #printFields, #printStamp, #printTables, #printData { display: none; }
   #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
   .rptbg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000a; }
   .rptdlg { width: 24rem; max-width: 92vw; display: grid; gap: .6rem; padding: 1rem 1.2rem; background: #16202d; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
@@ -81,10 +81,32 @@
     #printLegend { display: flex; flex-wrap: wrap; gap: .2rem 1.2rem; color: #000; }
     #printLegend span { display: inline-flex; align-items: center; gap: .4rem; }
     .screenonly { display: none !important; }
+    /* report tables: the curve table on Multi reports and the spec table. With tables on the report nothing is ever cut off: anything extra runs onto another page */
+    html.rpttables, html.rpttables body { overflow: visible; } html.rpttables #app { max-height: none; overflow: visible; }
+    #printTables, #printData { display: block; grid-column: 1; color: #000; text-shadow: none; }
+    :is(#printTables, #printData) table { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.2; margin-bottom: 1.5mm; }
+    :is(#printTables, #printData) :is(th, td) { padding: .35mm 1mm; border: 1px solid #999; text-align: left; color: #000; background: #fff; overflow-wrap: anywhere; white-space: normal; font-size: 10px; }
+    :is(#printTables, #printData) thead th { background: #eee; font-weight: 600; letter-spacing: 0; text-transform: none; } :is(#printTables, #printData) thead tr.ttl th { background: #fff; border: 0; padding: 0 0 .6mm; font-size: 11px; font-weight: 700; }
+    :is(#printTables, #printData) thead { display: table-header-group; } :is(#printTables, #printData) tfoot { display: table-footer-group; } :is(#printTables, #printData) tr { break-inside: avoid; }
+    #printTables tr.gap th, #printTables tr.gap td { height: 8mm; padding: 0; border: 0; background: none; }   /* keeps the table off the paper's edge on its own pages (the page has no margin of its own) */
+    :is(#printTables, #printData) .psw { display: inline-block; width: 2.6mm; height: 2.6mm; margin-right: 1mm; vertical-align: -.2mm; }
+    :is(#printTables, #printData) td.pass { color: #0a6b0a; font-weight: 700; } :is(#printTables, #printData) td.fail { color: #b00000; font-weight: 700; }
+    #printTables table.newpage { break-before: page; } #printTables table.newpage ~ table.newpage { break-before: auto; }
+    #app[data-long] #printTables { grid-column: 1 / -1; } #app[data-long] #sideCol { grid-row: 2 / span 2; }
+    #app[data-rpt=wide] { grid-template-columns: minmax(0, 1fr); }             /* Multi and Custom: Filter I.D. as a strip across the top */
+    #app[data-rpt=wide][data-side] { grid-template-columns: minmax(0, 1fr) var(--rw); }   /* Multi: the graph narrows to leave room for the Filter Data beside it */
+    #app[data-rpt=wide] #printHead { order: -2; }
+    #app[data-rpt=wide] #sideCol { order: -1; grid-column: 1 / -1; grid-row: auto; height: auto; }
+    #app[data-rpt=wide] :is(#printTables, #printLegend) { grid-column: 1 / -1; }
+    #printData { grid-column: 2; } #app:not([data-side]) #printData { display: none; } #printData table { table-layout: fixed; }   /* fixed: long names and values wrap inside the column instead of running off the paper */
+    #app[data-rpt=wide] #printFields .pbox { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+    #app[data-rpt=wide] #printFields h4 { grid-column: 1 / -1; font-size: 12px; padding: .8mm 0; }
+    #app[data-rpt=wide] #printFields .pfr { padding: .7mm 2mm; border-top: 1px solid #ddd; } #app[data-rpt=wide] #printFields .v { font-size: 11px; }
   }
   .plotrow { display: grid; grid-template-columns: 1fr 15rem; gap: .8rem; align-items: start; }   /* graph on the left, tips down the right */
   .livedata { display: grid; gap: .3rem; margin-bottom: .9rem; font-size: .85rem; }   /* the scan's report numbers, beside the graph */
   .livedata .ldhead { display: grid; gap: .3rem; } .livedata .ldhead b { font-weight: 600; color: var(--strong); } .livedata select { width: 100%; max-width: 100%; padding: .25rem .4rem; font-size: .82rem; }
+  #ldBody { overflow-y: auto; } .ldcurve { display: flex; gap: .4rem; align-items: baseline; margin-top: .7rem; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; } .ldcurve:first-child { margin-top: .2rem; } .ldcurve .sw { flex: none; } .ldcurve small { display: block; font-weight: 400; color: var(--muted); }   /* one heading per curve */
   #ldBody .pfr { border-top: 1px solid var(--line); padding: .3rem 0; } #ldBody .pfr:first-child { border-top: 0; }
   #ldBody .l { display: block; color: var(--muted); font-size: .78rem; } #ldBody .v { display: block; color: var(--strong); padding-left: .5rem; font-variant-numeric: tabular-nums; }
   #ldBody .sub { display: flex; justify-content: space-between; gap: .5rem; } #ldBody .sub .v { padding-left: 0; white-space: nowrap; }
@@ -107,6 +129,9 @@
   @media print { #fxc { display: none !important; } }
   .plotwrap { display: grid; grid-template-columns: 6.2rem 1fr; gap: .4rem .5rem; }
   .plotwrap input { width: 100%; min-width: 0; }
+  .readout { grid-column: 2; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem 1.1rem; min-height: 1.9rem; padding: .2rem .55rem; font-size: .9rem; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-variant-numeric: tabular-nums; }   /* the hover values, outside the graph */
+  .readout .ro { display: inline-flex; align-items: center; gap: .35rem; } .readout .rohint { color: var(--muted); }
+  .readout .flagst { margin-left: auto; color: var(--muted); font-size: .8rem; white-space: nowrap; }
   .ylim { display: flex; flex-direction: column; justify-content: space-between; }
   .xlim { grid-column: 2; display: flex; justify-content: space-between; }
   .xlim input { width: 6rem; } .xlim .lim { display: flex; align-items: center; gap: .4rem; }   /* label beside the box, so this row is one line tall */
@@ -346,6 +371,7 @@
     :root[data-theme=retro] select, :root[data-theme=retro] input[type=text], :root[data-theme=retro] #notes, :root[data-theme=retro] .anpop textarea { color: #33ff33; background: #000; border: 1px solid #1f7a1f; border-radius: 0; }
     :root[data-theme=retro] select:focus, :root[data-theme=retro] input[type=text]:focus, :root[data-theme=retro] #notes:focus { outline: none; border-color: #33ff33; box-shadow: 0 0 6px #33ff33; }
     :root[data-theme=retro] input[type=checkbox] { accent-color: #33ff33; }
+    :root[data-theme=retro] .readout { background: #000; border-radius: 0; } :root[data-theme=retro] .readout canvas { display: block; background: #050806; border: 1px solid #1f7a1f; }   /* the hover values as a green seven-segment display, like SloshLab's counter */
     :root[data-theme=retro] .card { border: 1px solid #1f7a1f; border-radius: 0; box-shadow: 0 0 8px #33ff3322; }
     :root[data-theme=retro] .modcard { border-color: #1f7a1f; border-radius: 0; }
     :root[data-theme=retro] .drop { border-radius: 0; }
@@ -361,12 +387,14 @@
 </head>
 <body>
 <main>
-  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">&#9881; Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
+  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">&#9881; Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset><fieldset><legend>Graph hover</legend><label><input type="checkbox" id="hoverFlag"> Show the data flag on the graph (press F)</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
 
   <section id="app" class="card">
     <div id="printHead" class="keep"><p id="printStamp"></p><img id="printLogo" alt="Andover Corporation" src="data:image/png;base64,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"></div>
     <img id="printImg" class="keep" alt="Graph of your data">
+    <div id="printData" class="keep"></div>
     <div id="printLegend" class="keep"></div>
+    <div id="printTables" class="keep"></div>
     <div class="plotrow">
     <div class="plotwrap" id="plotwrap">
       <div class="ylim" id="ylim">
@@ -378,10 +406,12 @@
         <label class="lim">X min <input type="text" id="xmin" class="unit" placeholder="auto"></label>
         <label class="lim">X max <input type="text" id="xmax" class="unit" placeholder="auto"></label>
       </div>
+      <div class="readout" id="readout" aria-live="off"></div>
     </div>
     <div class="tipcol">
       <div class="livedata" id="liveData" hidden>
         <div class="ldhead"><b>Filter data</b>
+          <select id="ldCurve" aria-label="Which scan's data to show" hidden></select>
           <select id="rptType" aria-label="What kind of filter this scan is (used for the data here and on the printed report)"></select></div>
         <div id="ldBody"></div>
       </div>
@@ -411,7 +441,7 @@
         <div class="modcard">
           <div class="controls">
             <b>Shift data</b>
-            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the curve by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span>
+            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the scan by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span>
             <label class="txt">Range <input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"></label>
             <label class="txt">to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</label>
             <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
@@ -448,7 +478,7 @@
       </div>
       <p id="msg" class="hint" role="status"></p>
       <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
-      <div class="bar"><button type="button" id="serAll" title="Draw every curve">Check all</button><button type="button" id="serNone" title="Hide every curve">Uncheck all</button></div>
+      <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
       <div class="series" id="series"></div>
       <div class="finder">
         <div class="bar"><b>Find scans in a folder</b>
@@ -475,7 +505,7 @@
     <div class="panel" data-tab="library" hidden>
       <div class="controls">
         <b>Substrates</b>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Pick a material and a thickness, then Add to graph. The curve is calculated from published optical constants (the reflection loss plus the material's own absorption), so it shows where each material starts to block. A real piece of glass will differ in the details. Each one is added as an overlay, so you can compare several or lay one over your scan. To take one off again, right-click its curve on the graph and choose Remove. Each curve covers the full range of the material, starting at 160 nm for quartz.">?</span>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Pick a material and a thickness, then Add to graph. It is calculated from published optical constants (the reflection loss plus the material's own absorption), so it shows where each material starts to block. A real piece of glass will differ in the details. Each one is added as an overlay, so you can compare several or lay one over your scan. To take one off again, right-click it on the graph and choose Remove. Each one covers the full range of the material, starting at 160 nm for quartz.">?</span>
         <select id="libMat" aria-label="Material"></select>
         <span class="help" id="libInfo" tabindex="0" role="note" aria-label="About this material" data-tip="">i</span>
         <label class="txt">Thickness <input type="text" id="libD" class="unit" value="1" aria-label="Thickness in millimetres"> mm</label>
@@ -536,7 +566,7 @@
     <div class="panel" data-tab="annotate" hidden>
       <div class="controls">
         <b>Annotations</b>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a curve and choose Add a note here, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Drag the dot on the curve to slide the note along it, and its X and Y values update. Drag the corner of a note to make it wider or narrower and the text wraps; double-click the corner to go back to automatic width. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report.">?</span>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a scan and choose Add a note here, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Drag the dot on the scan to slide the note along it, and its X and Y values update. Drag the corner of a note to make it wider or narrower and the text wraps; double-click the corner to go back to automatic width. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report.">?</span>
         <label><input type="checkbox" id="anShow" checked> Show on the graph</label>
         <label><input type="checkbox" id="anReport" checked> Include on the printed report</label>
         <button type="button" id="anClear" disabled>Clear all</button>
@@ -618,12 +648,13 @@
           <span><b>Click a range band</b> zoom to it</span></div>
         <div><h4>Lines and notes</h4>
           <span><b>Ctrl + drag</b> draw a line or spec</span>
-          <span><b>Right-click</b> a curve: add a note or remove it</span>
-          <span><b>Drag a note's dot</b> slide it along the curve</span>
+          <span><b>Right-click</b> a scan: add a note or remove it</span>
+          <span><b>Drag a note's dot</b> slide it along the scan</span>
           <span><b>Drag a note's corner</b> resize and wrap it</span></div>
         <div><h4>View</h4>
           <span><b>Right-drag</b> zoom box (X and Y)</span>
           <span><b>Double-click</b> reset view</span>
+          <span><b>F</b> turn the data flag on the graph on or off</span>
           <span><b>Scroll</b> in a number box to nudge it</span></div>
       </div>
     </div>
@@ -632,12 +663,12 @@
       <div class="bar"><b>Just for fun</b> <span class="hint">These play with the scan on the graph. Nothing is saved: Restore, or leaving this tab, puts the real numbers back.</span></div>
       <div class="bar"><b>Noise</b>
         <label class="txt">Amount <input type="range" id="fxAmt" min="1" max="30" value="4" aria-label="How noisy"> <span id="fxAmtV">4</span> %</label>
-        <button type="button" id="fxNoise" title="Make the curve noisy">Make noise</button>
-        <button type="button" id="fxVib" title="Keep the curve shaking, like it is vibrating">▶ Vibrate</button></div>
+        <button type="button" id="fxNoise" title="Make the scan noisy">Make noise</button>
+        <button type="button" id="fxVib" title="Keep the scan shaking, like it is vibrating">▶ Vibrate</button></div>
       <div class="bar"><b>Bend</b>
-        <button type="button" id="fxBend" title="Turn on, then grab the curve and pull it">Bend the curve: off</button>
-        <label class="txt">Width <select id="fxBW" aria-label="How much of the curve moves along with the spot you grab"><option value=".03">Narrow</option><option value=".08" selected>Medium</option><option value=".2">Wide</option></select></label>
-        <span class="hint">Turn it on, then drag the curve up or down.</span></div>
+        <button type="button" id="fxBend" title="Turn on, then grab the scan and pull it">Bend the scan: off</button>
+        <label class="txt">Width <select id="fxBW" aria-label="How much of the scan moves along with the spot you grab"><option value=".03">Narrow</option><option value=".08" selected>Medium</option><option value=".2">Wide</option></select></label>
+        <span class="hint">Turn it on, then drag the scan up or down.</span></div>
       <div class="bar"><b>Show</b>
         <button type="button" id="fxCards" title="The scan's points tumble off like the old Solitaire win screen">▶ Falling cards</button>
         <button type="button" id="fxEq" title="Turn the scan into bouncing equalizer bars">▶ Equalizer</button>
@@ -666,6 +697,12 @@
   <div class="rptbg" id="rptDlg" hidden>
     <div class="rptdlg" role="dialog" aria-label="Report details">
       <h3>Report details</h3>
+      <label>Report style <select id="rptStyle" aria-label="Report style">
+        <option value="auto">Auto</option>
+        <optgroup label="Single scan"><option value="band">Bandpass</option><option value="lwp">Long-wave pass</option><option value="swp">Short-wave pass</option><option value="ar">Anti-reflection</option><option value="notch">Notch</option></optgroup>
+        <optgroup label="Multi-scan"><option value="m-band">Multi Bandpass</option><option value="m-lwp">Multi Long-wave pass</option><option value="m-swp">Multi Short-wave pass</option><option value="m-ar">Multi Anti-reflection</option><option value="m-notch">Multi Notch</option></optgroup>
+        <option value="custom">Custom (graph and specs)</option>
+      </select></label>
       <div style="display:grid;gap:.15rem"><label>Title <input type="text" id="rptTitle" maxlength="80"></label><span class="hint" style="font-size:.8rem;margin-left:9rem">(leave blank if n/a)</span></div>
       <div id="rptFields" style="display:grid;gap:.5rem"></div>
       <label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" id="rptStamp"> Show the date and time printed, at the top right</label>
@@ -863,7 +900,10 @@ const COLORS = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6"
 const RC = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6"];   // one colour per range slot
 let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, ySaved = null, zoomed = false, clean = false;   // zoomed / clean: drive the faint "double-click to reset" hint
 let ranges = Array(6).fill(null), shown = Array(6).fill(true), cur = 0, hov = null, drag = false, light = false;   // shown[k]: range k is drawn on the graph
-let notes = [], nid = 0, noteBoxes = [];                  // annotations: { id, ax, ay (the point, in data units), ox, oy (label offset in pixels), text, xy }   // light = black-on-white drawing for printing
+const LED_SEGS = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg", "-": "g", " ": "" };
+let ldPick = null;                               // which curve the Filter data panel shows (its checkbox); null = all of them
+let showFlag = false, roKey = null, roN = null; try { showFlag = localStorage.getItem("plotHoverFlag") === "1"; } catch (e) {}   // the hover flag on the graph is off until it's asked for; the readout below the graph always works
+let notes = [], nid = 0, noteBoxes = [];                // annotations: { id, ax, ay (the point, in data units), ox, oy (label offset in pixels), text, xy }   // light = black-on-white drawing for printing
 
 // ---------- 1. READ THE FILE ----------
 function parseCSV(text) {                       // handles quotes like "a, b" and picks the delimiter
@@ -986,7 +1026,7 @@ function rebuild(first, newDs) {                // redo the series list for ever
       const key = ds.id + ":" + i, auto = COLORS[k++ % COLORS.length], color = c.col || auto, isFirst = !got; got = true;   // a curve you coloured keeps its place in the automatic sequence, so the others do not shift
       const on = first ? k === 1 : prev.has(key) || (ds === newDs && isFirst);
       const l = document.createElement("label");
-      l.innerHTML = '<input type="checkbox"><input type="color" class="swc" title="Curve color">';
+      l.innerHTML = '<input type="checkbox"><input type="color" class="swc" title="Scan color">';
       l.firstChild.value = key; l.firstChild.checked = on; l.dataset.color = color; l._s = { c, ds };
       const cp = l.querySelector(".swc"); cp.value = color; cp.setAttribute("aria-label", "Color for " + c.name);
       cp.oninput = () => { c.col = cp.value; l.dataset.color = cp.value; draw(); };                // pick any color for this curve
@@ -1150,7 +1190,7 @@ function checkSpec(sp, s) {                      // measure one series against o
 function specTable(S) {
   const t = $("specTbl"); t.innerHTML = "";
   const ok = specs.filter(sp => specOK(sp) && specShown(sp)); $("specTblBox").hidden = !ok.length || !S.length; if ($("specTblBox").hidden) return;
-  t.createCaption().textContent = "Spec check";
+  t.createCaption().textContent = "Specifications";
   const addRow = (cells, tag) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); return tr; };
   addRow(["Spec", "Range", "Series", "Measured", "At", "Margin", "Result"], "th");
   ok.forEach(sp => S.forEach((s, si) => {
@@ -1413,7 +1453,7 @@ function render() {
       ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X0, Y); ctx.lineTo(X1, Y); ctx.moveTo(X0, Y - 7); ctx.lineTo(X0, Y + 7); ctx.moveTo(X1, Y - 7); ctx.lineTo(X1, Y + 7); ctx.stroke();
       ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Xc, T); ctx.lineTo(Xc, T + ph); ctx.stroke(); ctx.setLineDash([]);
       const tag = (txt, x, y) => { const w = ctx.measureText(txt).width; ctx.fillStyle = P.bg; ctx.fillRect(x - w / 2 - 4, y - 18, w + 8, 22); ctx.fillStyle = s.color; ctx.fillText(txt, x, y); };   // a background patch, so the center line doesn't run through the words
-      tag((ft === "notch" ? "Width " : "B/W ") + fmt(b.bw) + " nm", Xc, Y - 10); tag("CWL " + fmt(b.cwl) + " nm", Xc, T + ph - 6);
+      tag((ft === "notch" ? "Width " : "B/W ") + fmt(b.bw) + " nm", Xc, Y - 10); tag("C W/L " + fmt(b.cwl) + " nm", Xc, T + ph - 6);
     }
   }
   if (zbox) {                                                          // the right-drag zoom box
@@ -1427,6 +1467,7 @@ function render() {
   const boxes = wantNotes ? drawNotes(P, W, H, px, py) : [];
   if (!light && !clean) noteBoxes = boxes;
 
+  let roLines = [];
   if (hov !== null && !drag && S.length) {                            // hover readout: each series snaps to its own nearest row
     const bis = S.map(s => { let bi = -1, bd = Infinity;
       for (let i = 0; i < s.n; i++) { const d = Math.abs(s.X[i] - hov); if (d < bd) { bd = d; bi = i; } }
@@ -1434,22 +1475,78 @@ function render() {
     const x0 = bis[0] >= 0 ? S[0].X[bis[0]] : NaN, hx = px(x0);
     if (hx >= L && hx <= L + pw) {
       ctx.strokeStyle = (P.ink || "#ffffff") + "55"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, T + ph); ctx.stroke();
-      const lines = [{ t: xs(x0), c: "#fff" }];
+      const lines = [{ t: xs(x0), c: "#fff", val: xs(x0) }];
       S.forEach((s, j) => {
         const bi = bis[j]; if (bi < 0) return;
         const v = s.c.v[bi], y = ty(v), sx = s.X[bi];
         if (!isFinite(v)) return;
-        lines.push({ t: s.name + ": " + ys(v) + (sx !== x0 ? "   at " + xs(sx) : ""), c: s.color });
+        lines.push({ t: s.name + ": " + ys(v) + (sx !== x0 ? "   at " + xs(sx) : ""), c: s.color, name: s.name, val: ys(v), at: sx !== x0 ? xs(sx) : "" });
         if (isFinite(y)) { ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(px(sx), py(y), 4, 0, 7); ctx.fill(); }
       });
-      ctx.font = "14px system-ui";
-      const w = Math.max(...lines.map(l => ctx.measureText(l.t).width)) + 24, h = lines.length * 22 + 12;
-      let bx = hx + 12, by = T + 6; if (bx + w > W - 4) bx = hx - 12 - w;
-      ctx.fillStyle = "#16202df2"; ctx.fillRect(bx, by, w, h); ctx.strokeStyle = "#2a3a4d"; ctx.strokeRect(bx, by, w, h);
-      ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      lines.forEach((l, i) => { ctx.fillStyle = l.c; ctx.fillText(l.t, bx + 12, by + 17 + i * 22); });
+      roLines = lines;
+      if (showFlag) {                                                  // the flag itself, only when turned on (Settings, or the F key)
+        ctx.font = "14px system-ui";
+        const w = Math.max(...lines.map(l => ctx.measureText(l.t).width)) + 24, h = lines.length * 22 + 12;
+        let bx = hx + 12, by = T + 6; if (bx + w > W - 4) bx = hx - 12 - w;
+        ctx.fillStyle = "#16202df2"; ctx.fillRect(bx, by, w, h); ctx.strokeStyle = "#2a3a4d"; ctx.strokeRect(bx, by, w, h);
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        lines.forEach((l, i) => { ctx.fillStyle = l.c; ctx.fillText(l.t, bx + 12, by + 17 + i * 22); });
+      }
     }
   }
+  if (!light && !clean) setReadout(roLines);
+}
+function ledCanvas(text, minDigits) {            // a number as a green seven-segment display; unused digits show as dim 8s (the same look as SloshLab's counter)
+  const cells = [];
+  for (const ch of text) { if (ch === "." && cells.length) cells[cells.length - 1].dot = true; else cells.push({ ch }); }
+  while (cells.length < minDigits) cells.unshift({ ch: " " });
+  const pad = 4, H = 28, h = H - pad * 2, w = 11, gap = 6, t = w * 0.2, g = t * 0.12, cell = w + gap, W = pad * 2 + cells.length * cell + 2;
+  const c = document.createElement("canvas"), dpr = devicePixelRatio || 1, x = c.getContext("2d");
+  c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px"; c.setAttribute("role", "img"); c.setAttribute("aria-label", text);
+  x.scale(dpr, dpr); x.transform(1, 0, -0.08, 1, H * 0.04, 0);   // a slight italic lean
+  const hseg = (x1, x2, y) => { x.moveTo(x1, y); x.lineTo(x1 + t / 2, y - t / 2); x.lineTo(x2 - t / 2, y - t / 2); x.lineTo(x2, y); x.lineTo(x2 - t / 2, y + t / 2); x.lineTo(x1 + t / 2, y + t / 2); x.closePath(); };
+  const vseg = (xx, y1, y2) => { x.moveTo(xx, y1); x.lineTo(xx + t / 2, y1 + t / 2); x.lineTo(xx + t / 2, y2 - t / 2); x.lineTo(xx, y2); x.lineTo(xx - t / 2, y2 - t / 2); x.lineTo(xx - t / 2, y1 + t / 2); x.closePath(); };
+  for (const lit of [false, true]) {             // the dim ghost segments first, then the lit ones with a glow
+    x.beginPath();
+    cells.forEach((cl, i) => {
+      const on = lit ? LED_SEGS[cl.ch] : "abcdefg", x0 = pad + i * cell, L = x0 + t / 2, R = x0 + w - t / 2, T = pad + t / 2, M = pad + h / 2, B = pad + h - t / 2;
+      if (on.includes("a")) hseg(L + g, R - g, T);
+      if (on.includes("g")) hseg(L + g, R - g, M);
+      if (on.includes("d")) hseg(L + g, R - g, B);
+      if (on.includes("f")) vseg(L, T + g, M - g);
+      if (on.includes("b")) vseg(R, T + g, M - g);
+      if (on.includes("e")) vseg(L, M + g, B - g);
+      if (on.includes("c")) vseg(R, M + g, B - g);
+      if (!lit || cl.dot) { x.moveTo(x0 + w + 4.5, B); x.arc(x0 + w + 2.8, B, 1.7, 0, 7); }
+    });
+    x.save();
+    if (lit) { x.shadowColor = "#39ff6a"; x.shadowBlur = 6; }
+    x.fillStyle = lit ? "#39ff6a" : "#0f2416"; x.fill();
+    x.restore();
+  }
+  return c;
+}
+function setReadout(lines) {                     // the same values as the flag, in the bar below the graph (never printed)
+  const retro = theme() === "retro";
+  const key = JSON.stringify([lines, showFlag, retro]); if (key === roKey) return; roKey = key;
+  const ro = $("readout"), mk = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
+  const shape = lines.length + (retro ? "r" : "");
+  if (lines.length && shape !== roN) { roN = shape; ro.style.minHeight = ""; }   // a different number of scans or look: measure again
+  ro.replaceChildren();
+  if (!lines.length) ro.append(mk("rohint", "Point at the graph to read its values here."));
+  lines.forEach((l, i) => {
+    const item = mk("ro", "");
+    if (i) { const sw = mk("sw", ""); sw.style.background = l.c; item.append(sw); }
+    const m = retro && /^(-?\d+(?:\.\d+)?)(.*)$/.exec(l.val);   // anything that isn't a plain number (like 1.2e-5) stays as text
+    if (m) {
+      if (i) item.append(mk("", l.name + ":"));
+      item.append(ledCanvas(m[1], i ? 5 : 6)); if (m[2].trim()) item.append(mk("", m[2].trim()));
+      if (l.at) item.append(mk("", "at " + l.at));
+    } else { const label = i ? mk("", l.t) : document.createElement("b"); if (!i) label.textContent = l.t; item.append(label); }
+    ro.append(item);
+  });
+  ro.append(mk("flagst", "Flag on graph: " + (showFlag ? "on" : "off") + " (press F)"));
+  if (lines.length) ro.style.minHeight = ro.offsetHeight + "px";   // keep its height so the page below doesn't jump as you move on and off the graph
 }
 // ---------- 3d. FILTER TYPES (Bandpass, LWP, SWP, AR, Notch) ----------
 const ftype = () => (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
@@ -1486,7 +1583,7 @@ function notch(s, r) {                           // the dip, then outward to whe
 }
 const FHINT = {
   none: "Pick a filter type to get measurements that fit it, inside each range you mark (or the whole view if none).",
-  band: "Bandpass: Center W/L, bandwidth (full width at half max), max and the 50% points.",
+  band: "Bandpass: C W/L, bandwidth (full width at half max), max and the 50% points.",
   lwp: "Long-wave pass: the cut-on is the 50% point of the max on the short-wavelength side, plus the max and average.",
   swp: "Short-wave pass: the cut-off is the 50% point of the max on the long-wavelength side, plus the max and average.",
   ar: "Anti-reflection: average, worst case (max) and best case (min) in each range. Choosing AR switches the Scan type to Reflection.",
@@ -1496,10 +1593,10 @@ function filterTable(S) {                        // the results table under the 
   const ft = ftype(), t = $("bandTbl"), m = $("kR").checked ? "R" : "T"; t.innerHTML = "";
   $("fhint").textContent = FHINT[ft]; $("bandOpts").hidden = ft === "none" || ft === "ar";
   $("bandBox").hidden = ft === "none" || !S.length || !view; if ($("bandBox").hidden) return;
-  const head = { band: ["Center W/L", "Bandwidth (FWHM)", "Max " + m + "%", "Max at", "50% low", "50% high"],
+  const head = { band: ["C W/L", "B/W", "Max " + m + "%", "Max at", "50% low", "50% high"],
                  lwp: ["Cut-on (50% point)", "Max " + m + "%", "Max at", "Average " + m + "%"], swp: ["Cut-off (50% point)", "Max " + m + "%", "Max at", "Average " + m + "%"],
                  ar: ["Average " + m + "%", "Max " + m + "%", "Max at", "Min " + m + "%", "Min at"],
-                 notch: ["Center W/L", "Notch width (FWHM)", "Min " + m + "%", "Min at", "Baseline " + m + "%", "OD at min"] }[ft];
+                 notch: ["C W/L", "Notch width (FWHM)", "Min " + m + "%", "Min at", "Baseline " + m + "%", "OD at min"] }[ft];
   t.createCaption().textContent = { band: "Bandpass: the 50% points are half of the max " + measName(), lwp: "Long-wave pass: the cut-on is the 50% point of the max " + measName(),
     swp: "Short-wave pass: the cut-off is the 50% point of the max " + measName(), ar: "Anti-reflection " + measName(),
     notch: "Notch: width is measured halfway between the baseline and the dip" }[ft] + ", inside each range (the whole view if no range is marked)";
@@ -1553,16 +1650,15 @@ function fdRows(type, s) {                       // the rows for this kind of fi
   }
   if (type === "notch") {
     const n = notch(s, view); if (!n) return [{ l: "Baseline " + m, v: "–" }];
-    return [{ l: "Baseline " + m, v: n.base.toFixed(2) + U }, { l: "Minimum " + m, v: n.dip.toFixed(2) + U + " at " + nm(n.dipx) }, { l: "Center W/L", v: nm(n.cwl) },
+    return [{ l: "Baseline " + m, v: n.base.toFixed(2) + U }, { l: "Minimum " + m, v: n.dip.toFixed(2) + U + " at " + nm(n.dipx) }, { l: "C W/L", v: nm(n.cwl) },
             { l: "Notch width (FWHM)", v: n.bw == null ? "–" : nm(n.bw) }, { l: "OD at minimum", v: n.od == null ? "–" : n.od.toFixed(2) }];
   }
-  const E = reportEdges(s); if (!E) return [{ l: "Peak " + m, v: "–" }];
-  const rows = [{ l: "Peak " + m, v: E.pk.toFixed(2) + U }], side = d => [80, 50, 5].map(p => [p + "% peak", nm(d[p])]);
+  const pkL = "Peak " + ($("kR").checked ? "R" : "T") + "%", E = reportEdges(s); if (!E) return [{ l: pkL, v: "–" }];
+  const rows = [{ l: pkL, v: E.pk.toFixed(2) + U }], side = d => [80, 50, 5].map(p => [p + "% peak", nm(d[p])]);
   if (type === "band") {
     const lo = E.rise[50], hi = E.fall[50], ok = lo != null && hi != null;
-    rows.push({ l: "Center W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "Bandwidth (FWHM)", v: ok ? nm(hi - lo) : "–" },
-              { l: "Low side data", subs: side(E.rise) }, { l: "High side data", subs: side(E.fall) },
-              { l: "Slope", subs: [["Low side", pct(edgeSlope(E.rise))], ["High side", pct(edgeSlope(E.fall))]] });
+    rows.push({ l: "C W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "B/W", v: ok ? nm(hi - lo) : "–" },
+              { l: "Low side data", subs: side(E.rise) }, { l: "High side data", subs: side(E.fall) });
   } else if (type === "lwp") {
     rows.push({ l: R + " Coordinates", subs: side(E.rise) }, { l: "Slope", v: pct(edgeSlope(E.rise)) });
   } else if (type === "swp") {
@@ -1586,15 +1682,30 @@ function fillRows(parent, rows) {                // draw rows made by fdRows (or
   }
   return units;
 }
-function renderLive(S) {                         // the Filter data panel beside the graph
-  const s = S[0], box = $("liveData"); box.hidden = !s || !view; if (box.hidden) return;
-  const det = detectType(s), sel = $("rptType");
-  const opts = [["auto", "Auto: " + TYPE_NAMES[det]], ...Object.entries(TYPE_NAMES)];
+function renderLive(S) {                         // the Filter data panel beside the graph: with several curves, all of them or the one you pick
+  const box = $("liveData"); box.hidden = !S.length || !view; if (box.hidden) return;
+  if (ldPick && !S.some(s => s.box === ldPick)) ldPick = null;   // the picked curve was hidden or removed
+  const many = S.length > 1, list = many && !ldPick ? S : [ldPick ? S.find(s => s.box === ldPick) : S[0]];
+  const pick = $("ldCurve"), sig = JSON.stringify(S.map(s => s.name)); pick.hidden = !many;
+  if (pick.dataset.sig !== sig) { pick.dataset.sig = sig; pick.replaceChildren(new Option("All scans (" + S.length + ")", "all"), ...S.map((s, i) => new Option(s.name, i))); }
+  if (many) pick.value = ldPick ? S.findIndex(s => s.box === ldPick) : "all";
+  const sel = $("rptType"), opts = [["auto", list.length > 1 ? "Auto: each scan's own type" : "Auto: " + TYPE_NAMES[detectType(list[0])]], ...Object.entries(TYPE_NAMES)];
   if (sel.options.length !== opts.length) sel.innerHTML = opts.map(([k, t]) => `<option value="${k}">${t}</option>`).join("");
   opts.forEach(([k, t], i) => sel.options[i].textContent = t); sel.value = RPT_TYPE;
-  const body = $("ldBody"); body.innerHTML = ""; fillRows(body, fdRows(effType(s), s));
+  const body = $("ldBody"), top = body.scrollTop; body.innerHTML = "";
+  for (const s of list) {
+    const type = effType(s);
+    if (many) {                                  // a heading with the curve's colour, so the numbers can be matched to the graph
+      const head = document.createElement("div"), sw = document.createElement("i"), nm = document.createElement("span"), kind = document.createElement("small");
+      head.className = "ldcurve"; sw.className = "sw"; sw.style.background = s.color; nm.textContent = s.name; kind.textContent = TYPE_NAMES[type] || ""; nm.append(kind); head.append(sw, nm); body.append(head);
+    }
+    fillRows(body, fdRows(type, s));
+  }
+  body.style.maxHeight = list.length > 1 ? Math.max(240, cv.clientHeight - 90) + "px" : "";   // a long list scrolls beside the graph instead of pushing the page down
+  body.scrollTop = top;
 }
 $("rptType").onchange = () => { RPT_TYPE = $("rptType").value; try { localStorage.setItem("plotRptType", RPT_TYPE); } catch (e) {} draw(); };
+$("ldCurve").onchange = () => { const S = active(), v = $("ldCurve").value; ldPick = v === "all" ? null : S[+v].box; $("ldBody").scrollTop = 0; renderLive(S); };
 const GBGS = {                                   // graph colours for the Graph background setting on the page (the printed report is always black on white)
   gray: { bg: "#e4e4e4", ink: "#000000", tick: "#222", grid: "#b0b0b0", label: "#000", title: "#000", spec: "#000", noteBg: "#ffffffee", noteLine: "#444", noteText: "#000" },
   white: { bg: "#ffffff", ink: "#000000", tick: "#444", grid: "#d5d5d5", label: "#000", title: "#000", spec: "#000", noteBg: "#ffffffee", noteLine: "#444", noteText: "#000" },
@@ -1975,7 +2086,7 @@ const shifted = (whole = 0) => {                // an unzoomed view re-fits the 
   if (view) { if (!zoomed) view = baseView(); else if (whole) view = { a: view.a + whole, b: view.b + whole }; draw(); }
 };
 const isWhole = s => s.a === -Infinity && s.b === Infinity;
-const rangeText = s => { const f = v => +v.toFixed(6); return isWhole(s) ? "whole curve" : (s.a === -Infinity ? "up to " + f(s.b) : s.b === Infinity ? "from " + f(s.a) : f(s.a) + " to " + f(s.b)) + " nm"; };
+const rangeText = s => { const f = v => +v.toFixed(6); return isWhole(s) ? "whole scan" : (s.a === -Infinity ? "up to " + f(s.b) : s.b === Infinity ? "from " + f(s.a) : f(s.a) + " to " + f(s.b)) + " nm"; };
 const noteFor = (list, none, head, text) => {   // one scan: a short line per click. All scans: one line per scan, so you can see what each has
   const one = f => f[list].length ? head + f[list].map(text).join("  ·  ") : none;
   const t = targets(); return t.length === 1 ? one(t[0]) : t.map(f => f.fname + " — " + one(f)).join("\n");
@@ -2009,7 +2120,13 @@ addEventListener("resize", draw);
   box.querySelector(`input[name=theme][value=${theme()}]`).checked = true;
   box.querySelector(`input[name=gbg][value=${GBG}]`).checked = true;
   box.addEventListener("change", e => { if (e.target.name === "theme") setTheme(e.target.value);
-    else if (e.target.name === "gbg") { GBG = e.target.value; try { localStorage.setItem("plotGraphBg", GBG); } catch (err) {} draw(); } });
+    else if (e.target.name === "gbg") { GBG = e.target.value; try { localStorage.setItem("plotGraphBg", GBG); } catch (err) {} draw(); }
+    else if (e.target.id === "hoverFlag") setFlag(e.target.checked); });
+  const setFlag = on => { showFlag = on; $("hoverFlag").checked = on; try { localStorage.setItem("plotHoverFlag", on ? "1" : "0"); } catch (err) {} setReadout([]); if (view) redraw(); };
+  $("hoverFlag").checked = showFlag; setReadout([]);
+  document.addEventListener("keydown", e => {   // F turns the flag on and off, but not while typing in a box
+    if (e.key.toLowerCase() !== "f" || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]")) return;
+    e.preventDefault(); setFlag(!showFlag); });
 }
 
 $("fAr").addEventListener("change", () => { if ($("fAr").checked) { $("kR").checked = true; $("kT").checked = false; draw(); } });   // AR coatings are measured as reflection
@@ -2067,11 +2184,77 @@ $("csv").onclick = () => {                       // every column, only the rows 
 
 // ---------- 8. PRINTING ----------
 $("pageLogo").src = $("printLogo").src;            // the same logo at the top of the page, so it is only stored once
-function preparePrint() {                        // fill in the print-only parts: the graph picture, legend, date/time and the two boxes (Filter I.D. and Filter Data)
+function multiTable(forced, S) {                 // the Multi reports' table: one row per curve, with the columns its filter type calls for
+  const types = S.map(s => forced || effType(s)), type = forced || (new Set(types).size === 1 ? types[0] : "none");   // curves of different types share the general columns
+  const flat = s => { const o = {};               // the panel's rows laid out as columns
+    for (const r of fdRows(type, s)) {
+      if (!r.subs) { o[r.l] = r.v; continue; }
+      for (const [a, b] of r.subs) { const p = a.replace(" peak", "");
+        o[/^Low side data/.test(r.l) ? "Low " + p : /^High side data/.test(r.l) ? "High " + p : p] = b; }
+    }
+    return o; };
+  const data = S.map(flat), keys = [...new Set(data.flatMap(d => Object.keys(d)))].filter(k => type !== "band" || !/^(Low|High) (80|5)%/.test(k));   // a bandpass keeps to the 50% points so the table stays readable
+  return { title: "Filter Data: " + (TYPE_NAMES[type] || ""), heads: ["Scan", ...keys], rows: S.map((s, i) => [{ t: s.name, color: s.color }, ...keys.map(k => data[i][k] ?? "–")]) };
+}
+function shortNames(S) {                         // scan names for narrow columns: drop an ending they all share, like ": Tx (%)"
+  const parts = S.map(s => /^(.*): ([^:]*)$/.exec(s.name)), same = S.length > 1 && parts.every(m => m && m[2] === parts[0][2]);
+  return S.map((s, i) => same ? parts[i][1] : s.name);
+}
+function sideTable(t) {                          // turn the Multi table on its side: a row per number and a column per scan, with each unit moved up beside its label
+  const scans = t.rows.map(r => r[0]), names = shortNames(scans.map(c => ({ name: c.t })));
+  return { title: t.title, firstCol: "27mm", heads: ["", ...scans.map((c, i) => ({ t: names[i], color: c.color }))], rows: t.heads.slice(1).map((label, k) => {
+    const vals = t.rows.map(r => r[k + 1]), m = vals.map(v => /^(-?[\d.]+) (\S+)$/.exec(v)), good = m.filter(Boolean), u = good.length && good.every(g => g[2] === good[0][2]) ? good[0][2] : "";
+    const ok = u && m.every((g, i) => g || vals[i] === "–");
+    return [ok && !(u === "%" && label.endsWith("%")) ? label + " (" + u + ")" : label, ...vals.map((v, i) => ok && m[i] ? m[i][1] : v)]; }) };
+}
+function specReport(S) {                         // the spec check, for the report: the same results as the Specs table on the page
+  const ok = specs.filter(sp => specOK(sp) && specShown(sp)); if (!ok.length || !S.length) return null;
+  const range = sp => fx(Math.min(+sp.a, +sp.b)) + " – " + xs(Math.max(+sp.a, +sp.b)), word = (sp, r) => r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL";
+  if (S.length > 1) {                            // several scans: one row per spec and a column per scan, which is what keeps a long list on one page
+    const names = shortNames(S);
+    return { title: "Specifications", heads: ["Spec", "Range", ...S.map((s, i) => ({ t: names[i], color: s.color }))],
+      rows: ok.map(sp => [specName(sp), range(sp), ...S.map(s => { const r = checkSpec(sp, s); return r ? { t: ys(r.got) + "  " + word(sp, r), cls: r.pass ? "pass" : "fail" } : "no data"; })]) };
+  }
+  const s = S[0];
+  return { title: "Specifications", heads: ["Spec", "Range", "Measured", "At", "Margin", "Result"], rows: ok.map(sp => { const r = checkSpec(sp, s);
+    return [specName(sp), range(sp), ...(r ? [r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), { t: word(sp, r), cls: r.pass ? "pass" : "fail" }] : ["no data in range", "–", "–", "–"])]; }) };
+}
+function rptTable(t) {                           // build one report table; its title and headings repeat if it runs onto another page
+  const tb = document.createElement("table"), head = tb.createTHead(), n = t.heads.length, long = t.newpage;
+  if (long) tb.className = "newpage";
+  if (t.firstCol) { const g = document.createElement("colgroup"), c = document.createElement("col"); c.style.width = t.firstCol; g.append(c); for (let i = 1; i < n; i++) g.append(document.createElement("col")); tb.append(g); }
+  const band = (parent, cls) => { const tr = parent.insertRow(), c = document.createElement("th"); tr.className = cls; c.colSpan = n; tr.append(c); return c; };
+  if (long) band(head, "gap");
+  band(head, "ttl").textContent = t.title;
+  const hr = head.insertRow(); for (const h of t.heads) { const c = document.createElement("th"), o = typeof h === "object" ? h : { t: h };
+    if (o.color) { const sw = document.createElement("i"); sw.className = "psw"; sw.style.background = o.color; c.append(sw); } c.append(o.t); hr.append(c); }
+  const body = tb.createTBody();
+  for (const row of t.rows) { const tr = body.insertRow();
+    for (const cell of row) { const c = tr.insertCell(), o = typeof cell === "object" ? cell : { t: cell };
+      if (o.color) { const sw = document.createElement("i"); sw.className = "psw"; sw.style.background = o.color; c.append(sw); }
+      c.append(o.t); if (o.cls) c.className = o.cls; } }
+  if (long) band(tb.createTFoot(), "gap");
+  return tb;
+}
+function preparePrint() {                        // fill in the print-only parts: the graph picture, legend, date/time, the boxes (Filter I.D. and Filter Data) and any tables, as the Report style asks
   if ($("app").hidden || !view) return;
   fxLeave();                                                           // the Play tab's effects never reach the printed report
+  const S = active(), st = rpt.style || "auto", custom = st === "custom", multi = st.startsWith("m-") || (st === "auto" && S.length > 1), wide = multi || custom;
+  const forced = st === "auto" || custom ? null : st.replace("m-", "");   // the filter type the style asks for (null: work it out as the panel does)
+  const tbls = [], side = multi && S.length >= 1 && S.length <= 8;     // up to 8 scans: their numbers go in a column beside the graph, with a column of the table per scan
+  const mt = multi && S.length ? multiTable(forced, S) : null; if (mt && !side) tbls.push(mt);
+  const spt = specReport(S); if (spt) tbls.push(spt);
+  const wordy = mt && mt.rows.some(r => r.some(c => / at /.test(c))), rw = side ? Math.min(140, Math.max(72, 30 + S.length * (wordy ? 28 : S.length <= 4 ? 20 : 13.5))) : 0;   // mm: how wide that column is ("99.15 % at 1064 nm" needs more)
+  const L = !multi && S.length > 1 ? 6 : 0, room = (wide ? 148 : 165) - L, minG = 70;   // mm: the legend, the space for the graph and its tables, and the smallest graph worth printing
+  let used = 0, later = false;                                         // each table stays under the graph if a good-sized graph still fits; only then do they go on the next page
+  for (const t of tbls) { const h = t.rows.length * 4.3 + 12; if (!later && room - used - h - 3 >= minG) used += h; else later = t.newpage = true; }
+  const gh = used ? room - used - 3 : wide ? room : 168.8;
+  if (side) { $("app").dataset.side = "1"; $("app").style.setProperty("--rw", rw + "mm"); $("printData").replaceChildren(rptTable(sideTable(mt))); } else { delete $("app").dataset.side; $("printData").replaceChildren(); }
+  $("app").dataset.rpt = wide ? "wide" : "single"; if (later && !wide) $("app").dataset.long = "1"; else delete $("app").dataset.long;
+  document.documentElement.classList.toggle("rpttables", tbls.length > 0);
+  $("printTables").replaceChildren(...tbls.map(rptTable));
   hov = null; light = true;
-  cv.style.width = "1000px"; cv.style.height = "800px";                // the report's graph is drawn at the shape of its space on the page (about 211 x 169 mm), taller than the on-screen graph
+  cv.style.width = Math.round((wide ? 267 - (side ? rw + 4 : 0) : 211) * 4.74) + "px"; cv.style.height = Math.round(gh * 4.74) + "px";   // the report's graph is drawn at the shape of its space on the page, taller than the on-screen graph
   render(); $("printImg").src = cv.toDataURL("image/png");
   light = false; cv.style.width = cv.style.height = ""; render();
   $("printStamp").textContent = rpt.stamp ? "Printed " + new Date().toLocaleString() : "";
@@ -2081,16 +2264,21 @@ function preparePrint() {                        // fill in the print-only parts
     r.className = "pfr"; l.className = "l"; v.className = "v" + (odd ? " odd" : ""); l.textContent = label + ":"; v.textContent = value; r.append(l, v); parent.append(r); return r; };
   const idBox = box("Filter I.D."), idRows = [];
   for (const [k, label] of RPT) { idRows.push({ l: label, v: rpt[k] || "" }); if (k === "op") idRows.push({ l: "Date", v: new Date().toLocaleDateString() }); }   // the date follows the technician
-  idBox.style.flexGrow = fillRows(idBox, idRows) + 1;
-  const S = active(), s = S[0], fd = box("Filter Data"), rows = [];
-  if (S.length > 1) rows.push({ l: "Data for", v: s.name });
-  if (s) rows.push(...fdRows(effType(s), s));                          // the same numbers as the panel beside the graph
+  const s = S[0], conds = [];
   for (const [name, id, def, unit] of [["Polarization", "pol", "Random", ""], ["Angle of Incidence", "aoi", "0", " °"], ["Ambient Temperature", "tempC", "22", " °C"]]) {   // the conditions the scan stands for; one that differs from the usual (Random, 0°, 22 °C) is highlighted
     const v = $(id).value.trim(), odd = v !== "" && v.toLowerCase() !== def.toLowerCase() && !(isFinite(+v) && isFinite(+def) && +v === +def);
-    $(id).classList.toggle("odd", odd); rows.push({ l: name, v: v === "" ? "" : v + unit, odd });
+    $(id).classList.toggle("odd", odd); conds.push({ l: name, v: v === "" ? "" : v + unit, odd });
   }
-  fd.style.flexGrow = fillRows(fd, rows) + 1;
-  const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = S.length < 2;   // one scan is already named by the graph
+  if (wide) idRows.push(...conds);                                     // Multi and Custom have no Filter Data box, so the conditions join this strip
+  idBox.style.flexGrow = fillRows(idBox, idRows) + 1;
+  if (!wide) {
+    const fd = box("Filter Data"), rows = [];
+    if (S.length > 1) rows.push({ l: "Data for", v: s.name });
+    if (s) rows.push(...fdRows(forced || effType(s), s));              // the same numbers as the panel beside the graph
+    rows.push(...conds);
+    fd.style.flexGrow = fillRows(fd, rows) + 1;
+  }
+  const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = multi || S.length < 2;   // one scan is already named by the graph; a Multi table names each curve itself
   for (const sr of S) {
     const sp = document.createElement("span"), sw = document.createElement("i");
     sw.style.cssText = "width:14px;height:4px;display:inline-block;background:" + sr.color;
@@ -2098,18 +2286,18 @@ function preparePrint() {                        // fill in the print-only parts
   }
 }
 const RPT = [["inst", "Test Instrument"], ["op", "Test Technician"], ["cust", "Customer Name"], ["am", "Job Number"], ["pn", "Part Number"], ["sn", "Serial Number"], ["lot", "Lot Number"]];
-const rpt = { stamp: true }; try { rpt.stamp = localStorage.getItem("plotStamp") !== "0"; } catch (e) {}
+const rpt = { stamp: true, style: "auto" }; try { rpt.stamp = localStorage.getItem("plotStamp") !== "0"; rpt.style = localStorage.getItem("plotRptStyle") || "auto"; } catch (e) {}
 try { rpt.op = localStorage.getItem("plotOperator") || ""; rpt.inst = localStorage.getItem("plotInstrument") || ""; } catch (e) {}   // only the technician and the instrument are remembered; job numbers start blank so an old one never lands on a new report
 const RI = RPT.map(([k, label]) => { const l = document.createElement("label"), i = document.createElement("input"); i.type = "text"; i.maxLength = 60;
   i.onkeydown = e => { if (e.key === "Enter") $("rptGo").click(); }; l.append(label, i); $("rptFields").append(l); return i; });
 const closeRpt = () => { $("rptDlg").hidden = true; };
 $("rptTitle").onkeydown = RI[0].onkeydown;
-$("printbtn").onclick = () => { $("rptTitle").value = rpt.title || ""; RI.forEach((i, n) => i.value = rpt[RPT[n][0]] || ""); $("rptStamp").checked = rpt.stamp; $("rptDlg").hidden = false; $("rptTitle").focus(); };
+$("printbtn").onclick = () => { $("rptTitle").value = rpt.title || ""; RI.forEach((i, n) => i.value = rpt[RPT[n][0]] || ""); $("rptStamp").checked = rpt.stamp; $("rptStyle").value = rpt.style; if (!$("rptStyle").value) $("rptStyle").value = "auto"; $("rptDlg").hidden = false; $("rptTitle").focus(); };
 $("rptCancel").onclick = closeRpt;
 $("rptDlg").addEventListener("pointerdown", e => { if (e.target === $("rptDlg")) closeRpt(); });
 $("rptDlg").addEventListener("keydown", e => { if (e.key === "Escape") closeRpt(); });
 $("rptGo").onclick = () => {
-  rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); rpt.stamp = $("rptStamp").checked; try { localStorage.setItem("plotOperator", rpt.op); localStorage.setItem("plotInstrument", rpt.inst); localStorage.setItem("plotStamp", rpt.stamp ? "1" : "0"); } catch (e) {}
+  rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); rpt.stamp = $("rptStamp").checked; rpt.style = $("rptStyle").value; try { localStorage.setItem("plotRptStyle", rpt.style); localStorage.setItem("plotOperator", rpt.op); localStorage.setItem("plotInstrument", rpt.inst); localStorage.setItem("plotStamp", rpt.stamp ? "1" : "0"); } catch (e) {}
   closeRpt(); preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print());
 };
 for (const id of ["tempC", "aoi", "pol"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, () => {   // outline a changed condition on screen right away
@@ -2276,7 +2464,7 @@ function fxRestore() { for (const [c, b] of fxBase) fxPut(c, b); fxBase.clear();
 let fxVibId = 0, fxBendOn = false, fxOv = null;
 function fxLabels() {
   $("fxVib").textContent = fxVibId ? "■ Stop" : "▶ Vibrate";
-  $("fxBend").textContent = "Bend the curve: " + (fxBendOn ? "on" : "off");
+  $("fxBend").textContent = "Bend the scan: " + (fxBendOn ? "on" : "off");
   $("fxCards").textContent = fxOv && fxOv.kind === "cards" ? "■ Stop" : "▶ Falling cards";
   $("fxEq").textContent = fxOv && fxOv.kind === "eq" ? "■ Stop" : "▶ Equalizer";
   if (!fxBendOn) cv.style.cursor = "";
@@ -2298,7 +2486,7 @@ $("fxNoise").onclick = () => { if (!view) return playSay("Load a scan first."); 
 $("fxVib").onclick = fxVibrate; $("fxRestore").onclick = () => { fxVibStop(); fxOvStop(); fxRestore(); playSay("The real scan is back."); };
 
 // ----- bend: grab the curve and pull it (a smooth hill that follows the pointer) -----
-$("fxBend").onclick = () => { fxBendOn = !fxBendOn; fxLabels(); playSay(fxBendOn ? "Bend is on: drag the curve up or down. Ranges and zoom are paused until you turn it off." : "Bend is off."); };
+$("fxBend").onclick = () => { fxBendOn = !fxBendOn; fxLabels(); playSay(fxBendOn ? "Bend is on: drag the scan up or down. Ranges and zoom are paused until you turn it off." : "Bend is off."); };
 cv.addEventListener("pointerdown", e => {
   if (!fxBendOn || !view || e.button !== 0 || e.ctrlKey) return;
   const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
