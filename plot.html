@@ -93,7 +93,7 @@
   .tips span { display: grid; justify-items: start; gap: .2rem; }
   .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; }
   .tipx { padding: .1rem .55rem; font-size: .8rem; background: transparent; color: var(--muted); }
-  .tabs .tipstab { margin-left: auto; }   /* the Tips tab sits at the far right */
+  .tabs .playtab { margin-left: auto; opacity: 0; cursor: default; }   /* the hidden Play tab sits just left of Tips, at the far right */
   .tipgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem 2.5rem; align-items: start; font-size: .9rem; }
   .tipgrid > div { display: grid; gap: .55rem; } .tipgrid h4 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
   .tipgrid span { display: grid; grid-template-columns: 9.5rem 1fr; gap: .6rem; align-items: baseline; } .tipgrid span b { justify-self: start; }
@@ -398,8 +398,8 @@
       <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
       <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
-      <button type="button" class="tab" role="tab" data-tab="play">Play</button>
-      <button type="button" class="tab tipstab" role="tab" data-tab="tips">Tips</button>
+      <button type="button" class="tab playtab" role="tab" data-tab="play" tabindex="-1" aria-hidden="true">Play</button>   <!-- an invisible easter egg: still clickable, just not seen -->
+      <button type="button" class="tab" role="tab" data-tab="tips">Tips</button>
     </div>
 
     <div class="panel" data-tab="modify" id="modcol" hidden>
