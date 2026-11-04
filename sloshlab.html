@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src 'self' data:; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SloshLab</title>
-<script>let savedLook = null; try { savedLook = localStorage.getItem("sloshTheme"); } catch (e) {} if (savedLook !== "dark") document.documentElement.dataset.theme = "labview";</script>
+<script>let savedLook = null; try { savedLook = localStorage.getItem("sloshTheme"); } catch (e) {} if (["win95", "mac", "retro"].includes(savedLook)) document.documentElement.dataset.theme = savedLook; else if (savedLook !== "dark") document.documentElement.dataset.theme = "labview";</script>
 <style>
   :root { --bg: #1b2838; --panel: #16202d; --line: #2a3a4d; --text: #c6d4df; --muted: #8f98a0; --accent: #1a9fff; --strong: #fff; --well: #0e141b; }
   * { box-sizing: border-box; margin: 0; }
@@ -62,7 +62,7 @@
   #recSet[open] summary { margin-bottom: .5rem; }
   .recgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .8rem; }
   .recgrid label { display: grid; gap: .1rem; }
-  .recgrid select { width: 100%; font: inherit; font-size: .9rem; padding: .15rem .25rem; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: 4px; }
+  .recgrid select, #themeSel { width: 100%; font: inherit; font-size: .9rem; padding: .15rem .25rem; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: 4px; }
   #sculptTag { color: var(--accent); font-weight: 600; }
   .ledbox { display: inline-flex; flex-direction: column; align-items: center; gap: .15rem; }
   .led { width: 1rem; height: 1rem; border-radius: 50%; background: #2a3a4d; }
@@ -120,70 +120,141 @@
   }
   @media (max-width: 520px) { .tabs { flex-wrap: wrap; } .tab { overflow: visible; } }   /* a phone: two rows of whole tab names beat five cut-off ones */
   /* LabVIEW theme: a grey front panel with raised 3D buttons, sunken white controls, grey indicators, bold labels and a black graph display */
-  :root[data-theme=labview] { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000; --well: #fff;
+  :root:is([data-theme=labview],[data-theme=win95],[data-theme=mac]) { --bg: #d4d4d4; --panel: #e0e0e0; --line: #8c8c8c; --text: #000; --muted: #3d3d3d; --accent: #1f5fbf; --strong: #000; --well: #fff;
     --raised: inset 1px 1px #fff, inset -1px -1px #8a8a8a; --sunken: inset 1px 1px #6e6e6e, inset -1px -1px #fff; }
-  [data-theme=labview] body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) body { font: 13px/1.45 Tahoma, "Segoe UI", Verdana, sans-serif;
     background-color: var(--bg); background-image: linear-gradient(#0000000a 1px, transparent 1px), linear-gradient(90deg, #0000000a 1px, transparent 1px); background-size: 12px 12px; }   /* faint panel grid, like the editor's alignment grid */
-  [data-theme=labview] #homeBtn { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
-  [data-theme=labview] .lbl, [data-theme=labview] .sl span, [data-theme=labview] .liq b { color: #000; font-weight: 700; }   /* every LabVIEW control carries a bold label */
-  [data-theme=labview] #keysHint { color: #3d3d3d; }
-  [data-theme=labview] .tank { margin: 6px; border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 5px #c4c4c4, 0 0 0 6px #7a7a7a;   /* black plot area in a grey bezel, like a waveform graph */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #homeBtn { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .lbl, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .sl span, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .liq b { color: #000; font-weight: 700; }   /* every LabVIEW control carries a bold label */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #keysHint { color: #3d3d3d; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tank { margin: 6px; border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 5px #c4c4c4, 0 0 0 6px #7a7a7a;   /* black plot area in a grey bezel, like a waveform graph */
     background-color: #000; background-image: linear-gradient(#ffffff26 1px, transparent 1px), linear-gradient(90deg, #ffffff26 1px, transparent 1px); background-size: 50px 50px; }
-  [data-theme=labview] .brush { border: 1px dashed #ffff00; }
-  [data-theme=labview] .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
-  [data-theme=labview] button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
-  [data-theme=labview] button:hover { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
-  [data-theme=labview] button:active, [data-theme=labview] button.on, [data-theme=labview] button.on:hover { color: #000; font-weight: 700; background: linear-gradient(#c4c4c4, #e6e6e6); border-color: #6b6b6b; box-shadow: inset 1px 1px 2px #0006; }
-  [data-theme=labview] #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
-  [data-theme=labview] #recBtn, [data-theme=labview] #winBtn { color: #c00000; }
-  [data-theme=labview] .recgrid select { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
-  [data-theme=labview] #recSet summary { color: #000; }
-  [data-theme=labview] #recBtn.on, [data-theme=labview] #recBtn.on:hover, [data-theme=labview] #winBtn.on, [data-theme=labview] #winBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
-  [data-theme=labview] #abortBtn { color: #fff; background: linear-gradient(#ffb357, #e06a00); border: 1px solid #6b3200; border-radius: 6px; box-shadow: inset 1px 1px #ffd9a8, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }
-  [data-theme=labview] #abortBtn:active { background: linear-gradient(#e06a00, #ffb357); }
-  [data-theme=labview] #stopBtn.run { background: linear-gradient(#7ee07e, #1b8a1b); border-color: #0a3d0a; box-shadow: inset 1px 1px #c4f5c4, 1px 1px 0 #0004; }
-  [data-theme=labview] .led { background: radial-gradient(circle at 35% 35%, #4d7a4d, #0f3d0f 60%, #062006); border: 1px solid #333; }   /* round LED: dark green off, bright green on */
-  [data-theme=labview] .led.on { background: radial-gradient(circle at 35% 35%, #d4ffd4, #18e018 50%, #067a06); box-shadow: 0 0 6px #18e01899; }
-  [data-theme=labview] .ro output { color: #000; background: #d0d0d0; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); }   /* indicators are grey, controls are white */
-  [data-theme=labview] .scope { border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a, inset 0 0 18px #000; margin: 4px; }
-  [data-theme=labview] #fpsChart, [data-theme=labview] #countChart, [data-theme=labview] #countLed { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
-  [data-theme=labview] .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
-  [data-theme=labview] .tab { padding: .3rem .5rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
-  [data-theme=labview] .tab.on, [data-theme=labview] .tab.on:hover { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); box-shadow: inset 1px 1px #fff; position: relative; top: -2px; padding-bottom: calc(.3rem + 2px); }
-  [data-theme=labview] input.num { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
-  [data-theme=labview] input.num:focus { background: #fffff0; outline: none; }
-  [data-theme=labview] input[type=range] { -webkit-appearance: none; appearance: none; height: 20px; background: transparent; }   /* a slide control: sunken white track, raised grey thumb, blue fill */
-  [data-theme=labview] input[type=range]::-webkit-slider-runnable-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
-  [data-theme=labview] input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 20px; margin-top: -8px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; box-shadow: inset 1px 1px #fff; }
-  [data-theme=labview] input[type=range]::-moz-range-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
-  [data-theme=labview] input[type=range]::-moz-range-progress { height: 6px; background: #1f5fbf; }
-  [data-theme=labview] input[type=range]::-moz-range-thumb { width: 9px; height: 18px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; }
-  [data-theme=labview] .swatch, [data-theme=labview] .swatch:hover { background: var(--c); border: 1px solid #333; border-radius: 3px; box-shadow: inset 1px 1px #fff8, inset -1px -1px #0006; }   /* square colour boxes */
-  [data-theme=labview] .swatch.on, [data-theme=labview] .swatch.on:hover { background: var(--c); border: 2px solid #000; box-shadow: 0 0 0 2px #fff inset; }
-  [data-theme=labview] .liq input[type=color] { border: 1px solid #333; border-radius: 1px; box-shadow: var(--sunken); }
-  [data-theme=labview] .hint b { color: #000; padding: 0 .25rem; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; font-weight: 400; }   /* keyboard keys */
-  [data-theme=labview] .drop { border: 2px dashed #7a7a7a; border-radius: 3px; background: #ececec; }
-  [data-theme=labview] .drop:hover, [data-theme=labview] .drop.over { border-color: var(--accent); background: #fff; }
-  [data-theme=labview] .serlist { padding: .3rem; background: #fff; border: 1px solid #7a7a7a; box-shadow: var(--sunken); }   /* a listbox */
-  [data-theme=labview] .ser span, [data-theme=labview] .checks label { color: #000; }
-  [data-theme=labview] input[type=checkbox] { accent-color: #1b8a1b; }
-  [data-theme=labview] .seg button:first-child { border-radius: 3px 0 0 3px; } [data-theme=labview] .seg button:last-child { border-radius: 0 3px 3px 0; }
-  [data-theme=labview] :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .brush { border: 1px dashed #ffff00; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) button:hover { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) button:active, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) button.on, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) button.on:hover { color: #000; font-weight: 700; background: linear-gradient(#c4c4c4, #e6e6e6); border-color: #6b6b6b; box-shadow: inset 1px 1px 2px #0006; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #stopBtn { color: #fff; background: linear-gradient(#ff7a7a, #c81414); border: 1px solid #5a0000; border-radius: 6px; box-shadow: inset 1px 1px #ffb3b3, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }   /* the classic STOP button */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #recBtn, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #winBtn { color: #c00000; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .recgrid select, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #themeSel { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #recSet summary { color: #000; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #recBtn.on, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #recBtn.on:hover, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #winBtn.on, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #winBtn.on:hover { color: #c00000; background: linear-gradient(#c4c4c4, #e6e6e6); box-shadow: inset 1px 1px 2px #0006; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #abortBtn { color: #fff; background: linear-gradient(#ffb357, #e06a00); border: 1px solid #6b3200; border-radius: 6px; box-shadow: inset 1px 1px #ffd9a8, 1px 1px 0 #0004; text-shadow: 0 1px #0006; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #abortBtn:active { background: linear-gradient(#e06a00, #ffb357); }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #stopBtn.run { background: linear-gradient(#7ee07e, #1b8a1b); border-color: #0a3d0a; box-shadow: inset 1px 1px #c4f5c4, 1px 1px 0 #0004; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .led { background: radial-gradient(circle at 35% 35%, #4d7a4d, #0f3d0f 60%, #062006); border: 1px solid #333; }   /* round LED: dark green off, bright green on */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .led.on { background: radial-gradient(circle at 35% 35%, #d4ffd4, #18e018 50%, #067a06); box-shadow: 0 0 6px #18e01899; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .ro output { color: #000; background: #d0d0d0; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); }   /* indicators are grey, controls are white */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .scope { border-radius: 0; border: 1px solid #000; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a, inset 0 0 18px #000; margin: 4px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #fpsChart, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #countChart, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #countLed { border: 1px solid #000; border-radius: 0; box-shadow: 0 0 0 3px #c4c4c4, 0 0 0 4px #7a7a7a; margin: 4px 0; width: calc(100% - 8px); justify-self: center; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tabs { gap: 2px; border-bottom: 1px solid #6b6b6b; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tab { padding: .3rem .5rem; color: #333; font-weight: 400; background: linear-gradient(#ececec, #c6c6c6); border: 1px solid #6b6b6b; border-bottom: 0; border-radius: 4px 4px 0 0; box-shadow: inset 1px 1px #fff; margin-bottom: -1px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tab.on, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tab.on:hover { color: #000; font-weight: 700; background: var(--panel); border-bottom: 1px solid var(--panel); box-shadow: inset 1px 1px #fff; position: relative; top: -2px; padding-bottom: calc(.3rem + 2px); }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input.num { color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input.num:focus { background: #fffff0; outline: none; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range] { -webkit-appearance: none; appearance: none; height: 20px; background: transparent; }   /* a slide control: sunken white track, raised grey thumb, blue fill */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range]::-webkit-slider-runnable-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 20px; margin-top: -8px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; box-shadow: inset 1px 1px #fff; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range]::-moz-range-track { height: 6px; background: #fff; border: 1px solid #6e6e6e; box-shadow: var(--sunken); }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range]::-moz-range-progress { height: 6px; background: #1f5fbf; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=range]::-moz-range-thumb { width: 9px; height: 18px; background: linear-gradient(90deg, #fdfdfd, #c4c4c4); border: 1px solid #4a4a4a; border-radius: 2px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .swatch, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .swatch:hover { background: var(--c); border: 1px solid #333; border-radius: 3px; box-shadow: inset 1px 1px #fff8, inset -1px -1px #0006; }   /* square colour boxes */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .swatch.on, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .swatch.on:hover { background: var(--c); border: 2px solid #000; box-shadow: 0 0 0 2px #fff inset; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .liq input[type=color] { border: 1px solid #333; border-radius: 1px; box-shadow: var(--sunken); }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .hint b { color: #000; padding: 0 .25rem; background: linear-gradient(#fff, #dcdcdc); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: 0 1px 0 #7a7a7a; font-weight: 400; }   /* keyboard keys */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .drop { border: 2px dashed #7a7a7a; border-radius: 3px; background: #ececec; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .drop:hover, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .drop.over { border-color: var(--accent); background: #fff; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .serlist { padding: .3rem; background: #fff; border: 1px solid #7a7a7a; box-shadow: var(--sunken); }   /* a listbox */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .ser span, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .checks label { color: #000; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) input[type=checkbox] { accent-color: #1b8a1b; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .seg button:first-child { border-radius: 3px 0 0 3px; } :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .seg button:last-child { border-radius: 0 3px 3px 0; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) :focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
   .gpumsg { position: absolute; inset: 0; display: grid; place-content: center; gap: .6rem; padding: 2rem; text-align: center; color: var(--text); background: var(--well); }
-  [data-theme=labview] .gpumsg { color: #fff; background: #000; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .gpumsg { color: #fff; background: #000; }
   .gpumsg a, .link { color: var(--accent); }
-  [data-theme=labview] .gpumsg a { color: #8fc3ff; }
-  .tabs { flex-wrap: wrap; } .tab, [data-theme=labview] .tab { flex: 0 0 auto; overflow: visible; padding-left: .32rem; padding-right: .32rem; }   /* seven tabs: whole names, on a second row if they must */
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .gpumsg a { color: #8fc3ff; }
+  .tabs { flex-wrap: wrap; } .tab, :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) .tab { flex: 0 0 auto; overflow: visible; padding-left: .32rem; padding-right: .32rem; }   /* seven tabs: whole names, on a second row if they must */
   #tourRing { position: fixed; z-index: 40; border: 3px solid var(--accent); border-radius: 6px; box-shadow: 0 0 0 2px #fff8, 0 0 14px var(--accent); pointer-events: none; }
   #tourCard { position: fixed; z-index: 41; left: 16px; top: 16px; width: 300px; max-width: calc(100vw - 16px); display: grid; padding: .9rem 1rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 24px #000a; }
   #tourCard h2 { margin: .1rem 0 .4rem; font-size: 1.1rem; color: var(--strong); }
   #tourCard p { margin-bottom: .6rem; }
   #tourDone { color: #2fb344; font-weight: 700; }
-  [data-theme=labview] #tourCard { border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 3px 3px 0 #00000040; }
-  [data-theme=labview] #tourDone { color: #067a06; }
-  [data-theme=labview] #tourRing { border-color: #e06a00; box-shadow: 0 0 0 2px #fff, 0 0 12px #e06a00; border-radius: 3px; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #tourCard { border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 3px 3px 0 #00000040; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #tourDone { color: #067a06; }
+  :is([data-theme=labview],[data-theme=win95],[data-theme=mac]) #tourRing { border-color: #e06a00; box-shadow: 0 0 0 2px #fff, 0 0 12px #e06a00; border-radius: 3px; }
   @media (max-width: 899px) { #tourCard { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; } }
   #bgColor, .pick { width: 2.4rem; height: 1.8rem; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+  /* More looks: Windows 95 and Mac reuse the grey Light (LabVIEW) rules above and then restyle them; Retro is a green-on-black terminal built on the Dark look */
+  @font-face { font-family: "W95FA"; src: url(data:font/woff2;base64,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) format("woff2"); }   /* W95FA, a Windows 95 style pixel font, SIL Open Font License 1.1 (embedded here so nothing is downloaded) */
+  #themeSel { width: 100%; }
+  /* ---- Windows 95: teal desktop, chunky grey bevels, pixel font ---- */
+  :root[data-theme=win95] { --bg: #008080; --panel: #c0c0c0; --line: #808080; --text: #000; --muted: #404040; --accent: #000080; --strong: #000; --well: #fff;
+    --raised: inset -1px -1px #000, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+    --sunken: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #000; }
+  :root[data-theme=win95] body { font: 16px/1.2 "W95FA", "MS Sans Serif", Tahoma, sans-serif; -webkit-font-smoothing: none; font-smooth: never; text-rendering: optimizeSpeed; background-color: #008080; background-image: none; }
+  :root[data-theme=win95] .lbl, :root[data-theme=win95] .hint, :root[data-theme=win95] .sl span, :root[data-theme=win95] .liq b { font-size: 16px; font-weight: 400; }
+  :root[data-theme=win95] .lbl { color: #000; }
+  :root[data-theme=win95] .card { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--raised); }
+  :root[data-theme=win95] button, :root[data-theme=win95] #homeBtn { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--raised); color: #000; }
+  :root[data-theme=win95] button:hover, :root[data-theme=win95] #homeBtn:hover { background: #c0c0c0; }
+  :root[data-theme=win95] button:active, :root[data-theme=win95] button.on, :root[data-theme=win95] button.on:hover { background: repeating-conic-gradient(#fff 0 25%, #c0c0c0 0 50%) 0 0 / 2px 2px; box-shadow: var(--sunken); border: 0; font-weight: 400; }   /* pressed-in toggle with the checkered fill */
+  :root[data-theme=win95] #stopBtn, :root[data-theme=win95] #abortBtn, :root[data-theme=win95] #recBtn, :root[data-theme=win95] #winBtn { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--raised); text-shadow: none; font-weight: 400; }
+  :root[data-theme=win95] #stopBtn { color: #a00000; } :root[data-theme=win95] #stopBtn.run { background: #c0c0c0; color: #006400; }
+  :root[data-theme=win95] #abortBtn { color: #8a4a00; } :root[data-theme=win95] #recBtn, :root[data-theme=win95] #winBtn { color: #c00000; }
+  :root[data-theme=win95] .recgrid select, :root[data-theme=win95] #themeSel, :root[data-theme=win95] input.num { border: 0; border-radius: 0; box-shadow: var(--sunken); font-family: "W95FA", Tahoma, sans-serif; font-size: 16px; }
+  :root[data-theme=win95] .ro output { background: #fff; border: 0; box-shadow: var(--sunken); font-family: "W95FA", monospace; }
+  :root[data-theme=win95] .tab { border: 0; border-radius: 0; background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; font-weight: 400; color: #000; }
+  :root[data-theme=win95] .tab.on, :root[data-theme=win95] .tab.on:hover { background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; font-weight: 400; }
+  :root[data-theme=win95] .tank { border: 0; border-radius: 0; box-shadow: var(--sunken); margin: 0; }
+  :root[data-theme=win95] .scope, :root[data-theme=win95] #fpsChart, :root[data-theme=win95] #countChart, :root[data-theme=win95] #countLed { border: 0; border-radius: 0; box-shadow: var(--sunken); margin: 0; }
+  :root[data-theme=win95] .serlist { border: 0; box-shadow: var(--sunken); }
+  :root[data-theme=win95] .hint b { border: 0; border-radius: 0; box-shadow: var(--raised); font-weight: 400; }
+  :root[data-theme=win95] #tourCard { border: 0; border-radius: 0; box-shadow: var(--raised), 2px 2px 0 #000; }
+
+  /* ---- Mac: soft light grey, white rounded cards, blue accents ---- */
+  :root[data-theme=mac] { --bg: #ececec; --panel: #fff; --line: #d9d9de; --text: #1d1d1f; --muted: #6e6e73; --accent: #007aff; --strong: #1d1d1f; --well: #fff;
+    --raised: 0 0 0 1px #0000001a, 0 1px 3px #0000001a; --sunken: inset 0 0 0 1px #d1d1d6; }
+  :root[data-theme=mac] body { font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif; background-color: #ececec; background-image: none; }
+  :root[data-theme=mac] .lbl, :root[data-theme=mac] .sl span, :root[data-theme=mac] .liq b { font-weight: 600; color: #6e6e73; }
+  :root[data-theme=mac] .card { background: #fff; border: 1px solid #e0e0e5; border-radius: 10px; box-shadow: 0 1px 3px #0000001a; }
+  :root[data-theme=mac] button, :root[data-theme=mac] #homeBtn { background: #fff; border: 1px solid #d1d1d6; border-radius: 6px; box-shadow: 0 1px 1px #0000001a; }
+  :root[data-theme=mac] button:hover, :root[data-theme=mac] #homeBtn:hover { background: #f5f5f7; border-color: #c7c7cc; }
+  :root[data-theme=mac] button:active { background: #e8e8ed; box-shadow: none; }
+  :root[data-theme=mac] button.on, :root[data-theme=mac] button.on:hover { color: #fff; font-weight: 600; background: linear-gradient(#3b9bff, #007aff); border-color: #0a6ee0; box-shadow: none; }
+  :root[data-theme=mac] .recgrid select, :root[data-theme=mac] #themeSel, :root[data-theme=mac] input.num { border: 1px solid #d1d1d6; border-radius: 6px; box-shadow: inset 0 1px 1px #0000000d; }
+  :root[data-theme=mac] .recgrid select:focus, :root[data-theme=mac] #themeSel:focus, :root[data-theme=mac] input.num:focus { outline: none; background: #fff; border-color: #007aff; box-shadow: 0 0 0 3px #007aff40; }
+  :root[data-theme=mac] .ro output { background: #f5f5f7; border: 1px solid #e0e0e5; border-radius: 6px; box-shadow: none; }
+  :root[data-theme=mac] .tabs { border-bottom: 1px solid #e0e0e5; gap: .2rem; }
+  :root[data-theme=mac] .tab { background: transparent; border: 0; border-bottom: 3px solid transparent; border-radius: 6px 6px 0 0; box-shadow: none; color: #6e6e73; }
+  :root[data-theme=mac] .tab.on, :root[data-theme=mac] .tab.on:hover { color: #007aff; background: #007aff14; border-bottom: 3px solid #007aff; box-shadow: none; font-weight: 600; }
+  :root[data-theme=mac] .tank { border: 1px solid #1d1d1f; border-radius: 10px; box-shadow: 0 1px 4px #0003; margin: 0; }
+  :root[data-theme=mac] .scope, :root[data-theme=mac] #fpsChart, :root[data-theme=mac] #countChart, :root[data-theme=mac] #countLed { border: 1px solid #1d1d1f; border-radius: 8px; box-shadow: none; margin: 0; }
+  :root[data-theme=mac] .serlist { border: 1px solid #d1d1d6; border-radius: 6px; box-shadow: none; }
+  :root[data-theme=mac] .hint b { border-radius: 4px; box-shadow: 0 1px 0 #d1d1d6; border-color: #d1d1d6; }
+  :root[data-theme=mac] #tourCard { border: 1px solid #d1d1d6; border-radius: 10px; box-shadow: 0 10px 30px #0003; }
+
+  /* ---- Retro: green phosphor terminal with scan lines ---- */
+  :root[data-theme=retro] { --bg: #040a04; --panel: #091409; --line: #1f7a1f; --text: #33ff33; --muted: #22bb22; --accent: #9dff9d; --strong: #9dff9d; --well: #000; }
+  :root[data-theme=retro] body { font: 14px/1.5 "Courier New", Consolas, monospace; }
+  :root[data-theme=retro] body::after { content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none; background: repeating-linear-gradient(#0000 0 2px, #00000038 2px 3px); }
+  :root[data-theme=retro] .card { border: 1px solid #1f7a1f; border-radius: 0; box-shadow: 0 0 8px #33ff3322; }
+  :root[data-theme=retro] button, :root[data-theme=retro] #homeBtn { color: #33ff33; background: transparent; border: 1px solid #33ff33; border-radius: 0; }
+  :root[data-theme=retro] button:hover, :root[data-theme=retro] #homeBtn:hover, :root[data-theme=retro] button.on, :root[data-theme=retro] button.on:hover { color: #000; background: #33ff33; border-color: #33ff33; }
+  :root[data-theme=retro] .recgrid select, :root[data-theme=retro] #themeSel, :root[data-theme=retro] input.num { color: #33ff33; background: #000; border: 1px solid #1f7a1f; border-radius: 0; }
+  :root[data-theme=retro] input[type=checkbox] { accent-color: #33ff33; }
+  :root[data-theme=retro] .tab { border-radius: 0; }
+  :root[data-theme=retro] .tab.on, :root[data-theme=retro] .tab.on:hover { color: #000; background: #33ff33; }
+  :root[data-theme=retro] .tank, :root[data-theme=retro] .scope, :root[data-theme=retro] #fpsChart, :root[data-theme=retro] #countChart, :root[data-theme=retro] #countLed { border: 1px solid #1f7a1f; border-radius: 0; }
+  :root[data-theme=retro] .ro output { color: #33ff33; background: #000; border: 1px solid #1f7a1f; }
+  :root[data-theme=retro] #tourCard { color: #33ff33; background: #000; border: 1px solid #33ff33; border-radius: 0; box-shadow: 0 0 14px #33ff3355; }
+  /* colour swatches (Pour liquid, liquid rows, empty colours) keep their own colour in every look: these come last so they beat the general button rules above */
+  :root[data-theme=win95] button.swatch, :root[data-theme=win95] button.swatch:hover { background: var(--c); border: 0; border-radius: 0; box-shadow: var(--raised); }
+  :root[data-theme=win95] button.swatch.on, :root[data-theme=win95] button.swatch.on:hover { background: var(--c); box-shadow: var(--sunken); outline: 1px dotted #000; outline-offset: -5px; }   /* pressed in, with the dotted focus box */
+  :root[data-theme=mac] button.swatch, :root[data-theme=mac] button.swatch:hover { background: var(--c); border: 1px solid #0003; border-radius: 50%; box-shadow: none; }
+  :root[data-theme=mac] button.swatch.on, :root[data-theme=mac] button.swatch.on:hover { background: var(--c); border-color: #0003; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #007aff; }
+  :root[data-theme=retro] button.swatch, :root[data-theme=retro] button.swatch:hover { background: var(--c); border: 1px solid #1f7a1f; border-radius: 0; }
+  :root[data-theme=retro] button.swatch.on, :root[data-theme=retro] button.swatch.on:hover { background: var(--c); border: 2px solid #33ff33; box-shadow: 0 0 8px #33ff33; }
+  :root[data-theme=win95] span.swatch, :root[data-theme=mac] span.swatch, :root[data-theme=retro] span.swatch { background: var(--c); }
 </style>
 </head>
 <body>
@@ -280,7 +351,7 @@
           </div>
         </div>
         <div class="pane" id="style" hidden>
-          <div class="ro"><span class="lbl">Panel look</span><span class="seg" id="themeSeg"><button type="button" data-look="labview">Light</button><button type="button" data-look="dark">Dark</button></span></div>
+          <div class="ro"><span class="lbl">Panel look</span><select id="themeSel" aria-label="Panel look"><option value="labview">Light</option><option value="dark">Dark</option><option value="win95">Windows 95</option><option value="mac">Mac</option><option value="retro">Retro</option></select></div>
           <div class="ro"><span class="lbl">Tank background</span><div class="tools" id="bgBtns"></div></div>
           <div class="ro"><span class="lbl">Your own colour</span><div class="bar"><input type="color" id="bgColor" value="#2f4f6f" aria-label="Tank background colour"><button id="bgUse" type="button">Use this colour</button></div></div>
           <p class="hint">The background shows up in your pictures and videos too.</p>
@@ -1998,7 +2069,7 @@ function gpuFrame(steps) {                       // one frame on the card: new p
 
 // ---- the instruments: strip charts, dials and a digital readout ----
 const fpsHist = [], countHist = [];
-const labview = () => document.documentElement.dataset.theme === "labview";
+const labview = () => ["labview", "win95", "mac"].includes(document.documentElement.dataset.theme);   // the light looks (grey LabVIEW panel, Windows 95, Mac) share the light drawing colours; Dark and Retro use the dark ones
 function fit(c) {                                // a canvas's 2D context, sized to how big it shows on screen
   const dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
   if (!W || !H) return null;
@@ -2143,14 +2214,14 @@ function drawInstruments(force) {
   }
   if (force || inst.shown !== sim.n) { inst.shown = sim.n; led($("countLed"), sim.n, 5); }
 }
-function setTheme(t) {                           // the look of the page: the default dark one, or LabVIEW's grey front panel
-  if (t === "labview") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
-  document.querySelectorAll("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.look === t));
+function setTheme(t) {                           // the look of the page: Light (LabVIEW), Dark, Windows 95, Mac or Retro
+  if (["labview", "win95", "mac", "retro"].includes(t)) document.documentElement.dataset.theme = t; else { delete document.documentElement.dataset.theme; t = "dark"; }
+  $("themeSel").value = t;
   try { localStorage.setItem("sloshTheme", t); } catch (e) {}
   drawChart(); drawPic(); drawInstruments(true); // drawn walls and the dials take the theme's colours
 }
-document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => setTheme(b.dataset.look));
-setTheme(labview() ? "labview" : "dark");
+$("themeSel").onchange = () => setTheme($("themeSel").value);
+setTheme(document.documentElement.dataset.theme || "dark");
 
 // ---- the main loop ----
 let frames = 0, lastT = performance.now(), slow = 0, started = false, fillArea = 0;
