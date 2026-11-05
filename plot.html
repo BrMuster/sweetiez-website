@@ -45,6 +45,8 @@
   .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
   .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  body.signal .tab:not([data-tab=data], [data-tab=display]), body.signal :is(.tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
+  .signalonly { display: none; } body.signal .signalonly { display: block; } body.signal .plotrow { grid-template-columns: 1fr; }
   .scanno { flex: none; font-size: .8em; opacity: .75; white-space: nowrap; }
   #printHead, #printImg, #printLegend, #printFields, #printStamp, #printTables, #printData { display: none; }
   #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
@@ -476,12 +478,14 @@
     <div class="panel" data-tab="data" hidden>
       <div class="bar">
         <button type="button" id="openbtn">Open a CSV</button>
+        <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here">Paste from Excel</button>
         <button type="button" id="demo">Try sample data</button>
         <button type="button" id="clearbtn" title="Remove everything from the graph and start over">Clear graph</button>
         <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
-        <span class="hint">…or drop a CSV file anywhere on this page.</span>
+        <span class="hint">…or drop a CSV file anywhere on this page, or copy cells in Excel and press Ctrl+V here.</span>
       </div>
       <p id="msg" class="hint" role="status"></p>
+      <p class="hint signalonly">Signal view: drag across the graph to zoom, and double-click to zoom back out.</p>
       <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
       <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
       <div class="series" id="series"></div>
@@ -927,6 +931,9 @@ function parseCSV(text) {                       // handles quotes like "a, b" an
   return rows.filter(r => r.length > 1 || r[0].trim() !== "");
 }
 
+let signalMode = false;                          // true when the graph holds one-column signal files instead of spectral scans
+const isSignal = ds => ds.cols.length === 1 && ds.cols[0].kind === "num";
+function setSignal(on) { signalMode = on; XLAB = on ? "Reading" : "Wavelength"; XUNIT = on ? "" : "nm"; document.body.classList.toggle("signal", on); renderSpecs(); }
 let files = [], uid = 0, scanNo = 0;                         // files[0] is the main scan, any others are overlays
 const shortName = s => s.replace(/\.[^.]*$/, "");
 const abbr = () => $("kR").checked ? "Rx" : "Tx";                 // series are called Tx or Rx to match the Scan type
@@ -949,7 +956,7 @@ function readFile(text, fname) {                // turn CSV text into columns; r
   if (start >= 0) { body = rows.slice(start, start + len); hd = start > 0 && rows[start - 1].some(isText) ? rows[start - 1] : null; }
   else { const hasHead = rows[0].some(isText); hd = hasHead ? rows[0] : null; body = hasHead ? rows.slice(1) : rows; }
   const cropped = start >= 0 ? { top: start - (hd ? 1 : 0), bottom: rows.length - start - len } : { top: 0, bottom: 0 };   // lines of notes that were skipped (the column-name row isn't counted)
-  const width = Math.max(...body.map(r => r.length));
+  const width = body.reduce((w, r) => Math.max(w, r.length), 0);   // not Math.max(...rows): a very long file would overflow the call
   const head = Array.from({ length: width }, (_, i) => hd && (hd[i] ?? "").trim() ? hd[i].trim() : "Column " + (i + 1));
   const cs = head.map((name, j) => {            // decide if each column is numbers, dates or text
     const raw = body.map(r => (r[j] ?? "").trim()), filled = raw.filter(s => s !== "").length || 1;
@@ -963,29 +970,35 @@ function readFile(text, fname) {                // turn CSV text into columns; r
   return { id: ++uid, fname, cols: cs, n: body.length, xi: -1, X: [], xkind: "num", cropped, shifts: [], smooths: [], text };   // each scan keeps its own shifts and smoothing (see the Modify tab)
 }
 
-function ingest(text, fname = "data.csv") {     // load the main scan (this replaces any overlays)
+function ingest(text, fname = "data.csv", pasted = false) {     // load the main scan (this replaces any overlays); pasted columns all go on the graph, under their own headings
   const ds = readFile(text, fname); if (!ds) return;
+  ds.showAll = pasted; if (pasted) ds.cols.forEach((c, i) => { if (i && c.kind === "num" && !/^Column \d+$/.test(c.name)) c.label = c.name; });
   files = [ds]; cols = ds.cols; n = ds.n; scanNo = 0;
-  const xi = cols[0].kind !== "text" ? 0 : -1;   // X is always the first column (wavelength)
+  const sig = isSignal(ds), was = signalMode; setSignal(sig); if (sig && cols[0].name === "Column 1") cols[0].name = "Signal";
+  const xi = !sig && cols[0].kind !== "text" ? 0 : -1;   // X is always the first column (wavelength); a signal file has only the readings, so they are numbered
   for (const id of ["title", "spec", "shfrom", "shto", "shx", "shy", "smfrom", "smto", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   shiftStamp++; notes = []; noteBoxes = []; renderNotes();
   ySaved = null;
   const yc = cols.find((c, i) => i !== xi && c.kind === "num");           // a column called Rx / Reflection switches the Scan type to Reflection
   $("kR").checked = !!(yc && /^(%\s*)?R(x)?(\W|$)|reflect/i.test(yc.name)); $("kT").checked = !$("kR").checked;
   const cr = ds.cropped, note = cr.top + cr.bottom ? " Skipped " + [cr.top && cr.top + " header", cr.bottom && cr.bottom + " footer"].filter(Boolean).join(" and ") + " lines that weren't data." : "";
-  say(n.toLocaleString() + " rows, " + cols.length + " columns loaded." + note); $("app").hidden = false;
+  say(sig ? n.toLocaleString() + " readings loaded." + note : n.toLocaleString() + " rows, " + cols.length + " columns loaded." + note); $("app").hidden = false;
   setX(xi, true);
-  if (landing) { landing = false; showTab(startTab(), false); }   // first file loaded: go to the tab you usually work in
+  const ys = cols.filter((c, i) => i !== xi && c.kind === "num").length;
+  if (pasted && ys > 1) say(n.toLocaleString() + " rows loaded, showing all " + ys + " columns. Uncheck any you don't want on the graph." + note);
+  if (landing || sig !== was || (pasted && ys > 1)) { landing = false; showTab(sig || (pasted && ys > 1) ? "data" : startTab(), false); }   // pasted columns land where their checkboxes are   // first file loaded: go to the tab you usually work in
 }
 function addOverlay(text, fname) {              // put another scan on the same graph
   if (!files.length) return ingest(text, fname);
   const ds = readFile(text, fname); if (!ds) return;
-  ds.xi = ds.cols[0].kind !== "text" ? 0 : -1;
-  ds.X = ds.xi < 0 ? Array.from({ length: ds.n }, (_, i) => i) : ds.cols[ds.xi].v;
+  if (isSignal(ds) !== signalMode) return say(fname + " can't go on this graph: signal files and spectral scans can't share one. Click Clear graph first.");
+  if (signalMode && ds.cols[0].name === "Column 1") ds.cols[0].name = "Signal";
+  ds.xi = !signalMode && ds.cols[0].kind !== "text" ? 0 : -1;
+  ds.X = ds.xi < 0 ? Array.from({ length: ds.n }, (_, i) => i + (signalMode ? 1 : 0)) : ds.cols[ds.xi].v;
   ds.xkind = ds.xi < 0 ? "num" : ds.cols[ds.xi].kind;
   if (ds.xkind !== xkind) return say(fname + " can't be overlaid: its first column is " + (ds.xkind === "date" ? "dates/times" : "numbers") + " but the main scan's X axis is " + (xkind === "date" ? "dates/times" : "numbers") + ".");
   files.push(ds);
-  say(fname + " added as an overlay (" + ds.n.toLocaleString() + " rows). It uses its first column as X.");
+  say(signalMode ? fname + " added (" + ds.n.toLocaleString() + " readings)." : fname + " added as an overlay (" + ds.n.toLocaleString() + " rows). It uses its first column as X.");
   rebuild(false, ds);
 }
 
@@ -1002,7 +1015,7 @@ function fullView() {                           // wide enough to show every loa
   return { a, b: b > a ? b : a + 1 };
 }
 function setX(xi, firstLoad) {                  // choose the main scan's X column
-  X = xi < 0 ? Array.from({ length: n }, (_, i) => i) : cols[xi].v;
+  X = xi < 0 ? Array.from({ length: n }, (_, i) => i + (signalMode ? 1 : 0)) : cols[xi].v;
   xkind = xi < 0 ? "num" : cols[xi].kind;
   Object.assign(files[0], { xi, X, xkind });
   files = files.filter((f, i) => i === 0 || f.xkind === xkind);        // an overlay with the wrong kind of X can't stay
@@ -1028,9 +1041,9 @@ function rebuild(first, newDs) {                // redo the series list for ever
     let got = false;
     ds.cols.forEach((c, i) => {
       if (c.kind !== "num" || i === ds.xi) return;
-      c.nick ??= "Scan " + ++scanNo;                                       // the short name used wherever room is tight; it stays with the scan even if others are removed
+      c.nick ??= (signalMode ? "Signal " : "Scan ") + ++scanNo;                                       // the short name used wherever room is tight; it stays with the scan even if others are removed
       const key = ds.id + ":" + i, auto = COLORS[k++ % COLORS.length], color = c.col || auto, isFirst = !got; got = true;   // a curve you coloured keeps its place in the automatic sequence, so the others do not shift
-      const on = first ? k === 1 : prev.has(key) || (ds === newDs && isFirst);
+      const on = first ? k === 1 || ds.showAll : prev.has(key) || (ds === newDs && isFirst);
       const l = document.createElement("label");
       l.innerHTML = '<input type="checkbox"><input type="color" class="swc" title="Scan color">';
       l.firstChild.value = key; l.firstChild.checked = on; l.dataset.color = color; l._s = { c, ds };
@@ -1096,7 +1109,7 @@ function shiftedDs(ds) {                         // null when nothing is shifted
   for (let i = 1; i < n; i++) if (asc ? X[i] < X[i - 1] : X[i] > X[i - 1]) { ord = Array.from({ length: n }, (_, k) => k).sort((p, q) => (asc ? X[p] - X[q] : X[q] - X[p]) || 0); break; }   // pieces moved by different amounts can overlap
   return ds._sh = { src: X0, stamp: shiftStamp, X: ord ? ord.map(i => X[i]) : X, dy: ord ? ord.map(i => dy[i]) : dy, ord };
 }
-const measName = () => $("kR").checked ? "Reflection" : "Transmission";
+const measName = () => signalMode ? "Signal" : $("kR").checked ? "Reflection" : "Transmission";
 
 // ---------- 3. FORMATTING AND AXIS TICKS ----------
 const dec = () => +$("dec").value;              // decimal places picked in the Decimals menu (2, 1 or 0)
@@ -1105,11 +1118,11 @@ const fx = (v, span) => xkind !== "date" ? (span === undefined ? fmt(v) : String
   span === undefined ? new Date(v).toLocaleString()
   : span > 3 * 864e5 ? new Date(v).toLocaleDateString([], { month: "short", day: "numeric" })
   : new Date(v).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: span < 6e5 ? "2-digit" : undefined });
-const XLAB = "Wavelength", XUNIT = "nm";         // the X axis is always wavelength in nm
-const xU = () => " " + XUNIT;
+let XLAB = "Wavelength", XUNIT = "nm";           // the X axis is wavelength in nm, or the reading number for a signal file
+const xU = () => XUNIT ? " " + XUNIT : "";
 const YUNIT = "%";                                   // the Y axis is always percent
 const yU = () => " " + YUNIT;
-const xs = v => fx(v) + xU(), ys = v => fmt(v) + yU();
+const xs = v => (signalMode ? String(Math.round(v)) : fx(v)) + xU(), ys = v => fmt(v) + yU();
 function axisLabel(ax) {                         // "Temperature (°C)"
   const name = ax === "x" ? XLAB : measName(), unit = ax === "x" ? XUNIT : YUNIT;
   return name && unit ? name + " (" + unit + ")" : name || (unit ? "(" + unit + ")" : "");
@@ -1160,7 +1173,7 @@ const pointPct = sp => sp.meas === "P5" ? 5 : sp.meas === "P50" ? 50 : 0;   // w
 const isNmSpec = sp => sp.meas === "CWL" || sp.meas === "BW" || pointPct(sp) > 0;
 const numText = t => String(t ?? "").trim() !== "" && isFinite(Number(t));
 const specOK = sp => isNmSpec(sp) ? numText(sp.v) && (sp.op !== "pm" || (numText(sp.tol) && +sp.tol >= 0)) : [sp.a, sp.b, sp.v].every(numText);
-const specShown = sp => sp.show !== false;       // the checkbox beside each spec; unchecked hides it from the graph, check table and print
+const specShown = sp => sp.show !== false && !signalMode;       // the checkbox beside each spec; unchecked hides it from the graph, check table and print
 let confettiOn = false, specHits = new Set();     // easter egg: a scan whose measured number lands within 0.001 of any spec's value, or reads the same as it on screen, earns confetti, once until it stops matching
 function yAtX(s, x) {                            // a scan's value at one wavelength, reading between its data points if it has to
   for (let i = 0; i < s.n; i++) {
@@ -1168,6 +1181,11 @@ function yAtX(s, x) {                            // a scan's value at one wavele
     if (x0 === x && isFinite(y0)) return y0;
     if (i < s.n - 1 && (x0 - x) * (x1 - x) < 0 && isFinite(y0) && isFinite(y1)) return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
   }
+  return NaN;
+}
+function hoverY(s, x) {                          // the height of the drawn line at one wavelength: a Step line holds its last value, the others run straight between data points
+  if ($("style").value !== "step") return yAtX(s, x);
+  for (let i = 0; i < s.n; i++) { const x0 = s.X[i], x1 = s.X[i + 1]; if (x0 === x || (i < s.n - 1 && (x0 - x) * (x1 - x) < 0)) return s.c.v[i]; }
   return NaN;
 }
 function specConfetti(S) {
@@ -1452,7 +1470,7 @@ function render() {
   const seg = (l, c, w, dash) => { ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();   // drawn lines stay inside the plot area
     ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.setLineDash(dash ? [9, 7] : []);
     ctx.beginPath(); ctx.moveTo(px(l.x1), py(l.y1)); ctx.lineTo(px(l.x2), py(l.y2)); ctx.stroke(); ctx.restore(); };
-  for (const l of lines) seg(l, P.title, 2.5, l.dash);
+  if (!signalMode) for (const l of lines) seg(l, P.title, 2.5, l.dash);
   if (ldrag && !light) seg(ldrag, "#f5a623", 2, true);                 // the line while you drag it out
   for (const { p, li } of levels()) for (const s of S) {               // edge points: faint dashed level line + a marker at each crossing
     const e = edgePts(s, p); if (!e) continue;
@@ -1534,20 +1552,16 @@ function render() {
   if (!light && !clean) noteBoxes = boxes;
 
   let roLines = [];
-  if (hov !== null && !drag && S.length) {                            // hover readout: each series snaps to its own nearest row
-    const bis = S.map(s => { let bi = -1, bd = Infinity;
-      for (let i = 0; i < s.n; i++) { const d = Math.abs(s.X[i] - hov); if (d < bd) { bd = d; bi = i; } }
-      return bi; });
-    const x0 = bis[0] >= 0 ? S[0].X[bis[0]] : NaN, hx = px(x0);
+  if (hov !== null && !drag && S.length) {                            // hover readout: follows the mouse, reading each scan between its data points (a signal file has only whole readings, so it moves reading by reading)
+    const x0 = signalMode ? Math.round(hov) : hov, hx = px(x0);
     if (hx >= L && hx <= L + pw) {
       ctx.strokeStyle = (P.ink || "#ffffff") + "55"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, T + ph); ctx.stroke();
       const lines = [{ t: xs(x0), c: "#fff", val: xs(x0) }];
-      S.forEach((s, j) => {
-        const bi = bis[j]; if (bi < 0) return;
-        const v = s.c.v[bi], y = ty(v), sx = s.X[bi];
-        if (!isFinite(v)) return;
-        lines.push({ t: s.nick + ": " + ys(v) + (sx !== x0 ? "   at " + xs(sx) : ""), c: s.color, name: s.nick, val: ys(v), at: sx !== x0 ? xs(sx) : "" });
-        if (isFinite(y)) { ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(px(sx), py(y), 4, 0, 7); ctx.fill(); }
+      S.forEach(s => {
+        const v = hoverY(s, x0), y = ty(v);
+        if (!isFinite(v)) return;                                       // this scan has no data at this wavelength
+        lines.push({ t: s.nick + ": " + ys(v), c: s.color, name: s.nick, val: ys(v), at: "" });
+        if (isFinite(y)) { ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(hx, py(y), 4, 0, 7); ctx.fill(); }
       });
       roLines = lines;
       if (showFlag) {                                                  // the flag itself, only when turned on (Settings, or the F key)
@@ -1615,7 +1629,7 @@ function setReadout(lines) {                     // the same values as the flag,
 }
 addEventListener("resize", () => { $("readout").style.minHeight = ""; });   // a remembered height is no use at a new window width
 // ---------- 3d. FILTER TYPES (Bandpass, LWP, SWP, AR, Notch) ----------
-const ftype = () => (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
+const ftype = () => signalMode ? "none" : (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
 const rangeGroups = () => ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
 function rangeStats(s, r) {                      // count, average, and the lowest / highest point of series s inside range r
   const o = { cnt: 0, sum: 0, mn: Infinity, mx: -Infinity, imn: -1, imx: -1 };
@@ -1685,7 +1699,7 @@ function detectType(s) {                         // look at the whole scan (not 
   if ($("kR").checked) return "ar";              // a reflection scan is an anti-reflection coating
   const y = []; for (let i = 0; i < s.n; i++) { const v = s.c.v[i]; if (isFinite(v)) y.push(v); }
   if (s.n > 1 && s.X[s.n - 1] < s.X[0]) y.reverse();   // always read from short wavelength to long
-  const pk = Math.max(...y); if (!(pk > 0) || y.length < 5) return "none";
+  const pk = y.reduce((m, v) => Math.max(m, v), -Infinity); if (!(pk > 0) || y.length < 5) return "none";   // not Math.max(...y): a very long file would overflow the call
   const hi = pk * .6, lo = pk * .4; let st = null, start = null, n = 0;
   for (const v of y) {
     const now = v > hi ? "high" : v < lo ? "low" : null; if (!now) continue;
@@ -1703,7 +1717,7 @@ function reportEdges(s) {                        // where the scan crosses 80%, 
     out.pk = e.pk;
     const asc = s.X[s.n - 1] >= s.X[0];                                // many spectrometers save the longest wavelength first: "rising" always means rising as the wavelength goes up
     const rs = e.pts.filter(c => c.up === asc).map(c => c.x), fs = e.pts.filter(c => c.up !== asc).map(c => c.x);
-    out.rise[p] = rs.length ? Math.min(...rs) : null; out.fall[p] = fs.length ? Math.max(...fs) : null;
+    out.rise[p] = rs.length ? rs.reduce((m, v) => Math.min(m, v)) : null; out.fall[p] = fs.length ? fs.reduce((m, v) => Math.max(m, v)) : null;
   }
   return out;
 }
@@ -1756,7 +1770,7 @@ function fillRows(parent, rows) {                // draw rows made by fdRows (or
   return units;
 }
 function renderLive(S) {                         // the Filter data panel beside the graph: with several curves, all of them or the one you pick
-  const box = $("liveData"); box.hidden = !S.length || !view; if (box.hidden) return;
+  const box = $("liveData"); box.hidden = !S.length || !view || signalMode; if (box.hidden) return;
   if (ldPick && !S.some(s => s.box === ldPick)) ldPick = null;   // the picked curve was hidden or removed
   const many = S.length > 1, list = many && !ldPick ? S : [ldPick ? S.find(s => s.box === ldPick) : S[0]];
   const pick = $("ldCurve"), sig = JSON.stringify(S.map(s => s.nick)); pick.hidden = !many;
@@ -2092,7 +2106,7 @@ function boxZoom(e) {                            // right-drag: zoom both X and 
       if (!ySaved) ySaved = [$("ymin").value, $("ymax").value];          // Reset view puts the old Y limits back
       view = { a: Math.min(z.x0, z.x1), b: Math.max(z.x0, z.x1) }; zoomed = true;
       $("ymin").value = yText(Math.min(z.y0, z.y1)); $("ymax").value = yText(Math.max(z.y0, z.y1)); draw();
-    } else { redraw(true); if (!moved) rightClick(e); } };           // a right-click that did not drag adds or edits a note
+    } else { redraw(true); if (!moved && !signalMode) rightClick(e); } };           // a right-click that did not drag adds or edits a note
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 }
 function lineDraw(e) {                          // Ctrl + drag: draw a line (or a spec) from where you pressed to where you let go
@@ -2115,7 +2129,7 @@ function lineDraw(e) {                          // Ctrl + drag: draw a line (or 
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => {
   if (!view) return;
-  if (e.button === 2) return boxZoom(e);
+  if (e.button === 2 || (signalMode && e.button === 0)) return boxZoom(e);   // a signal file has no ranges, so a plain drag zooms too
   if (e.button !== 0) return;
   if (e.ctrlKey) return lineDraw(e);
   const xb = xBtnAt(e); if (xb >= 0) { ranges[xb] = null; shown[xb] = true; return draw(); }   // the X on a range removes it
@@ -2322,7 +2336,7 @@ function preparePrint() {                        // fill in the print-only parts
   const L = S.length > 1 ? keyRows * 5.5 + .5 : 0, room = (wide ? 148 : 165) - L, minG = 64;   // mm: the key, the space for the graph and its tables, and the smallest graph worth printing
   let used = 0, later = false;                                         // each table stays under the graph if a good-sized graph still fits; only then do they go on the next page
   for (const t of tbls) { const h = t.rows.length * 4.3 + 12; if (!later && room - used - h - 3 >= minG) used += h; else later = t.newpage = true; }
-  const gh = used ? room - used - 3 : wide ? room : 168.8 - L;
+  const gh = used ? room - used - 3 : wide ? room - 3 : 168.8 - L;     // the 3 mm keeps a wide report with no table under its graph from spilling a blank second page
   if (side) { $("app").dataset.side = "1"; $("app").style.setProperty("--rw", rw + "mm"); $("printData").replaceChildren(rptTable(sideTable(mt))); } else { delete $("app").dataset.side; $("printData").replaceChildren(); }
   $("app").dataset.rpt = wide ? "wide" : "single"; if (later && !wide) $("app").dataset.long = "1"; else delete $("app").dataset.long;
   document.documentElement.classList.toggle("rpttables", tbls.length > 0);
@@ -2387,6 +2401,20 @@ async function openFiles(list, asOverlay) {     // first file replaces the main 
 $("file").onchange = e => { openFiles(e.target.files, false); e.target.value = ""; };
 $("addcsv").onclick = () => (files.length ? $("file2") : $("file")).click();   // with nothing loaded yet, the first file becomes the main scan
 $("openbtn").onclick = () => $("file").click();
+function loadPasted(text) {                      // cells copied from Excel arrive as text with tabs between columns; Excel also copies what the cell shows, like 87% or 1,234.5
+  let t = text.replace(/(\d)\s*%(?=\s|$)/gm, "$1");
+  if (t.includes("\t")) t = t.replace(/(\d),(?=\d{3}(\D|$))/g, "$1");
+  ingest(t, "Pasted from Excel", true);
+}
+addEventListener("paste", e => {                 // Ctrl+V anywhere except while typing in a box
+  const el = e.target; if (el && el.closest && (el.closest("textarea, [contenteditable]") || (el.closest("input") && !/^(checkbox|radio|color|file)$/.test(el.type)))) return;
+  const t = e.clipboardData && e.clipboardData.getData("text/plain"); if (!t || !t.trim()) return;
+  e.preventDefault(); loadPasted(t);
+});
+$("pastebtn").onclick = async () => {
+  try { const t = await navigator.clipboard.readText(); if (t.trim()) loadPasted(t); else say("Nothing to paste yet: copy some cells in Excel first."); }
+  catch (e) { say("This browser wouldn't let the button read what you copied. Press Ctrl+V on this page instead."); }
+};
 $("file2").onchange = e => { openFiles(e.target.files, true); e.target.value = ""; };
 addEventListener("dragover", e => e.preventDefault());                              // allow dropping a file anywhere on the page
 addEventListener("drop", e => {
@@ -2697,7 +2725,7 @@ function clearGraph() {                           // back to the empty starting 
   TI.forEach(([a, b]) => { a.value = b.value = ""; });
   $("series").innerHTML = ""; for (const id of ["stats", "specTbl", "edges", "bandTbl"]) $(id).innerHTML = "";
   for (const id of ["specTblBox", "edgeBox", "bandBox"]) $(id).hidden = true;
-  renderFiles(); renderNotes(); say("Graph cleared."); draw();
+  renderFiles(); renderNotes(); say("Graph cleared."); if (signalMode) { setSignal(false); showTab("data", false); } draw();
 }
 $("clearbtn").onclick = $("libClear").onclick = clearGraph;
 
