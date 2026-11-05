@@ -582,7 +582,7 @@
     <div class="panel" data-tab="specs" hidden>
       <div class="specbox">
         <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
-          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass. C W/L and B/W are checked per scan and aren't drawn.</span></div>
+          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass. C W/L, B/W and the 5% and 50% points are checked per scan and aren't drawn. A 5% or 50% point is the wavelength at that percent of the scan's max; on a bandpass it uses the side nearer your target.</span></div>
         <div class="bar" id="specSets">
           <b>Saved sets</b>
           <select id="specSetPick" aria-label="Load a saved set of specs"></select>
@@ -1155,12 +1155,13 @@ function edgePts(s, pct) {                       // find where series s crosses 
 }
 
 // ---------- 3c. SPECIFICATIONS (wavelength range + T or R limit, absolute or average) ----------
-let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }, or for C W/L and B/W { meas: "CWL"|"BW", op: "pm"|"ge"|"le", v, tol } with no range (numbers kept as typed text)
-const isNmSpec = sp => sp.meas === "CWL" || sp.meas === "BW";
+let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }, or for C W/L, B/W and the 5% or 50% point { meas: "CWL"|"BW"|"P5"|"P50", op: "pm"|"ge"|"le", v, tol } with no range (numbers kept as typed text)
+const pointPct = sp => sp.meas === "P5" ? 5 : sp.meas === "P50" ? 50 : 0;   // which point of max T this spec is on, 0 if it isn't one
+const isNmSpec = sp => sp.meas === "CWL" || sp.meas === "BW" || pointPct(sp) > 0;
 const numText = t => String(t ?? "").trim() !== "" && isFinite(Number(t));
 const specOK = sp => isNmSpec(sp) ? numText(sp.v) && (sp.op !== "pm" || (numText(sp.tol) && +sp.tol >= 0)) : [sp.a, sp.b, sp.v].every(numText);
 const specShown = sp => sp.show !== false;       // the checkbox beside each spec; unchecked hides it from the graph, check table and print
-let confettiOn = false, specHits = new Set();     // easter egg: a scan whose measured number lands within 0.001 of any spec's value earns confetti, once until it stops matching
+let confettiOn = false, specHits = new Set();     // easter egg: a scan whose measured number lands within 0.001 of any spec's value, or reads the same as it on screen, earns confetti, once until it stops matching
 function yAtX(s, x) {                            // a scan's value at one wavelength, reading between its data points if it has to
   for (let i = 0; i < s.n; i++) {
     const x0 = s.X[i], y0 = s.c.v[i], x1 = s.X[i + 1], y1 = s.c.v[i + 1];
@@ -1172,16 +1173,16 @@ function yAtX(s, x) {                            // a scan's value at one wavele
 function specConfetti(S) {
   const hits = new Set(); let fresh = false;
   for (const sp of specs) { if (!specOK(sp) || !specShown(sp)) continue;
-    for (const s of S) { const r = checkSpec(sp, s); if (!r || !(Math.abs(r.got - +sp.v) <= .001 + 1e-9)) continue;
+    for (const s of S) { const r = checkSpec(sp, s); if (!r || !(Math.abs(r.got - +sp.v) <= .001 + 1e-9 || fmt(r.got) === fmt(+sp.v))) continue;   // the page rounds what it shows, so typing the number you see counts too
       const key = [s.box.value, sp.meas, sp.a, sp.b, sp.v, sp.kind, sp.op].join("|"); hits.add(key); if (!specHits.has(key)) fresh = true; } }
   specHits = hits; if (fresh) confetti();
 }
-function confetti() {                            // the same burst as the Horseshoe Dashboard, from the middle of the graph
+function confetti() {                            // the same burst as the Horseshoe Dashboard, from the middle of the graph, or as near as the screen allows when you've scrolled away from it
   if (confettiOn) return; confettiOn = true;
   const c = document.createElement("canvas"), r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1, ctx = c.getContext("2d"), cols = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#e34948"];
   c.id = "confetti"; c.setAttribute("aria-hidden", "true"); c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:90;background:none;border:0;border-radius:0;box-shadow:none;filter:none"; c.width = innerWidth * dpr; c.height = innerHeight * dpr; ctx.scale(dpr, dpr); document.body.append(c);
   const ps = Array.from({ length: 570 }, () => { const a = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.5, v = 5 + Math.random() * 10;
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 5 + Math.random() * 6, h: 3 + Math.random() * 5, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, col: cols[Math.floor(Math.random() * cols.length)], life: 0, max: 110 + Math.random() * 60 }; });
+    return { x: Math.min(innerWidth * .8, Math.max(innerWidth * .2, r.left + r.width / 2)), y: Math.min(innerHeight * .7, Math.max(innerHeight * .3, r.top + r.height / 2)), vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 5 + Math.random() * 6, h: 3 + Math.random() * 5, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, col: cols[Math.floor(Math.random() * cols.length)], life: 0, max: 110 + Math.random() * 60 }; });
   (function frame() {
     ctx.clearRect(0, 0, innerWidth, innerHeight); let alive = 0;
     for (const p of ps) { if (++p.life > p.max) continue; alive++; p.vx *= .985; p.vy = p.vy * .985 + .24; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
@@ -1190,7 +1191,7 @@ function confetti() {                            // the same burst as the Horses
   })();
 }
 const specRange = sp => isNmSpec(sp) ? "–" : fx(Math.min(+sp.a, +sp.b)) + " – " + xs(Math.max(+sp.a, +sp.b));
-const specName = sp => isNmSpec(sp) ? (sp.meas === "CWL" ? "C W/L " : "B/W ") + (sp.op === "pm" ? fmt(+sp.v) + " ± " + xs(+sp.tol) : (sp.op === "ge" ? "≥ " : "≤ ") + xs(+sp.v)) : sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
+const specName = sp => isNmSpec(sp) ? ({ CWL: "C W/L ", BW: "B/W ", P5: "5% point ", P50: "50% point " })[sp.meas] + (sp.op === "pm" ? fmt(+sp.v) + " ± " + xs(+sp.tol) : (sp.op === "ge" ? "≥ " : "≤ ") + xs(+sp.v)) : sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
 function renderSpecs() {                         // one row of fields per spec
   const box = $("specRows"); box.innerHTML = "";
   specs.forEach((sp, k) => {
@@ -1200,7 +1201,7 @@ function renderSpecs() {                         // one row of fields per spec
     const pick = (key, opts, label) => { const s = document.createElement("select"); s.setAttribute("aria-label", "Spec " + (k + 1) + " " + label);
       opts.forEach(([v, t]) => s.add(new Option(t, v))); s.value = sp[key]; s.onchange = () => { sp[key] = s.value; line.className = "specline " + sp.kind;
         if (key === "op" && isNmSpec(sp)) renderSpecs();
-        if (key === "meas") { if (isNmSpec(sp)) { sp.kind = "abs"; if (sp.tol === undefined) sp.tol = ""; sp.op = "pm"; } else if (sp.op === "pm") sp.op = "ge"; renderSpecs(); }   // C W/L and B/W have different fields
+        if (key === "meas") { if (isNmSpec(sp)) { sp.kind = "abs"; if (sp.tol === undefined) sp.tol = ""; sp.op = "pm"; } else if (sp.op === "pm") sp.op = "ge"; renderSpecs(); }   // these have different fields
         draw(); }; return s; };
     const span = t => { const e = document.createElement("span"); e.className = "hint"; e.textContent = t; return e; };
     const vis = document.createElement("input"); vis.type = "checkbox"; vis.checked = specShown(sp); vis.title = "Show this spec on the graph";
@@ -1208,9 +1209,9 @@ function renderSpecs() {                         // one row of fields per spec
     const line = document.createElement("i"); line.className = "specline " + sp.kind; line.title = "How this spec is drawn";
     const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this spec"; del.setAttribute("aria-label", "Remove spec " + (k + 1));
     del.onclick = () => { specs.splice(k, 1); renderSpecs(); draw(); };
-    const MEAS = [["T", "T"], ["R", "R"], ["CWL", "C W/L"], ["BW", "B/W"]];
-    if (isNmSpec(sp)) { if (sp.tol === undefined) sp.tol = "";          // no range or line on the graph: a C W/L or B/W is one number per scan
-      row.append(vis, pick("meas", MEAS, "measurement"), pick("op", [["pm", "± within"], ["ge", "≥ at least"], ["le", "≤ at most"]], "condition"), txt("v", sp.meas === "CWL" ? "Target" : "Value", "pct"), span(XUNIT));
+    const MEAS = [["T", "T"], ["R", "R"], ["CWL", "C W/L"], ["BW", "B/W"], ["P5", "5% point"], ["P50", "50% point"]];
+    if (isNmSpec(sp)) { if (sp.tol === undefined) sp.tol = "";          // no range or line on the graph: a C W/L, B/W or 5% / 50% point is one number per scan
+      row.append(vis, pick("meas", MEAS, "measurement"), pick("op", [["pm", "± within"], ["ge", "≥ at least"], ["le", "≤ at most"]], "condition"), txt("v", sp.meas === "BW" ? "Value" : "Target", "pct"), span(XUNIT));
       if (sp.op === "pm") row.append(span("±"), txt("tol", "Tolerance", "pct"), span(XUNIT));
       row.append(del); }
     else row.append(vis, txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
@@ -1221,6 +1222,12 @@ function renderSpecs() {                         // one row of fields per spec
   });
   $("specTblBox").hidden = !specs.some(sp => specOK(sp) && specShown(sp));
 }
+function edgePoint(sp, s) {                       // a scan's 5% or 50% point, the same numbers as the Filter data panel: long-wave pass uses its low side, short-wave pass its high side, anything with both uses the one nearer the target
+  const E = reportEdges(s); if (!E) return null;
+  const t = effType(s), p = pointPct(sp), n = t === "notch" && p === 50 ? notch(s, view) : null, lo = n ? n.lo : t === "swp" ? null : E.rise[p], hi = n ? n.hi : t === "lwp" ? null : E.fall[p]; if (lo == null && hi == null) return null;   // a notch's 50% point is halfway between its max and the bottom of the dip, the same as its C W/L and B/W
+  const high = lo == null || (hi != null && Math.abs(hi - +sp.v) < Math.abs(lo - +sp.v));
+  return { x: high ? hi : lo, word: lo != null && hi != null ? (high ? "high side" : "low side") : "" };
+}
 function nmValue(sp, s) {                        // a scan's C W/L or B/W, the same numbers as the Filter data panel
   let lo = null, hi = null;
   if (effType(s) === "notch") { const n = notch(s, view); if (n) { lo = n.lo; hi = n.hi; } }
@@ -1229,9 +1236,9 @@ function nmValue(sp, s) {                        // a scan's C W/L or B/W, the s
 }
 function checkSpec(sp, s) {                      // measure one series against one spec: the worst point (absolute) or the average
   const v = +sp.v;
-  if (isNmSpec(sp)) { const got = nmValue(sp, s); if (!isFinite(got)) return null;
+  if (isNmSpec(sp)) { const pt = pointPct(sp) ? edgePoint(sp, s) : null, got = pt ? pt.x : pointPct(sp) ? NaN : nmValue(sp, s); if (!isFinite(got)) return null;
     const pm = sp.op === "pm", pass = pm ? Math.abs(got - v) <= +sp.tol + 1e-9 : sp.op === "ge" ? got >= v : got <= v;
-    return { got, at: NaN, word: "", text: xs(got), pass, margin: pm ? +sp.tol - Math.abs(got - v) : got - v }; }   // ±: how far inside the tolerance it is
+    return { got, at: NaN, word: pt ? pt.word : "", text: xs(got), pass, margin: pm ? +sp.tol - Math.abs(got - v) : got - v }; }   // ±: how far inside the tolerance it is
   const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
   if (a === b) { const got = yAtX(s, a); if (!isFinite(got)) return null;   // one wavelength: read the scan there, between data points if it has to
     return { got, at: a, word: "", text: ys(got), pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v }; }
@@ -1302,7 +1309,7 @@ $("specSetDel").onclick = () => {
   delete all[name]; try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) {} fillSpecSets(); $("specSetNote").textContent = "Deleted " + name + ".";
 };
 fillSpecSets();
-// spec CSV: Set, From, To, Measure (T/R/CWL/BW), Condition (>=, <= or +/-), Value, Type (Absolute / Average / Best Effort), Tolerance - one row per spec, easy to read from LabVIEW
+// spec CSV: Set, From, To, Measure (T/R/CWL/BW/P5/P50), Condition (>=, <= or +/-), Value, Type (Absolute / Average / Best Effort), Tolerance - one row per spec, easy to read from LabVIEW
 const KINDW = { abs: "Absolute", avg: "Average", best: "Best Effort" };
 function specCsv(sets) {
   const esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s, out = ["Set,From,To,Measure,Condition,Value,Type,Tolerance"];
@@ -1329,7 +1336,7 @@ $("specCsvFile").onchange = async () => {
   if (ix.a < 0 || ix.b < 0 || ix.v < 0) { $("specSetNote").textContent = "That file needs From, To and Value columns (see the layout beside the buttons)."; return; }
   const get = (r, k) => ix[k] < 0 ? "" : (r[ix[k]] || "").trim(), sets = {};
   for (const r of rows) {
-    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^c/i.test(get(r, "meas")) ? "CWL" : /^b/i.test(get(r, "meas")) ? "BW" : /^r/i.test(get(r, "meas")) ? "R" : "T", tol: get(r, "tol"), op: /\+|±/.test(get(r, "op")) ? "pm" : /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
+    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^(p50|50)/i.test(get(r, "meas")) ? "P50" : /^(p|5)/i.test(get(r, "meas")) ? "P5" : /^c/i.test(get(r, "meas")) ? "CWL" : /^b/i.test(get(r, "meas")) ? "BW" : /^r/i.test(get(r, "meas")) ? "R" : "T", tol: get(r, "tol"), op: /\+|±/.test(get(r, "op")) ? "pm" : /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
                  kind: /avg|aver/i.test(get(r, "kind")) ? "avg" : /best/i.test(get(r, "kind")) ? "best" : "abs" };
     if (!specOK(sp)) continue; (sets[get(r, "set") || shortName(f.name)] ||= []).push(sp);
   }
