@@ -45,6 +45,7 @@
   .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
   .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scanno { flex: none; font-size: .8em; opacity: .75; white-space: nowrap; }
   #printHead, #printImg, #printLegend, #printFields, #printStamp, #printTables, #printData { display: none; }
   #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
   .rptbg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000a; }
@@ -68,6 +69,7 @@
     #printFields .l { display: inline; color: #444; font-size: 10.5px; } #printFields .v { display: inline; color: #000; font-size: 12px; text-align: right; }
     #printFields .sub { display: flex; justify-content: space-between; gap: 2mm; flex: 0 0 100%; }   /* no indent: the lines line up with the other labels and values */
     #printFields .pfr.grp { row-gap: .5mm; } #printFields .pfr.grp > .l { flex: 0 0 100%; margin-bottom: 1.4mm; }   /* the group heading (Tx. Coordinates...) gets its own line with a little space under it */ #printFields .sub .l { color: #444; } #printFields .sub .v { white-space: nowrap; }
+    #printFields :is(.fdtop, .fdsides) { flex: 1 1 0; align-content: center; align-items: center; padding: 0 2mm; line-height: 1.2; border-top: 1px solid #ddd; } #printFields h4 + :is(.fdtop, .fdsides) { border-top: 0; } #printFields .fdtop .l { display: block; } #printFields .fdtop .v { display: block; text-align: left; white-space: nowrap; }
     #printFields .v.odd { color: #000; font-weight: 700; background: #ffe14d; padding: 0 3px; }   /* a changed condition stands out */
     #printStamp { display: block; color: #222; font-size: 11px; text-align: right; } #printStamp:empty { display: none; } #printHead { position: relative; } #printHead #printStamp { position: absolute; top: 0; right: 0; text-align: right; font-size: 10px; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -106,10 +108,12 @@
   .plotrow { display: grid; grid-template-columns: 1fr 15rem; gap: .8rem; align-items: start; }   /* graph on the left, tips down the right */
   .livedata { display: grid; gap: .3rem; margin-bottom: .9rem; font-size: .85rem; }   /* the scan's report numbers, beside the graph */
   .livedata .ldhead { display: grid; gap: .3rem; } .livedata .ldhead b { font-weight: 600; color: var(--strong); } .livedata select { width: 100%; max-width: 100%; padding: .25rem .4rem; font-size: .82rem; }
-  #ldBody { overflow-y: auto; } .ldcurve { display: flex; gap: .4rem; align-items: baseline; margin-top: .7rem; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; } .ldcurve:first-child { margin-top: .2rem; } .ldcurve .sw { flex: none; } .ldcurve small { display: block; font-weight: 400; color: var(--muted); }   /* one heading per curve */
+  #ldBody { overflow-y: auto; } .ldcurve { display: flex; gap: .4rem; align-items: baseline; margin-top: .7rem; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; } .ldcurve:first-child { margin-top: .2rem; } .ldcurve .sw { flex: none; }   /* one heading per curve */
   #ldBody .pfr { border-top: 1px solid var(--line); padding: .3rem 0; } #ldBody .pfr:first-child { border-top: 0; }
   #ldBody .l { display: block; color: var(--muted); font-size: .78rem; } #ldBody .v { display: block; color: var(--strong); padding-left: .5rem; font-variant-numeric: tabular-nums; }
   #ldBody .sub { display: flex; justify-content: space-between; gap: .5rem; } #ldBody .sub .v { padding-left: 0; white-space: nowrap; }
+  #ldBody :is(.fdtop, .fdsides) { padding: .3rem 0; border-top: 1px solid var(--line); } #ldBody :is(.fdtop, .fdsides):first-child { border-top: 0; } #ldBody .fdtop .v { padding-left: 0; white-space: nowrap; }
+  :is(#ldBody, #printFields) .fdtop { display: grid; grid-template-columns: repeat(3, 1fr); gap: .1rem .5rem; } :is(#ldBody, #printFields) .fdsides { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .8rem; } :is(#ldBody, #printFields) .fdsides.one { grid-template-columns: 1fr; }   /* the short Filter data layout */
   #ldBody .v.odd { background: #ffe14d; color: #000; padding: 0 .3rem; display: inline-block; }
   .tips { display: flex; flex-direction: column; gap: .7rem; font-size: .82rem; color: var(--muted); }
   .tips span { display: grid; justify-items: start; gap: .2rem; }
@@ -126,14 +130,15 @@
   .panel { display: grid; gap: .8rem; }
   .meas { display: inline-flex; gap: .4rem 1rem; align-items: center; flex-wrap: wrap; }
   #plotwrap { position: relative; } #fxc { position: absolute; width: auto; height: auto; background: none; border: 0; border-radius: 0; pointer-events: none; }
-  @media print { #fxc { display: none !important; } }
+  @media print { #fxc, #confetti { display: none !important; } }
   .plotwrap { display: grid; grid-template-columns: 6.2rem 1fr; gap: .4rem .5rem; }
   .plotwrap input { width: 100%; min-width: 0; }
-  .readout { grid-column: 2; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem 1.1rem; min-height: 1.9rem; padding: .2rem .55rem; font-size: .9rem; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-variant-numeric: tabular-nums; }   /* the hover values, outside the graph */
+  .readout { visibility: visible; flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem 1.1rem; min-height: 1.9rem; padding: .2rem .55rem; font-size: .9rem; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-variant-numeric: tabular-nums; }   /* the hover values, outside the graph */
   .readout .ro { display: inline-flex; align-items: center; gap: .35rem; } .readout .rohint { color: var(--muted); }
-  .readout .flagst { margin-left: auto; color: var(--muted); font-size: .8rem; white-space: nowrap; }
+  .readout .roval { font-size: 1.35rem; line-height: 1.2; white-space: nowrap; }   /* the numbers you came for */
   .ylim { display: flex; flex-direction: column; justify-content: space-between; }
-  .xlim { grid-column: 2; display: flex; justify-content: space-between; }
+  .xlim { grid-column: 2; display: flex; justify-content: space-between; align-items: center; gap: .6rem; } .xlim .lim { flex: none; }
+  @media (max-width: 899px) { .xlim { flex-wrap: wrap; } .readout { order: 3; flex-basis: 100%; } }   /* too narrow to share the row with X min and X max: the bar gets its own line */
   .xlim input { width: 6rem; } .xlim .lim { display: flex; align-items: center; gap: .4rem; }   /* label beside the box, so this row is one line tall */
   .lim { display: grid; gap: .15rem; color: var(--muted); font-size: .8rem; cursor: default; }
   .sw { width: 12px; height: 12px; border-radius: 2px; }
@@ -404,13 +409,13 @@
       <canvas id="cv" aria-label="Graph of your data"></canvas>
       <div class="xlim" id="xlim">
         <label class="lim">X min <input type="text" id="xmin" class="unit" placeholder="auto"></label>
+        <div class="readout" id="readout" aria-live="off"></div>
         <label class="lim">X max <input type="text" id="xmax" class="unit" placeholder="auto"></label>
       </div>
-      <div class="readout" id="readout" aria-live="off"></div>
     </div>
     <div class="tipcol">
       <div class="livedata" id="liveData" hidden>
-        <div class="ldhead"><b>Filter data</b>
+        <div class="ldhead"><b>Filter data (nm)</b>
           <select id="ldCurve" aria-label="Which scan's data to show" hidden></select>
           <select id="rptType" aria-label="What kind of filter this scan is (used for the data here and on the printed report)"></select></div>
         <div id="ldBody"></div>
@@ -577,7 +582,7 @@
     <div class="panel" data-tab="specs" hidden>
       <div class="specbox">
         <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
-          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass.</span></div>
+          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass. C W/L and B/W are checked per scan and aren't drawn.</span></div>
         <div class="bar" id="specSets">
           <b>Saved sets</b>
           <select id="specSetPick" aria-label="Load a saved set of specs"></select>
@@ -593,7 +598,7 @@
           <button type="button" id="specCsvAll" title="Save every saved set into one CSV file">Save all sets as CSV</button>
           <button type="button" id="specCsvIn" title="Load specs from a CSV file made by this page (or in the same layout)">Load specs from CSV</button>
           <input type="file" id="specCsvFile" accept=".csv,.txt,text/csv,text/plain" hidden>
-          <span class="hint">Columns: Set, From, To, Measure, Condition, Value, Type. One row per spec.</span>
+          <span class="hint">Columns: Set, From, To, Measure, Condition, Value, Type, Tolerance. One row per spec.</span>
         </div>
         <div id="specRows"></div>
         <div class="bar"><b>Draw on the graph</b>
@@ -902,7 +907,7 @@ let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, y
 let ranges = Array(6).fill(null), shown = Array(6).fill(true), cur = 0, hov = null, drag = false, light = false;   // shown[k]: range k is drawn on the graph
 const LED_SEGS = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg", "-": "g", " ": "" };
 let ldPick = null;                               // which curve the Filter data panel shows (its checkbox); null = all of them
-let showFlag = false, roKey = null, roN = null; try { showFlag = localStorage.getItem("plotHoverFlag") === "1"; } catch (e) {}   // the hover flag on the graph is off until it's asked for; the readout below the graph always works
+let showFlag = false, roKey = null; try { showFlag = localStorage.getItem("plotHoverFlag") === "1"; } catch (e) {}   // the hover flag on the graph is off until it's asked for; the readout below the graph always works
 let notes = [], nid = 0, noteBoxes = [];                // annotations: { id, ax, ay (the point, in data units), ox, oy (label offset in pixels), text, xy }   // light = black-on-white drawing for printing
 
 // ---------- 1. READ THE FILE ----------
@@ -922,7 +927,7 @@ function parseCSV(text) {                       // handles quotes like "a, b" an
   return rows.filter(r => r.length > 1 || r[0].trim() !== "");
 }
 
-let files = [], uid = 0;                         // files[0] is the main scan, any others are overlays
+let files = [], uid = 0, scanNo = 0;                         // files[0] is the main scan, any others are overlays
 const shortName = s => s.replace(/\.[^.]*$/, "");
 const abbr = () => $("kR").checked ? "Rx" : "Tx";                 // series are called Tx or Rx to match the Scan type
 const dispName = c => c.label || (files.length > 1 ? shortName(c.f) + ": " : "") + c.name.replace(/^%\s*[TR]x?(?=\W|$)/i, abbr() + " (%)").replace(/^[TR]x?(?=\W|$)/i, abbr());   // overlays are told apart by file name
@@ -960,7 +965,7 @@ function readFile(text, fname) {                // turn CSV text into columns; r
 
 function ingest(text, fname = "data.csv") {     // load the main scan (this replaces any overlays)
   const ds = readFile(text, fname); if (!ds) return;
-  files = [ds]; cols = ds.cols; n = ds.n;
+  files = [ds]; cols = ds.cols; n = ds.n; scanNo = 0;
   const xi = cols[0].kind !== "text" ? 0 : -1;   // X is always the first column (wavelength)
   for (const id of ["title", "spec", "shfrom", "shto", "shx", "shy", "smfrom", "smto", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   shiftStamp++; notes = []; noteBoxes = []; renderNotes();
@@ -1023,6 +1028,7 @@ function rebuild(first, newDs) {                // redo the series list for ever
     let got = false;
     ds.cols.forEach((c, i) => {
       if (c.kind !== "num" || i === ds.xi) return;
+      c.nick ??= "Scan " + ++scanNo;                                       // the short name used wherever room is tight; it stays with the scan even if others are removed
       const key = ds.id + ":" + i, auto = COLORS[k++ % COLORS.length], color = c.col || auto, isFirst = !got; got = true;   // a curve you coloured keeps its place in the automatic sequence, so the others do not shift
       const on = first ? k === 1 : prev.has(key) || (ds === newDs && isFirst);
       const l = document.createElement("label");
@@ -1040,7 +1046,8 @@ function rebuild(first, newDs) {                // redo the series list for ever
       const ld = document.createElement("select"); ld.title = "Line style"; ld.setAttribute("aria-label", "Line style for " + c.name);
       for (const [v, t] of [["solid", "Solid"], ["dashed", "Dashed"], ["dotted", "Dotted"], ["dashdot", "Dash-dot"]]) ld.add(new Option(t, v));
       ld.value = c.ld || "solid"; ld.onchange = () => { c.ld = ld.value; draw(); };
-      l.append(nm, lw, ld);
+      const tag = document.createElement("span"); tag.className = "scanno"; tag.textContent = c.nick;
+      l.append(tag, nm, lw, ld);
       l.firstChild.onchange = draw; $("series").append(l);
     });
   });
@@ -1050,9 +1057,9 @@ function rebuild(first, newDs) {                // redo the series list for ever
 }
 const active = () => [...document.querySelectorAll("#series label")].filter(l => l.firstChild.checked)
   .map(l => { const { c, ds } = l._s, sh = shiftedDs(ds), X = sh ? sh.X : ds.X;
-              if (!sh && !ds.smooths.length) return { c, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" };
+              if (!sh && !ds.smooths.length) return { c, X, n: ds.n, color: l.dataset.color, name: dispName(c), nick: c.label || c.nick, ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" };
               if (!c._pr || c._pr.stamp !== shiftStamp || c._pr.X !== X) c._pr = { stamp: shiftStamp, X, v: processedY(c, sh, X, ds.smooths) };   // shifted and smoothed copies are kept until something changes
-              return { c: { v: c._pr.v }, X, n: ds.n, color: l.dataset.color, name: dispName(c), ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" }; });
+              return { c: { v: c._pr.v }, X, n: ds.n, color: l.dataset.color, name: dispName(c), nick: c.label || c.nick, ds, box: l.firstChild, lw: c.lw ?? 1.5, ld: c.ld || "solid" }; });
 const shNum = id => { const v = Number($(id).value.trim()); return isFinite(v) ? v : 0; };
 let shiftStamp = 0;                              // bumps whenever any scan's shifts or smoothing change, so the moved copies are rebuilt
 // Each scan (files[i]) keeps its own lists. ds.shifts: one entry per "Shift it" click { a, b, dx, dy } (a..b is the X range moved, as shown on the graph when clicked; dx in nm, dy in %).
@@ -1148,10 +1155,42 @@ function edgePts(s, pct) {                       // find where series s crosses 
 }
 
 // ---------- 3c. SPECIFICATIONS (wavelength range + T or R limit, absolute or average) ----------
-let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }  (a, b, v kept as typed text)
-const specOK = sp => [sp.a, sp.b, sp.v].every(t => String(t).trim() !== "" && isFinite(Number(t)));
+let specs = [];                                  // each: { a, b, meas: "T"|"R", op: "ge"|"le", v, kind: "abs"|"avg" }, or for C W/L and B/W { meas: "CWL"|"BW", op: "pm"|"ge"|"le", v, tol } with no range (numbers kept as typed text)
+const isNmSpec = sp => sp.meas === "CWL" || sp.meas === "BW";
+const numText = t => String(t ?? "").trim() !== "" && isFinite(Number(t));
+const specOK = sp => isNmSpec(sp) ? numText(sp.v) && (sp.op !== "pm" || (numText(sp.tol) && +sp.tol >= 0)) : [sp.a, sp.b, sp.v].every(numText);
 const specShown = sp => sp.show !== false;       // the checkbox beside each spec; unchecked hides it from the graph, check table and print
-const specName = sp => sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
+let confettiOn = false, specHits = new Set();     // easter egg: a scan whose measured number lands within 0.001 of any spec's value earns confetti, once until it stops matching
+function yAtX(s, x) {                            // a scan's value at one wavelength, reading between its data points if it has to
+  for (let i = 0; i < s.n; i++) {
+    const x0 = s.X[i], y0 = s.c.v[i], x1 = s.X[i + 1], y1 = s.c.v[i + 1];
+    if (x0 === x && isFinite(y0)) return y0;
+    if (i < s.n - 1 && (x0 - x) * (x1 - x) < 0 && isFinite(y0) && isFinite(y1)) return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+  }
+  return NaN;
+}
+function specConfetti(S) {
+  const hits = new Set(); let fresh = false;
+  for (const sp of specs) { if (!specOK(sp) || !specShown(sp)) continue;
+    for (const s of S) { const r = checkSpec(sp, s); if (!r || !(Math.abs(r.got - +sp.v) <= .001 + 1e-9)) continue;
+      const key = [s.box.value, sp.meas, sp.a, sp.b, sp.v, sp.kind, sp.op].join("|"); hits.add(key); if (!specHits.has(key)) fresh = true; } }
+  specHits = hits; if (fresh) confetti();
+}
+function confetti() {                            // the same burst as the Horseshoe Dashboard, from the middle of the graph
+  if (confettiOn) return; confettiOn = true;
+  const c = document.createElement("canvas"), r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1, ctx = c.getContext("2d"), cols = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#e34948"];
+  c.id = "confetti"; c.setAttribute("aria-hidden", "true"); c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:90;background:none;border:0;border-radius:0;box-shadow:none;filter:none"; c.width = innerWidth * dpr; c.height = innerHeight * dpr; ctx.scale(dpr, dpr); document.body.append(c);
+  const ps = Array.from({ length: 570 }, () => { const a = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.5, v = 5 + Math.random() * 10;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 5 + Math.random() * 6, h: 3 + Math.random() * 5, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, col: cols[Math.floor(Math.random() * cols.length)], life: 0, max: 110 + Math.random() * 60 }; });
+  (function frame() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight); let alive = 0;
+    for (const p of ps) { if (++p.life > p.max) continue; alive++; p.vx *= .985; p.vy = p.vy * .985 + .24; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save(); ctx.globalAlpha = Math.min(1, (p.max - p.life) / 30); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); }
+    if (alive) requestAnimationFrame(frame); else { c.remove(); confettiOn = false; }
+  })();
+}
+const specRange = sp => isNmSpec(sp) ? "–" : fx(Math.min(+sp.a, +sp.b)) + " – " + xs(Math.max(+sp.a, +sp.b));
+const specName = sp => isNmSpec(sp) ? (sp.meas === "CWL" ? "C W/L " : "B/W ") + (sp.op === "pm" ? fmt(+sp.v) + " ± " + xs(+sp.tol) : (sp.op === "ge" ? "≥ " : "≤ ") + xs(+sp.v)) : sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
 function renderSpecs() {                         // one row of fields per spec
   const box = $("specRows"); box.innerHTML = "";
   specs.forEach((sp, k) => {
@@ -1159,23 +1198,43 @@ function renderSpecs() {                         // one row of fields per spec
     const txt = (key, ph, cls) => { const i = document.createElement("input"); i.type = "text"; i.value = sp[key]; i.placeholder = ph; if (cls) i.className = cls;
       i.setAttribute("aria-label", "Spec " + (k + 1) + " " + ph); i.oninput = () => { sp[key] = i.value; draw(); }; return i; };
     const pick = (key, opts, label) => { const s = document.createElement("select"); s.setAttribute("aria-label", "Spec " + (k + 1) + " " + label);
-      opts.forEach(([v, t]) => s.add(new Option(t, v))); s.value = sp[key]; s.onchange = () => { sp[key] = s.value; line.className = "specline " + sp.kind; draw(); }; return s; };
+      opts.forEach(([v, t]) => s.add(new Option(t, v))); s.value = sp[key]; s.onchange = () => { sp[key] = s.value; line.className = "specline " + sp.kind;
+        if (key === "op" && isNmSpec(sp)) renderSpecs();
+        if (key === "meas") { if (isNmSpec(sp)) { sp.kind = "abs"; if (sp.tol === undefined) sp.tol = ""; sp.op = "pm"; } else if (sp.op === "pm") sp.op = "ge"; renderSpecs(); }   // C W/L and B/W have different fields
+        draw(); }; return s; };
     const span = t => { const e = document.createElement("span"); e.className = "hint"; e.textContent = t; return e; };
     const vis = document.createElement("input"); vis.type = "checkbox"; vis.checked = specShown(sp); vis.title = "Show this spec on the graph";
     vis.setAttribute("aria-label", "Show spec " + (k + 1)); vis.onchange = () => { sp.show = vis.checked; renderSpecs(); draw(); };
     const line = document.createElement("i"); line.className = "specline " + sp.kind; line.title = "How this spec is drawn";
     const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this spec"; del.setAttribute("aria-label", "Remove spec " + (k + 1));
     del.onclick = () => { specs.splice(k, 1); renderSpecs(); draw(); };
-    row.append(vis, txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
-      pick("meas", [["T", "T"], ["R", "R"]], "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
+    const MEAS = [["T", "T"], ["R", "R"], ["CWL", "C W/L"], ["BW", "B/W"]];
+    if (isNmSpec(sp)) { if (sp.tol === undefined) sp.tol = "";          // no range or line on the graph: a C W/L or B/W is one number per scan
+      row.append(vis, pick("meas", MEAS, "measurement"), pick("op", [["pm", "± within"], ["ge", "≥ at least"], ["le", "≤ at most"]], "condition"), txt("v", sp.meas === "CWL" ? "Target" : "Value", "pct"), span(XUNIT));
+      if (sp.op === "pm") row.append(span("±"), txt("tol", "Tolerance", "pct"), span(XUNIT));
+      row.append(del); }
+    else row.append(vis, txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
+      pick("meas", MEAS, "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
       txt("v", "Value", "pct"), span(YUNIT),
       pick("kind", [["abs", "Absolute"], ["avg", "Average"], ["best", "Best Effort"]], "type"), line, del);
     box.append(row);
   });
   $("specTblBox").hidden = !specs.some(sp => specOK(sp) && specShown(sp));
 }
+function nmValue(sp, s) {                        // a scan's C W/L or B/W, the same numbers as the Filter data panel
+  let lo = null, hi = null;
+  if (effType(s) === "notch") { const n = notch(s, view); if (n) { lo = n.lo; hi = n.hi; } }
+  else { const E = reportEdges(s); if (E) { lo = E.rise[50]; hi = E.fall[50]; } }
+  return lo == null || hi == null ? NaN : sp.meas === "CWL" ? (lo + hi) / 2 : hi - lo;
+}
 function checkSpec(sp, s) {                      // measure one series against one spec: the worst point (absolute) or the average
-  const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b), v = +sp.v;
+  const v = +sp.v;
+  if (isNmSpec(sp)) { const got = nmValue(sp, s); if (!isFinite(got)) return null;
+    const pm = sp.op === "pm", pass = pm ? Math.abs(got - v) <= +sp.tol + 1e-9 : sp.op === "ge" ? got >= v : got <= v;
+    return { got, at: NaN, word: "", text: xs(got), pass, margin: pm ? +sp.tol - Math.abs(got - v) : got - v }; }   // ±: how far inside the tolerance it is
+  const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
+  if (a === b) { const got = yAtX(s, a); if (!isFinite(got)) return null;   // one wavelength: read the scan there, between data points if it has to
+    return { got, at: a, word: "", text: ys(got), pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v }; }
   let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
   for (let i = 0; i < s.n; i++) {
     const x = s.X[i], y = s.c.v[i];
@@ -1184,7 +1243,7 @@ function checkSpec(sp, s) {                      // measure one series against o
   }
   if (!cnt) return null;
   const got = sp.kind === "avg" ? sum / cnt : sp.op === "ge" ? mn : mx;
-  return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max",
+  return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max", text: ys(got),
            pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v };   // best effort always passes
 }
 function specTable(S) {
@@ -1194,9 +1253,9 @@ function specTable(S) {
   const addRow = (cells, tag) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); return tr; };
   addRow(["Spec", "Range", "Series", "Measured", "At", "Margin", "Result"], "th");
   ok.forEach(sp => S.forEach((s, si) => {
-    const r = checkSpec(sp, s), a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
-    const cells = [si ? "" : specName(sp), si ? "" : fx(a) + " – " + xs(b), s.name];
-    const tr = addRow(r ? [...cells, r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL"]
+    const r = checkSpec(sp, s);
+    const cells = [si ? "" : specName(sp), si ? "" : specRange(sp), s.nick];
+    const tr = addRow(r ? [...cells, (r.word ? r.word + " " : "") + r.text, isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL"]
                         : [...cells, "no data in range", "–", "–", "–"], "td");
     tr.children[2].style.color = s.color;
     if (r) { const res = tr.lastChild; res.className = r.pass ? "pass" : "fail"; }
@@ -1230,7 +1289,7 @@ $("specSetSave").onclick = () => {
   const name = $("specSetName").value.trim() || $("specSetPick").value, ok = specs.filter(specOK);
   if (!name) { $("specSetNote").textContent = "Type a part number or name first."; return; }
   if (!ok.length) { $("specSetNote").textContent = "Add at least one complete spec first."; return; }
-  const all = specSets(), had = name in all; all[name] = ok.map(({ a, b, meas, op, v, kind }) => ({ a, b, meas, op, v, kind }));
+  const all = specSets(), had = name in all; all[name] = ok.map(({ a, b, meas, op, v, kind, tol }) => ({ a, b, meas, op, v, kind, tol }));
   try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) { $("specSetNote").textContent = "Couldn't save: this browser's storage is full or blocked."; return; }
   fillSpecSets(name); $("specSetName").value = ""; $("specSetNote").textContent = (had ? "Replaced " : "Saved ") + name + " (" + ok.length + " spec" + (ok.length > 1 ? "s" : "") + ").";
 };
@@ -1243,11 +1302,11 @@ $("specSetDel").onclick = () => {
   delete all[name]; try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) {} fillSpecSets(); $("specSetNote").textContent = "Deleted " + name + ".";
 };
 fillSpecSets();
-// spec CSV: Set, From, To, Measure (T/R), Condition (>= or <=), Value, Type (Absolute / Average / Best Effort) - one row per spec, easy to read from LabVIEW
+// spec CSV: Set, From, To, Measure (T/R/CWL/BW), Condition (>=, <= or +/-), Value, Type (Absolute / Average / Best Effort), Tolerance - one row per spec, easy to read from LabVIEW
 const KINDW = { abs: "Absolute", avg: "Average", best: "Best Effort" };
 function specCsv(sets) {
-  const esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s, out = ["Set,From,To,Measure,Condition,Value,Type"];
-  for (const [name, list] of sets) for (const sp of list) out.push([name, sp.a, sp.b, sp.meas, sp.op === "ge" ? ">=" : "<=", sp.v, KINDW[sp.kind] || "Absolute"].map(x => esc(String(x))).join(","));
+  const esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s, out = ["Set,From,To,Measure,Condition,Value,Type,Tolerance"];
+  for (const [name, list] of sets) for (const sp of list) out.push([name, sp.a, sp.b, sp.meas, sp.op === "pm" ? "+/-" : sp.op === "ge" ? ">=" : "<=", sp.v, KINDW[sp.kind] || "Absolute", sp.tol ?? ""].map(x => esc(String(x))).join(","));
   return out.join("\r\n") + "\r\n";
 }
 const saveSpecCsv = (sets, fname) => save(new Blob([specCsv(sets)], { type: "text/csv" }), fname);
@@ -1266,11 +1325,11 @@ $("specCsvIn").onclick = () => $("specCsvFile").click();
 $("specCsvFile").onchange = async () => {
   const f = $("specCsvFile").files[0]; $("specCsvFile").value = ""; if (!f) return;
   const rows = parseCSV(await f.text()), head = (rows.shift() || []).map(h => h.trim().toLowerCase()), col = k => head.findIndex(h => h.startsWith(k));
-  const ix = { set: col("set"), a: col("from"), b: col("to"), meas: col("meas"), op: col("cond"), v: col("val"), kind: col("type") };
+  const ix = { set: col("set"), a: col("from"), b: col("to"), meas: col("meas"), op: col("cond"), v: col("val"), kind: col("type"), tol: col("tol") };
   if (ix.a < 0 || ix.b < 0 || ix.v < 0) { $("specSetNote").textContent = "That file needs From, To and Value columns (see the layout beside the buttons)."; return; }
   const get = (r, k) => ix[k] < 0 ? "" : (r[ix[k]] || "").trim(), sets = {};
   for (const r of rows) {
-    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^r/i.test(get(r, "meas")) ? "R" : "T", op: /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
+    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^c/i.test(get(r, "meas")) ? "CWL" : /^b/i.test(get(r, "meas")) ? "BW" : /^r/i.test(get(r, "meas")) ? "R" : "T", tol: get(r, "tol"), op: /\+|±/.test(get(r, "op")) ? "pm" : /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
                  kind: /avg|aver/i.test(get(r, "kind")) ? "avg" : /best/i.test(get(r, "kind")) ? "best" : "abs" };
     if (!specOK(sp)) continue; (sets[get(r, "set") || shortName(f.name)] ||= []).push(sp);
   }
@@ -1297,7 +1356,7 @@ function render() {
     const x = s.X[i], y = ty(s.c.v[i]);
     if (x >= view.a && x <= view.b && isFinite(y)) { vis++; if (y < lo) lo = y; if (y > hi) hi = y; }
   }
-  for (const sp of specs) { const y = specOK(sp) && specShown(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
+  for (const sp of specs) { const y = specOK(sp) && specShown(sp) && !isNmSpec(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
   if (lo === Infinity) { lo = 0; hi = 1; } else if (hi === lo) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * .06; lo -= pad; hi += pad;
   const fixed = id => { const s = $(id).value.trim(); return s === "" ? NaN : ty(Number(s)); };   // typed Y limits override auto-scaling
@@ -1372,7 +1431,7 @@ function render() {
     ctx.setLineDash([]); ctx.lineCap = "butt";
   }
   for (const sp of specs) {                                            // specifications: solid = absolute, dotted = average
-    if (!specOK(sp) || !specShown(sp)) continue;
+    if (!specOK(sp) || !specShown(sp) || isNmSpec(sp)) continue;
     const yv = ty(+sp.v); if (!isFinite(yv)) continue;
     const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = sp.op === "ge" ? -1 : 1;   // ticks point to the passing side
     ctx.strokeStyle = ctx.fillStyle = sp.kind === "best" ? "#4cd964" : P.spec; ctx.lineWidth = 2.5; ctx.lineCap = "round";
@@ -1480,7 +1539,7 @@ function render() {
         const bi = bis[j]; if (bi < 0) return;
         const v = s.c.v[bi], y = ty(v), sx = s.X[bi];
         if (!isFinite(v)) return;
-        lines.push({ t: s.name + ": " + ys(v) + (sx !== x0 ? "   at " + xs(sx) : ""), c: s.color, name: s.name, val: ys(v), at: sx !== x0 ? xs(sx) : "" });
+        lines.push({ t: s.nick + ": " + ys(v) + (sx !== x0 ? "   at " + xs(sx) : ""), c: s.color, name: s.nick, val: ys(v), at: sx !== x0 ? xs(sx) : "" });
         if (isFinite(y)) { ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(px(sx), py(y), 4, 0, 7); ctx.fill(); }
       });
       roLines = lines;
@@ -1500,10 +1559,10 @@ function ledCanvas(text, minDigits) {            // a number as a green seven-se
   const cells = [];
   for (const ch of text) { if (ch === "." && cells.length) cells[cells.length - 1].dot = true; else cells.push({ ch }); }
   while (cells.length < minDigits) cells.unshift({ ch: " " });
-  const pad = 4, H = 28, h = H - pad * 2, w = 11, gap = 6, t = w * 0.2, g = t * 0.12, cell = w + gap, W = pad * 2 + cells.length * cell + 2;
+  const pad = 4, H = 28, h = H - pad * 2, w = 11, gap = 6, t = w * 0.2, g = t * 0.12, cell = w + gap, W = pad * 2 + cells.length * cell + 2, Z = 1.35;
   const c = document.createElement("canvas"), dpr = devicePixelRatio || 1, x = c.getContext("2d");
-  c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px"; c.setAttribute("role", "img"); c.setAttribute("aria-label", text);
-  x.scale(dpr, dpr); x.transform(1, 0, -0.08, 1, H * 0.04, 0);   // a slight italic lean
+  c.width = W * Z * dpr; c.height = H * Z * dpr; c.style.width = W * Z + "px"; c.style.height = H * Z + "px"; c.setAttribute("role", "img"); c.setAttribute("aria-label", text);
+  x.scale(dpr * Z, dpr * Z); x.transform(1, 0, -0.08, 1, H * 0.04, 0);   // a slight italic lean
   const hseg = (x1, x2, y) => { x.moveTo(x1, y); x.lineTo(x1 + t / 2, y - t / 2); x.lineTo(x2 - t / 2, y - t / 2); x.lineTo(x2, y); x.lineTo(x2 - t / 2, y + t / 2); x.lineTo(x1 + t / 2, y + t / 2); x.closePath(); };
   const vseg = (xx, y1, y2) => { x.moveTo(xx, y1); x.lineTo(xx + t / 2, y1 + t / 2); x.lineTo(xx + t / 2, y2 - t / 2); x.lineTo(xx, y2); x.lineTo(xx - t / 2, y2 - t / 2); x.lineTo(xx - t / 2, y1 + t / 2); x.closePath(); };
   for (const lit of [false, true]) {             // the dim ghost segments first, then the lit ones with a glow
@@ -1528,10 +1587,9 @@ function ledCanvas(text, minDigits) {            // a number as a green seven-se
 }
 function setReadout(lines) {                     // the same values as the flag, in the bar below the graph (never printed)
   const retro = theme() === "retro";
-  const key = JSON.stringify([lines, showFlag, retro]); if (key === roKey) return; roKey = key;
+  const key = JSON.stringify([lines, retro]); if (key === roKey) return; roKey = key;
   const ro = $("readout"), mk = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
-  const shape = lines.length + (retro ? "r" : "");
-  if (lines.length && shape !== roN) { roN = shape; ro.style.minHeight = ""; }   // a different number of scans or look: measure again
+  if (lines.length) ro.style.minHeight = "";     // measure afresh each time, so the bar can shrink as well as grow
   ro.replaceChildren();
   if (!lines.length) ro.append(mk("rohint", "Point at the graph to read its values here."));
   lines.forEach((l, i) => {
@@ -1542,12 +1600,13 @@ function setReadout(lines) {                     // the same values as the flag,
       if (i) item.append(mk("", l.name + ":"));
       item.append(ledCanvas(m[1], i ? 5 : 6)); if (m[2].trim()) item.append(mk("", m[2].trim()));
       if (l.at) item.append(mk("", "at " + l.at));
-    } else { const label = i ? mk("", l.t) : document.createElement("b"); if (!i) label.textContent = l.t; item.append(label); }
+    } else if (i) { item.append(mk("", l.name + ":"), mk("roval", l.val)); if (l.at) item.append(mk("", "at " + l.at)); }
+    else { const label = document.createElement("b"); label.className = "roval"; label.textContent = l.t; item.append(label); }
     ro.append(item);
   });
-  ro.append(mk("flagst", "Flag on graph: " + (showFlag ? "on" : "off") + " (press F)"));
   if (lines.length) ro.style.minHeight = ro.offsetHeight + "px";   // keep its height so the page below doesn't jump as you move on and off the graph
 }
+addEventListener("resize", () => { $("readout").style.minHeight = ""; });   // a remembered height is no use at a new window width
 // ---------- 3d. FILTER TYPES (Bandpass, LWP, SWP, AR, Notch) ----------
 const ftype = () => (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
 const rangeGroups = () => ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
@@ -1609,7 +1668,7 @@ function filterTable(S) {                        // the results table under the 
     else if (ft === "lwp" || ft === "swp") { const b = bandpass(s, r); c = b && [edge(ft === "lwp" ? b.lo : b.hi), ys(b.pk), xs(b.pkx), ys(rangeStats(s, r).avg)]; }
     else if (ft === "ar") { const st = rangeStats(s, r); c = st.cnt ? [ys(st.avg), ys(st.mx), xs(st.xmx), ys(st.mn), xs(st.xmn)] : null; }
     else { const n = notch(s, r); c = n && [nm(n.cwl), w(n.bw), ys(n.dip), xs(n.dipx), ys(n.base), n.od === null ? "–" : n.od.toFixed(2)]; }
-    addRow([si ? "" : label, s.name, ...(c || head.map(() => "–"))], "td", k < 0 ? "var(--strong)" : RC[k]);
+    addRow([si ? "" : label, s.nick, ...(c || head.map(() => "–"))], "td", k < 0 ? "var(--strong)" : RC[k]);
   });
 }
 // ---------- 3e. REPORT DATA: what kind of scan this is, and the numbers that go with it (beside the graph and on the printed report) ----------
@@ -1642,33 +1701,40 @@ function reportEdges(s) {                        // where the scan crosses 80%, 
   return out;
 }
 const edgeSlope = d => d[80] != null && d[50] != null && d[5] != null && d[50] !== 0 ? Math.abs(d[80] - d[5]) / Math.abs(d[50]) * 100 : null;   // slope = (80% point - 5% point) / 50% point, as a percent
-function fdRows(type, s) {                       // the rows for this kind of filter: { l: label, v: value } or { l: label, subs: [[label, value], ...] }
-  const m = measName(), U = yU(), R = $("kR").checked ? "Rx." : "Tx.", nm = v => v == null ? "–" : v.toFixed(2) + " " + XUNIT, pct = v => v == null ? "–" : v.toFixed(2) + " %";
+function fdRows(type, s) {                       // the rows for this kind of filter: { l: label, v: value } or { l: label, subs: [[label, value], ...] }; wavelengths carry no unit, because the headings say (nm) once
+  const U = yU(), M = ($("kR").checked ? "R" : "T") + "%", nm = v => v == null ? "–" : v.toFixed(2), pct = v => v == null ? "–" : v.toFixed(2) + " %";
   if (type === "ar") {
-    const st = rangeStats(s, view); if (!st.cnt) return [{ l: "Average " + m, v: "–" }];
-    return [{ l: "Average " + m, v: st.avg.toFixed(2) + U }, { l: "Max " + m, v: st.mx.toFixed(2) + U + " at " + nm(st.xmx) }, { l: "Min " + m, v: st.mn.toFixed(2) + U + " at " + nm(st.xmn) }];
+    const st = rangeStats(s, view); if (!st.cnt) return [{ l: "Avg " + M, v: "–" }];
+    return [{ l: "Avg " + M, v: st.avg.toFixed(2) + U }, { l: "Max " + M, v: st.mx.toFixed(2) + U }, { l: "Min " + M, v: st.mn.toFixed(2) + U }, { l: "Max at", v: nm(st.xmx) }, { l: "Min at", v: nm(st.xmn) }];
   }
   if (type === "notch") {
-    const n = notch(s, view); if (!n) return [{ l: "Baseline " + m, v: "–" }];
-    return [{ l: "Baseline " + m, v: n.base.toFixed(2) + U }, { l: "Minimum " + m, v: n.dip.toFixed(2) + U + " at " + nm(n.dipx) }, { l: "C W/L", v: nm(n.cwl) },
-            { l: "Notch width (FWHM)", v: n.bw == null ? "–" : nm(n.bw) }, { l: "OD at minimum", v: n.od == null ? "–" : n.od.toFixed(2) }];
+    const n = notch(s, view); if (!n) return [{ l: "Base " + M, v: "–" }];
+    return [{ l: "C W/L", v: nm(n.cwl) }, { l: "Width", v: nm(n.bw) }, { l: "OD", v: n.od == null ? "–" : n.od.toFixed(2) },
+            { l: "Base " + M, v: n.base.toFixed(2) + U }, { l: "Min " + M, v: n.dip.toFixed(2) + U }, { l: "Min at", v: nm(n.dipx) }];
   }
-  const pkL = "Peak " + ($("kR").checked ? "R" : "T") + "%", E = reportEdges(s); if (!E) return [{ l: pkL, v: "–" }];
-  const rows = [{ l: pkL, v: E.pk.toFixed(2) + U }], side = d => [80, 50, 5].map(p => [p + "% peak", nm(d[p])]);
+  const pkL = "Peak " + M, E = reportEdges(s); if (!E) return [{ l: pkL, v: "–" }];
+  const peak = { l: pkL, v: E.pk.toFixed(2) + U }, side = d => [80, 50, 5].map(p => [p + "%", nm(d[p])]);
   if (type === "band") {
     const lo = E.rise[50], hi = E.fall[50], ok = lo != null && hi != null;
-    rows.push({ l: "C W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "B/W", v: ok ? nm(hi - lo) : "–" },
-              { l: "Low side data", subs: side(E.rise) }, { l: "High side data", subs: side(E.fall) });
-  } else if (type === "lwp") {
-    rows.push({ l: R + " Coordinates", subs: side(E.rise) }, { l: "Slope", v: pct(edgeSlope(E.rise)) });
-  } else if (type === "swp") {
-    rows.push({ l: R + " Coordinates", subs: side(E.fall) }, { l: "Slope", v: pct(edgeSlope(E.fall)) });
-  } else {                                       // type not known: show every edge found, rising first
-    const pair = (a, b, f) => { const t = [a, b].filter(v => v != null).map(f); return t.length ? t.join(" / ") : "–"; };
-    rows.push({ l: R + " Coordinates", subs: [80, 50, 5].map(p => [p + "% peak", pair(E.rise[p], E.fall[p], x => x.toFixed(2)) + (E.rise[p] != null || E.fall[p] != null ? " " + XUNIT : "")]) },
-              { l: "Slope", v: pair(edgeSlope(E.rise), edgeSlope(E.fall), x => x.toFixed(2)) + (edgeSlope(E.rise) != null || edgeSlope(E.fall) != null ? " %" : "") });
+    return [{ l: "C W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "B/W", v: ok ? nm(hi - lo) : "–" }, peak, { l: "Low side", subs: side(E.rise) }, { l: "High side", subs: side(E.fall) }];
   }
-  return rows;
+  if (type === "lwp") return [peak, { l: "Slope", v: pct(edgeSlope(E.rise)) }, { l: "Edge", subs: side(E.rise) }];
+  if (type === "swp") return [peak, { l: "Slope", v: pct(edgeSlope(E.fall)) }, { l: "Edge", subs: side(E.fall) }];
+  const pair = (a, b, f) => { const t = [a, b].filter(v => v != null).map(f); return t.length ? t.join(" / ") : "–"; };   // type not known: show every edge found, rising first
+  return [peak, { l: "Slope", v: pair(edgeSlope(E.rise), edgeSlope(E.fall), x => x.toFixed(2)) + (edgeSlope(E.rise) != null || edgeSlope(E.fall) != null ? " %" : "") },
+          { l: "Edge", subs: [80, 50, 5].map(p => [p + "%", pair(E.rise[p], E.fall[p], x => x.toFixed(2))]) }];
+}
+function fdCompact(parent, rows) {               // the short layout, on the panel and the report: numbers three across, then low and high side points next to each other; returns how many "lines" of height it wants
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }; let units = 0;
+  const grow = (e, u) => { e.style.flexGrow = u; units += u; parent.append(e); };
+  const across = cells => { for (let i = 0; i < cells.length; i += 3) { const line = mk("div", "fdtop", "");
+    for (const [a, b] of cells.slice(i, i + 3)) { const d = document.createElement("div"); d.append(mk("span", "l", a + ":"), mk("span", "v", b)); line.append(d); } grow(line, 1.6); } };
+  const lines = (box, subs) => { for (const [a, b] of subs) { const row = mk("div", "sub", ""); row.append(mk("span", "l", a), mk("span", "v", b)); box.append(row); } };
+  across(rows.filter(r => !r.subs).map(r => [r.l, r.v]));
+  const groups = rows.filter(r => r.subs);
+  if (groups.length === 2) { const sides = mk("div", "fdsides", ""); for (const g of groups) { const d = document.createElement("div"); d.append(mk("span", "l", g.l)); lines(d, g.subs); sides.append(d); } grow(sides, 3.4); }
+  else for (const g of groups) { if (g.subs.every(x => x[1].length <= 8)) across(g.subs); else { const box = mk("div", "fdsides one", ""); lines(box, g.subs); grow(box, 2.6); } }   // edge pairs like 1059.77 / 1068.25 need a full line each
+  return units;
 }
 function fillRows(parent, rows) {                // draw rows made by fdRows (or the typed Filter I.D. fields) into a box; returns how many "lines" of height they want (the report stretches rows by this)
   let units = 0;
@@ -1686,8 +1752,8 @@ function renderLive(S) {                         // the Filter data panel beside
   const box = $("liveData"); box.hidden = !S.length || !view; if (box.hidden) return;
   if (ldPick && !S.some(s => s.box === ldPick)) ldPick = null;   // the picked curve was hidden or removed
   const many = S.length > 1, list = many && !ldPick ? S : [ldPick ? S.find(s => s.box === ldPick) : S[0]];
-  const pick = $("ldCurve"), sig = JSON.stringify(S.map(s => s.name)); pick.hidden = !many;
-  if (pick.dataset.sig !== sig) { pick.dataset.sig = sig; pick.replaceChildren(new Option("All scans (" + S.length + ")", "all"), ...S.map((s, i) => new Option(s.name, i))); }
+  const pick = $("ldCurve"), sig = JSON.stringify(S.map(s => s.nick)); pick.hidden = !many;
+  if (pick.dataset.sig !== sig) { pick.dataset.sig = sig; pick.replaceChildren(new Option("All scans (" + S.length + ")", "all"), ...S.map((s, i) => new Option(s.nick, i))); }
   if (many) pick.value = ldPick ? S.findIndex(s => s.box === ldPick) : "all";
   const sel = $("rptType"), opts = [["auto", list.length > 1 ? "Auto: each scan's own type" : "Auto: " + TYPE_NAMES[detectType(list[0])]], ...Object.entries(TYPE_NAMES)];
   if (sel.options.length !== opts.length) sel.innerHTML = opts.map(([k, t]) => `<option value="${k}">${t}</option>`).join("");
@@ -1696,10 +1762,10 @@ function renderLive(S) {                         // the Filter data panel beside
   for (const s of list) {
     const type = effType(s);
     if (many) {                                  // a heading with the curve's colour, so the numbers can be matched to the graph
-      const head = document.createElement("div"), sw = document.createElement("i"), nm = document.createElement("span"), kind = document.createElement("small");
-      head.className = "ldcurve"; sw.className = "sw"; sw.style.background = s.color; nm.textContent = s.name; kind.textContent = TYPE_NAMES[type] || ""; nm.append(kind); head.append(sw, nm); body.append(head);
+      const head = document.createElement("div"), sw = document.createElement("i"), nm = document.createElement("span");
+      head.className = "ldcurve"; sw.className = "sw"; sw.style.background = s.color; nm.textContent = s.nick; nm.title = s.name; head.append(sw, nm); body.append(head);
     }
-    fillRows(body, fdRows(type, s));
+    fdCompact(body, fdRows(type, s));
   }
   body.style.maxHeight = list.length > 1 ? Math.max(240, cv.clientHeight - 90) + "px" : "";   // a long list scrolls beside the graph instead of pushing the page down
   body.scrollTop = top;
@@ -1734,7 +1800,7 @@ function paintEmpty() {                       // nothing loaded yet: a plain pro
 }
 const draw = () => { if (!view) return paintEmpty(); document.querySelectorAll(".mname").forEach(e => e.textContent = measName());
   document.querySelectorAll("#series label").forEach(l => { const nm = l.querySelector("input[type=text]"), c = l._s.c;   // keep the name boxes in step with the Scan type
-    nm.placeholder = dispName(c); if (!c.label && nm !== document.activeElement) nm.value = dispName(c); }); const S = active(); render(); stats(S); specTable(S); edges(S); filterTable(S); renderLive(S); };
+    nm.placeholder = dispName(c); if (!c.label && nm !== document.activeElement) nm.value = dispName(c); }); const S = active(); render(); stats(S); specTable(S); edges(S); filterTable(S); renderLive(S); specConfetti(S); };
 function edges(S) {                              // the Edge points table under the stats table
   const L = levels(), t = $("edges"); t.innerHTML = "";
   $("edgeBox").hidden = !L.length || !S.length || !view; if ($("edgeBox").hidden) return;
@@ -1745,10 +1811,10 @@ function edges(S) {                              // the Edge points table under 
   addRow(["Series", "Max " + measName(), "Max at", "Level", "Threshold", "Crossings", "First to last"], "th");
   for (const s of S) L.forEach(({ p }, j) => {
     const e = edgePts(s, p);
-    if (!e) return addRow([j ? "" : s.name, "–", "–", p + "% of max", "–", "no positive peak", "–"], "td", s.color);
+    if (!e) return addRow([j ? "" : s.nick, "–", "–", p + "% of max", "–", "no positive peak", "–"], "td", s.color);
     const list = e.pts.slice(0, 8).map(c => xs(c.x) + (c.up ? " ↑" : " ↓")).join(",  ") + (e.pts.length > 8 ? "  +" + (e.pts.length - 8) + " more" : "");
     const span = e.pts.length > 1 ? fmt(e.pts.at(-1).x - e.pts[0].x) + xU() : "–";   // at 50% this is the FWHM
-    addRow([j ? "" : s.name, j ? "" : ys(e.pk), j ? "" : xs(e.pkx), p + "% of max", ys(e.thr), list || "none in view", span], "td", s.color);
+    addRow([j ? "" : s.nick, j ? "" : ys(e.pk), j ? "" : xs(e.pkx), p + "% of max", ys(e.thr), list || "none in view", span], "td", s.color);
   });
 }
 let raf = 0, wantFull = false;                  // redraw at most once per frame while the mouse moves
@@ -1807,7 +1873,7 @@ function stats(S) {
         cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
       }
       const val = { cMin: ys(mn), cMinAt: xs(xa), cMax: ys(mx), cMaxAt: xs(xb), cAvg: ys(sum / cnt) };
-      addRow([si ? "" : label, s.name, ...want.map(([id]) => cnt ? val[id] : "–")], "td", k < 0 ? "var(--strong)" : RC[k]);
+      addRow([si ? "" : label, s.nick, ...want.map(([id]) => cnt ? val[id] : "–")], "td", k < 0 ? "var(--strong)" : RC[k]);
     });
   }
 }
@@ -2190,34 +2256,33 @@ function multiTable(forced, S) {                 // the Multi reports' table: on
     for (const r of fdRows(type, s)) {
       if (!r.subs) { o[r.l] = r.v; continue; }
       for (const [a, b] of r.subs) { const p = a.replace(" peak", "");
-        o[/^Low side data/.test(r.l) ? "Low " + p : /^High side data/.test(r.l) ? "High " + p : p] = b; }
+        o[r.l === "Low side" ? "Low " + p : r.l === "High side" ? "High " + p : p] = b; }
     }
     return o; };
   const data = S.map(flat), keys = [...new Set(data.flatMap(d => Object.keys(d)))].filter(k => type !== "band" || !/^(Low|High) (80|5)%/.test(k));   // a bandpass keeps to the 50% points so the table stays readable
-  return { title: "Filter Data: " + (TYPE_NAMES[type] || ""), heads: ["Scan", ...keys], rows: S.map((s, i) => [{ t: s.name, color: s.color }, ...keys.map(k => data[i][k] ?? "–")]) };
+  return { title: "Filter Data: " + (TYPE_NAMES[type] ? TYPE_NAMES[type] + " " : "") + "(" + XUNIT + ")", heads: ["Scan", ...keys], rows: S.map((s, i) => [{ t: s.nick, color: s.color }, ...keys.map(k => data[i][k] ?? "–")]) };
 }
-function shortNames(S) {                         // scan names for narrow columns: drop an ending they all share, like ": Tx (%)"
+function shortNames(S) {                         // full scan names for the report's key: drop an ending they all share, like ": Tx (%)"
   const parts = S.map(s => /^(.*): ([^:]*)$/.exec(s.name)), same = S.length > 1 && parts.every(m => m && m[2] === parts[0][2]);
   return S.map((s, i) => same ? parts[i][1] : s.name);
 }
 function sideTable(t) {                          // turn the Multi table on its side: a row per number and a column per scan, with each unit moved up beside its label
-  const scans = t.rows.map(r => r[0]), names = shortNames(scans.map(c => ({ name: c.t })));
-  return { title: t.title, firstCol: "27mm", heads: ["", ...scans.map((c, i) => ({ t: names[i], color: c.color }))], rows: t.heads.slice(1).map((label, k) => {
+  const scans = t.rows.map(r => r[0]);
+  return { title: t.title, firstCol: "27mm", heads: ["", ...scans.map(c => ({ t: c.t, color: c.color }))], rows: t.heads.slice(1).map((label, k) => {
     const vals = t.rows.map(r => r[k + 1]), m = vals.map(v => /^(-?[\d.]+) (\S+)$/.exec(v)), good = m.filter(Boolean), u = good.length && good.every(g => g[2] === good[0][2]) ? good[0][2] : "";
     const ok = u && m.every((g, i) => g || vals[i] === "–");
     return [ok && !(u === "%" && label.endsWith("%")) ? label + " (" + u + ")" : label, ...vals.map((v, i) => ok && m[i] ? m[i][1] : v)]; }) };
 }
 function specReport(S) {                         // the spec check, for the report: the same results as the Specs table on the page
   const ok = specs.filter(sp => specOK(sp) && specShown(sp)); if (!ok.length || !S.length) return null;
-  const range = sp => fx(Math.min(+sp.a, +sp.b)) + " – " + xs(Math.max(+sp.a, +sp.b)), word = (sp, r) => r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL";
+  const range = specRange, word = (sp, r) => r.pass ? (sp.kind === "best" ? "BEST EFFORT" : "PASS") : "FAIL";
   if (S.length > 1) {                            // several scans: one row per spec and a column per scan, which is what keeps a long list on one page
-    const names = shortNames(S);
-    return { title: "Specifications", heads: ["Spec", "Range", ...S.map((s, i) => ({ t: names[i], color: s.color }))],
-      rows: ok.map(sp => [specName(sp), range(sp), ...S.map(s => { const r = checkSpec(sp, s); return r ? { t: ys(r.got) + "  " + word(sp, r), cls: r.pass ? "pass" : "fail" } : "no data"; })]) };
+    return { title: "Specifications", heads: ["Spec", "Range", ...S.map(s => ({ t: s.nick, color: s.color }))],
+      rows: ok.map(sp => [specName(sp), range(sp), ...S.map(s => { const r = checkSpec(sp, s); return r ? { t: r.text + "  " + word(sp, r), cls: r.pass ? "pass" : "fail" } : "no data"; })]) };
   }
   const s = S[0];
   return { title: "Specifications", heads: ["Spec", "Range", "Measured", "At", "Margin", "Result"], rows: ok.map(sp => { const r = checkSpec(sp, s);
-    return [specName(sp), range(sp), ...(r ? [r.word + " " + ys(r.got), isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), { t: word(sp, r), cls: r.pass ? "pass" : "fail" }] : ["no data in range", "–", "–", "–"])]; }) };
+    return [specName(sp), range(sp), ...(r ? [(r.word ? r.word + " " : "") + r.text, isFinite(r.at) ? xs(r.at) : "–", (r.margin >= 0 ? "+" : "") + fmt(r.margin), { t: word(sp, r), cls: r.pass ? "pass" : "fail" }] : ["no data in range", "–", "–", "–"])]; }) };
 }
 function rptTable(t) {                           // build one report table; its title and headings repeat if it runs onto another page
   const tb = document.createElement("table"), head = tb.createTHead(), n = t.heads.length, long = t.newpage;
@@ -2244,11 +2309,13 @@ function preparePrint() {                        // fill in the print-only parts
   const tbls = [], side = multi && S.length >= 1 && S.length <= 8;     // up to 8 scans: their numbers go in a column beside the graph, with a column of the table per scan
   const mt = multi && S.length ? multiTable(forced, S) : null; if (mt && !side) tbls.push(mt);
   const spt = specReport(S); if (spt) tbls.push(spt);
-  const wordy = mt && mt.rows.some(r => r.some(c => / at /.test(c))), rw = side ? Math.min(140, Math.max(72, 30 + S.length * (wordy ? 28 : S.length <= 4 ? 20 : 13.5))) : 0;   // mm: how wide that column is ("99.15 % at 1064 nm" needs more)
-  const L = !multi && S.length > 1 ? 6 : 0, room = (wide ? 148 : 165) - L, minG = 70;   // mm: the legend, the space for the graph and its tables, and the smallest graph worth printing
+  const rw = side ? Math.min(140, Math.max(72, 30 + S.length * (S.length <= 4 ? 20 : 13.5))) : 0;   // mm: how wide that column is
+  const keyText = shortNames(S).map((f, i) => S[i].nick === f ? f : S[i].nick + ": " + f);   // the key under the graph says which scan is which file
+  let keyRows = 0, keyLeft = 0; for (const k of keyText) { const w = 8 + k.length * 1.75; if (w > keyLeft) { keyRows++; keyLeft = wide ? 267 : 211; } keyLeft -= w; }   // how many lines it wraps to
+  const L = S.length > 1 ? keyRows * 5.5 + .5 : 0, room = (wide ? 148 : 165) - L, minG = 64;   // mm: the key, the space for the graph and its tables, and the smallest graph worth printing
   let used = 0, later = false;                                         // each table stays under the graph if a good-sized graph still fits; only then do they go on the next page
   for (const t of tbls) { const h = t.rows.length * 4.3 + 12; if (!later && room - used - h - 3 >= minG) used += h; else later = t.newpage = true; }
-  const gh = used ? room - used - 3 : wide ? room : 168.8;
+  const gh = used ? room - used - 3 : wide ? room : 168.8 - L;
   if (side) { $("app").dataset.side = "1"; $("app").style.setProperty("--rw", rw + "mm"); $("printData").replaceChildren(rptTable(sideTable(mt))); } else { delete $("app").dataset.side; $("printData").replaceChildren(); }
   $("app").dataset.rpt = wide ? "wide" : "single"; if (later && !wide) $("app").dataset.long = "1"; else delete $("app").dataset.long;
   document.documentElement.classList.toggle("rpttables", tbls.length > 0);
@@ -2272,18 +2339,17 @@ function preparePrint() {                        // fill in the print-only parts
   if (wide) idRows.push(...conds);                                     // Multi and Custom have no Filter Data box, so the conditions join this strip
   idBox.style.flexGrow = fillRows(idBox, idRows) + 1;
   if (!wide) {
-    const fd = box("Filter Data"), rows = [];
-    if (S.length > 1) rows.push({ l: "Data for", v: s.name });
-    if (s) rows.push(...fdRows(forced || effType(s), s));              // the same numbers as the panel beside the graph
-    rows.push(...conds);
-    fd.style.flexGrow = fillRows(fd, rows) + 1;
+    const fd = box("Filter Data (" + XUNIT + ")"), rows = [];
+    if (S.length > 1) rows.push({ l: "Data for", v: s.nick });
+    const units = fillRows(fd, rows) + (s ? fdCompact(fd, fdRows(forced || effType(s), s)) : 0) + fillRows(fd, conds);   // the same numbers as the panel beside the graph, then the conditions
+    fd.style.flexGrow = units + 1;
   }
-  const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = multi || S.length < 2;   // one scan is already named by the graph; a Multi table names each curve itself
-  for (const sr of S) {
+  const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = S.length < 2;   // one scan needs no key
+  if (S.length > 1) S.forEach((sr, i) => {
     const sp = document.createElement("span"), sw = document.createElement("i");
     sw.style.cssText = "width:14px;height:4px;display:inline-block;background:" + sr.color;
-    sp.append(sw, sr.name); lg.append(sp);
-  }
+    sp.append(sw, keyText[i]); lg.append(sp);
+  });
 }
 const RPT = [["inst", "Test Instrument"], ["op", "Test Technician"], ["cust", "Customer Name"], ["am", "Job Number"], ["pn", "Part Number"], ["sn", "Serial Number"], ["lot", "Lot Number"]];
 const rpt = { stamp: true, style: "auto" }; try { rpt.stamp = localStorage.getItem("plotStamp") !== "0"; rpt.style = localStorage.getItem("plotRptStyle") || "auto"; } catch (e) {}
@@ -2618,7 +2684,7 @@ function dropFile(ds) {                          // take one scan off the graph;
   if (i === 0) { const m = files[0]; cols = m.cols; n = m.n; setX(m.xi, false); } else rebuild(false);
 }
 function clearGraph() {                           // back to the empty starting screen
-  files = []; cols = []; n = 0; X = []; xkind = "num"; view = null; zoomed = false; hov = null; ySaved = null; drag = false;
+  files = []; scanNo = 0; cols = []; n = 0; X = []; xkind = "num"; view = null; zoomed = false; hov = null; ySaved = null; drag = false;
   ranges = Array(6).fill(null); shown = Array(6).fill(true); cur = 0; notes = []; noteBoxes = []; shiftStamp++;
   for (const id of ["title", "spec", "shfrom", "shto", "shx", "shy", "smfrom", "smto", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   TI.forEach(([a, b]) => { a.value = b.value = ""; });
