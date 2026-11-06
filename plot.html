@@ -45,7 +45,7 @@
   .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
   .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  body.signal .tab:not([data-tab=data], [data-tab=display]), body.signal :is(.tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
+  body.signal .tab:not([data-tab=data], [data-tab=modify]), body.signal #modcol > :not(.dispbox), body.signal :is(.filtsec, .tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
   .signalonly { display: none; } body.signal .signalonly { display: block; } body.signal .plotrow { grid-template-columns: 1fr; }
   .ic { display: inline-block; width: 16px; height: 16px; margin-right: .45rem; vertical-align: -3px; flex: none; } .ic svg { display: block; width: 16px; height: 16px; overflow: visible; }   /* the small Windows-style pictures on tabs and buttons */
   .tab .ic { margin-right: .35rem; }
@@ -156,6 +156,13 @@
   .modstack { display: grid; gap: .6rem; }   /* shift row above smooth row, each on one line, under the graph */
   #modfile { max-width: 10.5rem; }
   .modcard { display: grid; gap: .45rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: 6px; }
+  .modhead { margin-bottom: .5rem; }
+  .modstack { grid-template-columns: repeat(auto-fit, minmax(19rem, 24rem)); align-items: stretch; }   /* Shift and Smooth: two boxes side by side */
+  .modcard { display: flex; flex-direction: column; gap: .6rem; }
+  .modtitle { display: flex; align-items: center; gap: .5rem; }
+  .modform { display: grid; grid-template-columns: auto 1fr; gap: .4rem .6rem; align-items: center; }
+  .modform .ml { font-weight: 600; text-align: right; } .modform .mf { display: flex; align-items: center; gap: .4rem; }
+  .modbtns { display: flex; align-items: center; gap: .5rem; margin-top: auto; flex-wrap: wrap; } .modbtns .note { font-size: .85rem; }
   .modcard .controls { gap: .4rem .7rem; } .modcard input.unit { width: 4.2rem; padding: .35rem .5rem; } .modcard button { padding: .4rem .7rem; }
   .help { position: relative; display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1px solid var(--muted); color: var(--muted); font-size: .8rem; font-weight: 600; cursor: help; }
   .help:hover, .help:focus-visible { color: #fff; border-color: var(--accent); background: #1a9fff30; }
@@ -168,10 +175,13 @@
   button { font: inherit; padding: .45rem .9rem; color: var(--text); background: #ffffff14; border: 0; border-radius: 4px; cursor: pointer; transition: background .15s, transform .1s; }
   button:hover:not(:disabled) { background: #ffffff2b; } button:active:not(:disabled) { transform: scale(.97); }
   button:disabled { opacity: .4; cursor: not-allowed; }
-  .typed { display: grid; grid-template-columns: auto 8.5rem 8.5rem repeat(4, auto) repeat(3, 12rem); gap: .4rem .6rem; max-width: 100%; overflow-x: auto; align-items: center; justify-content: start; }
+  .typed { display: grid; grid-template-columns: auto 5.6rem 5.6rem repeat(4, auto) repeat(3, 10.5rem); gap: .25rem .5rem; max-width: 100%; overflow-x: auto; align-items: center; justify-content: start; }
   .typed .th { font-size: .85em; color: var(--muted); text-align: center; } .typed .ck { justify-self: center; display: flex; padding: 0 .35rem; cursor: pointer; } .typed .ck input { margin: 0; } .typed input.ind { box-sizing: border-box; text-align: right; cursor: default; font-variant-numeric: tabular-nums; } .typed .th.ind0, .typed input.ind0 { margin-left: 1rem; } .typed input.ind.ind0 { width: calc(100% - 1rem); } .typed .th.indh { text-align: right; }   /* the result boxes: read-only, they fill in by themselves */   /* wide enough for a value like 1068.660745 */
   .rangebar { justify-content: space-between; } .rangeact { margin-left: auto; justify-content: flex-end; }
-  .typed input[type=text] { width: 100%; min-width: 0; }
+  .typed input[type=text] { width: 100%; min-width: 0; padding-top: .18rem; padding-bottom: .18rem; }
+  .rangeflex { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; align-items: flex-start; }
+  .markbox { display: grid; gap: .35rem; justify-items: start; } .markbox .th { font-size: .85em; color: var(--muted); }
+  .markbox input.pct { padding-top: .18rem; padding-bottom: .18rem; }
   .typed b { font-weight: 600; }
   button.slot { border: 2px solid var(--c); padding: .3rem .8rem; background: transparent; }
   button.slot.set { background: #ffffff14; }
@@ -435,11 +445,8 @@
     <div class="tabs" role="tablist">
       <button type="button" class="tab" role="tab" data-tab="data">Data</button>
       <button type="button" class="tab" role="tab" data-tab="modify">Modify</button>
-      <button type="button" class="tab" role="tab" data-tab="display">Display</button>
       <button type="button" class="tab" role="tab" data-tab="ranges">Ranges</button>
-      <button type="button" class="tab" role="tab" data-tab="annotate">Notes</button>
       <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
-      <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
       <button type="button" class="tab playtab" role="tab" data-tab="play" tabindex="-1" aria-hidden="true">Play</button>   <!-- an invisible easter egg: still clickable, just not seen -->
       <button type="button" class="tab" role="tab" data-tab="library">Reference</button>
@@ -447,94 +454,7 @@
     </div>
 
     <div class="panel" data-tab="modify" id="modcol" hidden>
-      <div class="controls">
-        <label class="txt"><b>Change</b> <select id="modfile" aria-label="Which CSV the shift and smooth buttons change"></select></label>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Each CSV keeps its own shifts and smoothing. Pick “All files” to change them together. Your files themselves are never changed.">?</span>
-      </div>
-      <div class="modstack">
-        <div class="modcard">
-          <div class="controls">
-            <b>Shift data</b>
-            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the scan by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span>
-            <label class="txt">Range <input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"></label>
-            <label class="txt">to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</label>
-            <label class="txt">X <input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</label>
-            <label class="txt">Y <input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</label>
-            <button type="button" id="shgo">Shift it</button>
-            <button type="button" id="shreset">Reset</button>
-            <span class="hint note" id="shtotal">No shift applied</span>
-          </div>
-        </div>
-        <div class="modcard">
-          <div class="controls">
-            <b>Smooth data</b>
-            <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Replaces each point with the average of its neighbours (a moving average). A wider width is smoother but rounds off sharp edges. Leave the range blank to smooth everything, or fill it in to smooth only a noisy part. Each click smooths again, on top of any shift.">?</span>
-            <label class="txt">Range <input type="text" id="smfrom" class="unit" placeholder="start" aria-label="Smooth only from this X value, in nm"></label>
-            <label class="txt">to <input type="text" id="smto" class="unit" placeholder="end" aria-label="Smooth only up to this X value, in nm"> nm</label>
-            <label class="txt">Width <input type="text" id="smw" class="unit" value="5" aria-label="Smoothing width in points"> points</label>
-            <button type="button" id="smgo">Smooth it</button>
-            <button type="button" id="smreset">Reset</button>
-            <span class="hint note" id="smnote">No smoothing applied</span>
-          </div>
-        </div>
-      </div>
-    </div>
-      </div>
-    </div>
-
-    <div class="panel" data-tab="data" hidden>
-      <div class="bar">
-        <button type="button" id="openbtn">Open a CSV</button>
-        <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here (or press Ctrl+V on this page)">Paste</button>
-        <button type="button" id="clearbtn" title="Remove everything from the graph and start over">Clear graph</button>
-        <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
-        <span class="hint">…or drop a CSV file anywhere on this page, or copy cells in Excel and press Ctrl+V here. A screenshot pasted the same way goes onto the graph as a picture.</span>
-      </div>
-      <p id="msg" class="hint" role="status"></p>
-      <p class="hint signalonly">Signal view: drag across the graph to zoom, and double-click to zoom back out.</p>
-      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
-      <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
-      <div class="series" id="series"></div>
-      <div class="finder">
-        <div class="bar"><b>Find scans in a folder</b>
-          <button type="button" id="fdOpen">Open a folder</button>
-          <input type="file" id="fdIn" webkitdirectory multiple hidden>
-          <span class="hint">…or drop a whole folder anywhere on this page. Nothing is uploaded; the files are read in your browser.</span></div>
-        <div class="bar">
-          <label class="txt">Type <select id="fdType"><option value="any">Any</option><option value="lwp" selected>Longpass</option><option value="swp">Shortpass</option><option value="bp">Bandpass</option><option value="ar">AR</option></select></label>
-          <label class="txt">Edge at <input type="text" id="fdPct" class="pct" value="5" aria-label="Edge level, percent of the scan's peak">% of peak</label>
-          <label class="txt" title="Longpass and shortpass: where the edge is. Bandpass and AR: the middle of the band.">position between <input type="text" id="fdA" class="unit" placeholder="start" aria-label="Edge no lower than this wavelength, in nm"></label>
-          <label class="txt">and <input type="text" id="fdB" class="unit" placeholder="end" aria-label="Edge no higher than this wavelength, in nm"> nm</label>
-          <label class="txt" title="Rejects scans with a leak: after the edge (before it, for a shortpass) the scan must stay above the edge level for this far. Leave blank to skip this check.">Stays above it for at least <input type="text" id="fdRun" class="unit" value="3000" aria-label="Minimum distance the scan stays above the edge level, in nm"> nm</label>
-        </div>
-        <p id="fdMsg" class="hint" role="status"></p>
-        <div class="bar" id="fdAct" hidden>
-          <button type="button" id="fdShow">Show checked on graph</button>
-          <button type="button" id="fdAll">Check all</button>
-          <button type="button" id="fdNone">Check none</button>
-        </div>
-        <div class="fdlist" id="fdList"></div>
-      </div>
-    </div>
-
-    <div class="panel" data-tab="library" hidden>
-      <div class="controls">
-        <b>Substrates</b>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Pick a material and a thickness, then Add to graph. It is calculated from published optical constants (the reflection loss plus the material's own absorption), so it shows where each material starts to block. A real piece of glass will differ in the details. Each one is added as an overlay, so you can compare several or lay one over your scan. To take one off again, right-click it on the graph and choose Remove. Each one covers the full range of the material, starting at 160 nm for quartz.">?</span>
-        <select id="libMat" aria-label="Material"></select>
-        <span class="help" id="libInfo" tabindex="0" role="note" aria-label="About this material" data-tip="">i</span>
-        <label class="txt">Thickness <input type="text" id="libD" class="unit" value="1" aria-label="Thickness in millimetres"> mm</label>
-        <button type="button" id="libAdd">Add to graph</button>
-        <button type="button" id="libClear" title="Remove everything from the graph and start over">Clear graph</button>
-        <button type="button" id="libDel" hidden>Delete from Reference</button>
-      </div>
-      <div class="controls">
-        <b>My scans</b>
-        <input type="text" id="libName" placeholder="Name, e.g. ZWB1 3 mm" aria-label="Name for the saved scan" style="width:15rem">
-        <button type="button" id="libSave">Save main scan to Reference</button>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Saves the first (main) CSV on the graph under this name, so you can add it back any time, for example ZWB1 or green glass. Saved scans appear at the bottom of the material list. They are kept in this browser on this computer only.">?</span>
-      </div>
-    </div>    <div class="panel" data-tab="display" hidden>
+      <div class="dispbox">
       <div class="controls">
         <label class="txt">Title <input type="text" id="title" placeholder="Chart title"></label>
         <span class="meas">Scan type
@@ -557,32 +477,120 @@
         <span class="hint">Printed under the title.</span>
       </div>
     </div>
+      <div class="controls modhead">
+        <label class="txt"><b>Change</b> <select id="modfile" aria-label="Which CSV the shift and smooth buttons change"></select></label>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Each CSV keeps its own shifts and smoothing. Pick “All files” to change them together. Your files themselves are never changed.">?</span>
+      </div>
+      <div class="modstack">
+        <div class="modcard">
+          <div class="modtitle"><b>Shift data</b> <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Moves the scan by this amount, + or −. Leave the range blank to move everything, or fill in one or both ends to move only that part. Each click adds on to what is already applied, and the range means the wavelengths you see on the graph when you click.">?</span></div>
+          <div class="modform">
+            <span class="ml">Range</span><span class="mf"><input type="text" id="shfrom" class="unit" placeholder="start" aria-label="Shift only from this X value, in nm"> to <input type="text" id="shto" class="unit" placeholder="end" aria-label="Shift only up to this X value, in nm"> nm</span>
+            <span class="ml">X</span><span class="mf"><input type="text" id="shx" class="unit" placeholder="0" aria-label="Shift X by nm"> nm</span>
+            <span class="ml">Y</span><span class="mf"><input type="text" id="shy" class="unit" placeholder="0" aria-label="Shift Y by percent"> %</span>
+          </div>
+          <div class="modbtns"><button type="button" id="shgo">Shift it</button><button type="button" id="shreset">Reset</button><span class="hint note" id="shtotal">No shift applied</span></div>
+        </div>
+        <div class="modcard">
+          <div class="modtitle"><b>Smooth data</b> <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Replaces each point with the average of its neighbours (a moving average). A wider width is smoother but rounds off sharp edges. Leave the range blank to smooth everything, or fill it in to smooth only a noisy part. Each click smooths again, on top of any shift.">?</span></div>
+          <div class="modform">
+            <span class="ml">Range</span><span class="mf"><input type="text" id="smfrom" class="unit" placeholder="start" aria-label="Smooth only from this X value, in nm"> to <input type="text" id="smto" class="unit" placeholder="end" aria-label="Smooth only up to this X value, in nm"> nm</span>
+            <span class="ml">Width</span><span class="mf"><input type="text" id="smw" class="unit" value="5" aria-label="Smoothing width in points"> points</span>
+          </div>
+          <div class="modbtns"><button type="button" id="smgo">Smooth it</button><button type="button" id="smreset">Reset</button><span class="hint note" id="smnote">No smoothing applied</span></div>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
 
-    <div class="panel" data-tab="ranges">
+    <div class="panel" data-tab="data" hidden>
+      <div class="bar">
+        <button type="button" id="openbtn">Open a CSV</button>
+        <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here (or press Ctrl+V on this page)">Paste</button>
+        <button type="button" id="clearbtn" title="Remove everything from the graph and start over">Clear graph</button>
+        <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
+        <span class="hint">…or drop a CSV file anywhere on this page, or copy cells in Excel and press Ctrl+V here. A screenshot pasted the same way goes onto the graph as a picture.</span>
+      </div>
+      <p id="msg" class="hint" role="status"></p>
+      <p class="hint signalonly">Signal view: drag across the graph to zoom, and double-click to zoom back out.</p>
+      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
+      <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
+      <div class="series" id="series"></div>
+      <div class="filtsec">
+      <div class="controls">
+        <b>Filter type</b>
+        <label><input type="radio" name="ftype" id="fNone" checked> None</label>
+        <label><input type="radio" name="ftype" id="fBand"> Bandpass</label>
+        <label><input type="radio" name="ftype" id="fLwp"> LWP</label>
+        <label><input type="radio" name="ftype" id="fSwp"> SWP</label>
+        <label><input type="radio" name="ftype" id="fAr"> AR</label>
+        <label><input type="radio" name="ftype" id="fNotch"> Notch</label>
+      </div>
+      <span id="fhint" hidden></span>
+      <div class="controls" id="bandOpts" hidden>
+        <label><input type="checkbox" id="fShow" checked> Draw the measurement on the chart</label>
+      </div>
+      </div>
+    </div>
+
+    <div class="panel" data-tab="library" hidden>
+      <div class="controls">
+        <b>Substrates</b>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Pick a material and a thickness, then Add to graph. It is calculated from published optical constants (the reflection loss plus the material's own absorption), so it shows where each material starts to block. A real piece of glass will differ in the details. Each one is added as an overlay, so you can compare several or lay one over your scan. To take one off again, right-click it on the graph and choose Remove. Each one covers the full range of the material, starting at 160 nm for quartz.">?</span>
+        <select id="libMat" aria-label="Material"></select>
+        <span class="help" id="libInfo" tabindex="0" role="note" aria-label="About this material" data-tip="">i</span>
+        <label class="txt">Thickness <input type="text" id="libD" class="unit" value="1" aria-label="Thickness in millimetres"> mm</label>
+        <button type="button" id="libAdd">Add to graph</button>
+        <button type="button" id="libClear" title="Remove everything from the graph and start over">Clear graph</button>
+        <button type="button" id="libDel" hidden>Delete from Reference</button>
+      </div>
+      <div class="controls">
+        <b>My scans</b>
+        <input type="text" id="libName" placeholder="Name, e.g. ZWB1 3 mm" aria-label="Name for the saved scan" style="width:15rem">
+        <button type="button" id="libSave">Save main scan to Reference</button>
+        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Saves the first (main) CSV on the graph under this name, so you can add it back any time, for example ZWB1 or green glass. Saved scans appear at the bottom of the material list. They are kept in this browser on this computer only.">?</span>
+      </div>
+      <div class="finder">
+        <div class="bar"><b>Find scans in a folder</b>
+          <button type="button" id="fdOpen">Open a folder</button>
+          <input type="file" id="fdIn" webkitdirectory multiple hidden>
+          <span class="hint">…or drop a whole folder anywhere on this page. Nothing is uploaded; the files are read in your browser.</span></div>
+        <div class="bar">
+          <label class="txt">Type <select id="fdType"><option value="any">Any</option><option value="lwp" selected>Longpass</option><option value="swp">Shortpass</option><option value="bp">Bandpass</option><option value="ar">AR</option></select></label>
+          <label class="txt">Edge at <input type="text" id="fdPct" class="pct" value="5" aria-label="Edge level, percent of the scan's peak">% of peak</label>
+          <label class="txt" title="Longpass and shortpass: where the edge is. Bandpass and AR: the middle of the band.">position between <input type="text" id="fdA" class="unit" placeholder="start" aria-label="Edge no lower than this wavelength, in nm"></label>
+          <label class="txt">and <input type="text" id="fdB" class="unit" placeholder="end" aria-label="Edge no higher than this wavelength, in nm"> nm</label>
+          <label class="txt" title="Rejects scans with a leak: after the edge (before it, for a shortpass) the scan must stay above the edge level for this far. Leave blank to skip this check.">Stays above it for at least <input type="text" id="fdRun" class="unit" value="3000" aria-label="Minimum distance the scan stays above the edge level, in nm"> nm</label>
+        </div>
+        <p id="fdMsg" class="hint" role="status"></p>
+        <div class="bar" id="fdAct" hidden>
+          <button type="button" id="fdShow">Show checked on graph</button>
+          <button type="button" id="fdAll">Check all</button>
+          <button type="button" id="fdNone">Check none</button>
+        </div>
+        <div class="fdlist" id="fdList"></div>
+      </div>
+    </div>    <div class="panel" data-tab="ranges">
       <div class="bar rangebar">
         <div class="bar" id="slots"></div>
         <div class="bar rangeact">
-          <button id="zoom" disabled>Zoom to range</button>
           <button id="clear" disabled>Clear range</button>
           <button id="clearall" disabled>Clear all ranges</button>
           <button id="reset">Reset view</button>
         </div>
       </div>
-      <div class="typed" id="typed" aria-label="Type range coordinates"></div>
-      <p class="hint">Tick what each range should show. The boxes on the right fill in by themselves (point at a Min or Max box to see where it is), and the table under the graph lists every scan. O.D. adds the optical density beside each number, without changing the graph.</p>
-    </div>
-
-    <div class="panel" data-tab="annotate" hidden>
-      <div class="controls">
-        <b>Annotations</b>
-        <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Right-click a scan and choose Add a note here, or right-click an empty spot to put a note anywhere. Drag a note to move it; its line follows. Drag the dot on the scan to slide the note along it, and its X and Y values update. Drag the corner of a note to make it wider or narrower and the text wraps; double-click the corner to go back to automatic width. Right-click or double-click a note to edit or delete it. The checkboxes decide whether notes show on the graph and on the printed report.">?</span>
-        <label><input type="checkbox" id="anShow" checked> Show on the graph</label>
-        <label><input type="checkbox" id="anReport" checked> Include on the printed report</label>
-        <button type="button" id="anClear" disabled>Clear all</button>
+      <div class="rangeflex">
+        <div class="typed" id="typed" aria-label="Type range coordinates"></div>
+        <div class="markbox"><span class="th">Percent-of-max marks</span>
+          <label><input type="checkbox" id="m1"> Mark <input type="text" id="lv1" class="pct" value="50" aria-label="First level, percent of max">% of max</label>
+          <label><input type="checkbox" id="m2"> Mark <input type="text" id="lv2" class="pct" value="5" aria-label="Second level, percent of max">% of max</label>
+        </div>
       </div>
-      <div class="anlist" id="anList"></div>
+      <p class="hint">Tick what each range should show. The boxes on the right fill in by themselves (point at a Min or Max box to see where it is). O.D. adds the optical density beside each number, without changing the graph.</p>
     </div>
 
+    <div hidden><input type="checkbox" id="anShow" checked><input type="checkbox" id="anReport" checked><button type="button" id="anClear" disabled></button><div id="anList"></div></div>   <!-- notes are added, moved and deleted on the graph itself (right-click) -->
     <div class="panel" data-tab="specs" hidden>
       <div class="specbox">
         <div class="bar"><b>Specs</b><button type="button" id="addspec">Add spec</button>
@@ -615,28 +623,6 @@
             <select id="drawOp" aria-label="Which side of a drawn spec passes"><option value="ge">≥ at least</option><option value="le">≤ at most</option></select></label>
           <span class="hint">Hold Ctrl, press on the graph, drag to the other end and let go. A spec is drawn flat at the height where you started, and it appears in the list above where you can fine-tune it. A plain line follows your mouse exactly and is not checked against the data.</span></div>
         <div id="lineRows"></div>
-      </div>
-    </div>
-
-    <div class="panel" data-tab="filter" hidden>
-      <div class="controls">
-        <b>Filter type</b>
-        <label><input type="radio" name="ftype" id="fNone" checked> None</label>
-        <label><input type="radio" name="ftype" id="fBand"> Bandpass</label>
-        <label><input type="radio" name="ftype" id="fLwp"> LWP</label>
-        <label><input type="radio" name="ftype" id="fSwp"> SWP</label>
-        <label><input type="radio" name="ftype" id="fAr"> AR</label>
-        <label><input type="radio" name="ftype" id="fNotch"> Notch</label>
-      </div>
-      <div class="controls"><span class="hint" id="fhint"></span></div>
-      <div class="controls" id="bandOpts" hidden>
-        <label><input type="checkbox" id="fShow" checked> Draw the measurement on the chart</label>
-      </div>
-      <div class="controls">
-        <b>Percent-of-max marks</b>
-        <label><input type="checkbox" id="m1"> Mark <input type="text" id="lv1" class="pct" value="50" aria-label="First level, percent of max">% of max points</label>
-        <label><input type="checkbox" id="m2"> Mark <input type="text" id="lv2" class="pct" value="5" aria-label="Second level, percent of max">% of max points</label>
-        <span class="hint">Percent of the max <span class="mname">Transmission</span> shown on the graph. Zoom in to measure a different peak.</span>
       </div>
     </div>
 
@@ -687,7 +673,7 @@
     </div>
     <div id="sideCol" class="keep">
     <div id="printFields"></div>
-    <div class="tbl keep"><table id="stats"></table></div>
+    <div class="tbl keep" hidden><table id="stats"></table></div>
     <div class="tbl keep" id="specTblBox" hidden><table id="specTbl"></table></div>
     <div class="tbl keep" id="edgeBox" hidden><table id="edges"></table></div>
     <div class="tbl keep" id="bandBox" hidden><table id="bandTbl"></table></div>
@@ -701,7 +687,7 @@
         <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent, the angle of incidence (AOI) it was taken at, and its polarization (Random unless the scan was S or P). They are labels only and do not move the data. Use the Modify tab to shift a scan. They are printed in the Filter Data box on the report. Leave a box empty to leave it blank.">?</span>
       </div>
     </div>
-    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. With no range marked, the table covers everything currently shown. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
+    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
   </section>
 
   <div class="rptbg" id="rptDlg" hidden>
@@ -983,7 +969,7 @@ function ingest(text, fname = "data.csv", pasted = false) {     // load the main
   const yc = cols.find((c, i) => i !== xi && c.kind === "num");           // a column called Rx / Reflection switches the Scan type to Reflection
   $("kR").checked = !!(yc && /^(%\s*)?R(x)?(\W|$)|reflect/i.test(yc.name)); $("kT").checked = !$("kR").checked;
   const cr = ds.cropped, note = cr.top + cr.bottom ? " Skipped " + [cr.top && cr.top + " header", cr.bottom && cr.bottom + " footer"].filter(Boolean).join(" and ") + " lines that weren't data." : "";
-  say(sig ? n.toLocaleString() + " readings loaded." + note : n.toLocaleString() + " rows, " + cols.length + " columns loaded." + note); $("app").hidden = false;
+  say(""); $("app").hidden = false;   // loaded: no status line needed
   setX(xi, true);
   const ys = cols.filter((c, i) => i !== xi && c.kind === "num").length;
   if (pasted && ys > 1) say(n.toLocaleString() + " rows loaded, showing all " + ys + " columns. Uncheck any you don't want on the graph." + note);
@@ -1576,11 +1562,12 @@ function render() {
       ctx.restore();
     }
     if (!light && !clean && dragged[k]) {                             // a small X at the top right: click it to remove this range (only on ranges you dragged; typed ones are handled in their boxes)
-      const c = xBtn(k), g = 4;
-      ctx.strokeStyle = RC[k]; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.beginPath();
+      const c = xBtn(k), o = okBtn(k), g = 4.5;                       // two round buttons: a green check (keep it and move on) and a red X (remove it)
+      for (const [b, col] of [[o, "#2e9d47"], [c, "#d9322b"]]) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(b.x, b.y, 11, 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath();
       ctx.moveTo(c.x - g, c.y - g); ctx.lineTo(c.x + g, c.y + g); ctx.moveTo(c.x + g, c.y - g); ctx.lineTo(c.x - g, c.y + g);
-      const o = okBtn(k); ctx.moveTo(o.x - 5, o.y); ctx.lineTo(o.x - 1.5, o.y + 4); ctx.lineTo(o.x + 5, o.y - 4.5);   // and a check mark: keep it and move on
-      ctx.stroke(); ctx.lineCap = "butt";
+      ctx.moveTo(o.x - 5, o.y + .5); ctx.lineTo(o.x - 1.5, o.y + 4); ctx.lineTo(o.x + 5, o.y - 4);
+      ctx.stroke(); ctx.lineCap = "butt"; ctx.lineJoin = "miter";
     }
   });
   if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed
@@ -1751,7 +1738,7 @@ function filterTable(S) {                        // the results table under the 
   addRow(["Range", "Series", ...head], "th");
   const edge = v => v === null ? "not in range" : xs(v), nm = v => v === null ? "–" : xs(v), w = v => v === null ? "–" : fmt(v) + xU();
   for (const { r, k } of rangeGroups()) S.forEach((s, si) => {
-    const label = (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b); let c = null;
+    const label = !isFinite(r.a) ? "Whole scan" : (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b); let c = null;
     if (ft === "band") { const b = bandpass(s, r); c = b && [nm(b.cwl), w(b.bw), ys(b.pk), xs(b.pkx), edge(b.lo), edge(b.hi)]; }
     else if (ft === "lwp" || ft === "swp") { const b = bandpass(s, r); c = b && [edge(ft === "lwp" ? b.lo : b.hi), ys(b.pk), xs(b.pkx), ys(rangeStats(s, r).avg)]; }
     else if (ft === "ar") { const st = rangeStats(s, r); c = st.cnt ? [ys(st.avg), ys(st.mx), xs(st.xmx), ys(st.mn), xs(st.xmn)] : null; }
@@ -1934,7 +1921,7 @@ const TI = RC.map((c, k) => {                    // typed From / To boxes, one p
     o.setAttribute("aria-label", "Range " + (k + 1) + " " + ["minimum", "maximum", "average"][j]); $("typed").append(o); return o; });
   return [a, b];
 });
-const showIn = v => xkind === "date" ? new Date(v).toISOString() : String(+v.toPrecision(10));
+const showIn = v => xkind === "date" ? new Date(v).toISOString() : String(+v.toFixed(2));   // at most 2 decimals
 const readIn = s => { s = s.trim(); return s === "" ? NaN : xkind === "date" ? (/^\d+(\.\d+)?$/.test(s) ? Number(s) : Date.parse(s)) : Number(s); };
 function typed(k) {                              // apply what was typed into range k's boxes
   const [ia, ib] = TI[k], a = readIn(ia.value), b = readIn(ib.value);
@@ -1955,7 +1942,7 @@ function stats(S) {
     if (document.activeElement !== ib) ib.value = ranges[k] ? showIn(ranges[k].b) : "";
     ia.style.borderColor = ib.style.borderColor = "";
   });
-  $("zoom").disabled = $("clear").disabled = !ranges[cur];
+  $("clear").disabled = !ranges[cur];
   $("clearall").disabled = !ranges.some(Boolean);
   const s0 = S[0];                                 // the boxes beside the ranges show the first scan; the table under the graph lists every scan
   IND_HEAD.forEach((h, j) => h.textContent = ["Min", "Max", "Average"][j] + (S.length > 1 && s0 ? " · " + s0.nick : ""));
@@ -1975,7 +1962,7 @@ function stats(S) {
                                           if (color) tr.firstChild.style.color = color; };
   addRow(["Range", "Series", ...want.map(w => w[1])], "th");
   for (const { r, k } of groups) {
-    const label = (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b);
+    const label = !isFinite(r.a) ? "Whole scan" : (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b);
     S.forEach((s, si) => {
       let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
       for (let i = 0; i < s.n; i++) {
@@ -2165,11 +2152,12 @@ const bandAt = e => {                           // which range's band the pointe
   for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && shown[k] && x >= r.a && x <= r.b) return k; }
   return -1;
 };
-const okBtn = k => { const c = xBtn(k); return { x: c.x - 20, y: c.y }; };   // the check mark sits just left of the X
+const okBtn = k => { const c = xBtn(k), r = ranges[k], x0 = Math.max(G.L, G.L + (r.a - view.a) / (view.b - view.a) * G.pw);
+  return c.x - 30 - 13 >= x0 ? { x: c.x - 30, y: c.y } : { x: c.x, y: c.y + 30 }; };   // beside the X, or under it when the range is too narrow   // the check mark sits just left of the X
 const okBtnAt = e => {                          // which range's check mark the pointer is over (-1 for none)
   if (!view) return -1;
   const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
-  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = okBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = okBtn(k); if (Math.hypot(mx - c.x, my - c.y) <= 13) return k; }
   return -1;
 };
 function acceptRange(k) {                        // keep range k but hide its shading, and make the next empty range the one a drag fills
@@ -2179,12 +2167,12 @@ function acceptRange(k) {                        // keep range k but hide its sh
 }
 function xBtn(k) {                              // centre of range k's little X, kept inside the plot area
   const r = ranges[k], x1 = Math.min(G.L + G.pw, G.L + (r.b - view.a) / (view.b - view.a) * G.pw);
-  return { x: x1 - 13, y: G.T + 13 };
+  return { x: x1 - 17, y: G.T + 42 };            // just under the range's label
 }
 const xBtnAt = e => {                           // which range's X the pointer is over (-1 for none)
   if (!view) return -1;
   const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
-  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = xBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = xBtn(k); if (Math.hypot(mx - c.x, my - c.y) <= 13) return k; }
   return -1;
 };
 const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = true; draw(); };
@@ -2253,7 +2241,7 @@ cv.addEventListener("pointerdown", e => {
     drag = false; if (!moved && hit >= 0) zoomTo(hit); else redraw(true); };   // a click (not a drag) on a band zooms to it
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 });
-$("zoom").onclick = () => zoomTo(cur);
+
 $("clear").onclick = () => { ranges[cur] = null; draw(); };
 $("clearall").onclick = () => { ranges = Array(6).fill(null); shown = Array(6).fill(true); draw(); };
 function resetView() {                           // Reset view button and double-click on the chart
@@ -2336,12 +2324,14 @@ function showTab(id, remember = true) {
   TABS.forEach(b => { const on = b.dataset.tab === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
   document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.tab !== id);
   draw();
-  $("xlim").style.visibility = $("ylim").style.visibility = id === "display" ? "" : "hidden";   // X and Y min / max only show on the Display tab (their space stays reserved so nothing shifts)
+  $("xlim").style.visibility = $("ylim").style.visibility = id === "modify" ? "" : "hidden";   // X and Y min / max only show on the Modify tab
+  $("notesBox").style.display = $("notesBox").nextElementSibling.style.display = id === "data" ? "" : "none";   // Conditions (and the tip under them) only on the Data tab (their space stays reserved so nothing shifts)
   if (remember) try { localStorage.setItem("plotTab", id); } catch (e) {}
 }
 let landing = true;                              // true until you pick a tab yourself: the page opens on Data, then moves to your usual tab once a file is loaded
 TABS.forEach(b => b.onclick = () => { landing = false; showTab(b.dataset.tab); });
 let tab0 = "ranges"; try { tab0 = localStorage.getItem("plotTab") || tab0; } catch (e) {}
+if (tab0 === "display") tab0 = "modify"; if (tab0 === "filter") tab0 = "data"; if (tab0 === "annotate") tab0 = "ranges";   // those two tabs are gone
 const startTab = () => TABS.some(b => b.dataset.tab === tab0) ? tab0 : "ranges";
 showTab("data", false); draw();                  // opens on the main page with an empty graph and the Open button
 
