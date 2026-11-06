@@ -1,4 +1,4 @@
-These files power ocr.html (Image to Text). They run in the visitor's browser; nothing is uploaded.
+These files power the Image to Text tab in plot.html. They run in the visitor's browser; nothing is uploaded.
 
   tesseract.min.js, worker.min.js        tesseract.js 7.0.0         Apache-2.0  https://github.com/naptha/tesseract.js
   core/tesseract-core-*-lstm.wasm.js     tesseract.js-core 7.0.0    Apache-2.0  https://github.com/naptha/tesseract.js-core
