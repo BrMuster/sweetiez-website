@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src 'self' data: blob:; connect-src ws://localhost:* ws://127.0.0.1:*; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'unsafe-inline'; font-src data:; img-src 'self' data: blob:; connect-src 'self' data: blob: ws://localhost:* ws://127.0.0.1:*; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plot a CSV</title>
@@ -45,7 +45,7 @@
   .fdlist { display: grid; gap: .1rem; max-height: 18rem; overflow-y: auto; }
   .fdlist label { display: flex; gap: .6rem; align-items: center; padding: .15rem 0; cursor: pointer; }
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  body.signal .tab:not([data-tab=data], [data-tab=modify]), body.signal #modcol > :not(.dispbox), body.signal :is(.filtsec, .tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
+  body.signal .tab:not([data-tab=data], [data-tab=modify], [data-tab=ocr]), body.signal #modcol > :not(.dispbox), body.signal :is(.filtsec, .tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
   .signalonly { display: none; } body.signal .signalonly { display: block; } body.signal .plotrow { grid-template-columns: 1fr; }
   .ic { display: inline-block; width: 16px; height: 16px; margin-right: .45rem; vertical-align: -3px; flex: none; } .ic svg { display: block; width: 16px; height: 16px; overflow: visible; }   /* the small Windows-style pictures on tabs and buttons */
   .tab .ic { margin-right: .35rem; }
@@ -228,9 +228,9 @@
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .card { background: var(--panel); border: 1px solid #7a7a7a; border-radius: 3px; box-shadow: var(--raised), 2px 2px 0 #00000026; }
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .modcard { background: #d8d8d8; border: 1px solid #9a9a9a; border-radius: 2px; box-shadow: var(--sunken); }   /* a recessed frame decoration */
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .controls label, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .lim, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .typed b, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .prsel, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) caption { color: #000; font-weight: 700; }
-    :is([data-theme=light],[data-theme=win95],[data-theme=mac]) select, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) input[type=text], :is([data-theme=light],[data-theme=win95],[data-theme=mac]) #notes, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .anpop textarea {
+    :is([data-theme=light],[data-theme=win95],[data-theme=mac]) select, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) input[type=text], :is([data-theme=light],[data-theme=win95],[data-theme=mac]) #notes, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .octa, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .anpop textarea {
       color: #000; background: #fff; border: 1px solid #7a7a7a; border-radius: 1px; box-shadow: var(--sunken); font-family: Tahoma, "Segoe UI", sans-serif; }
-    :is([data-theme=light],[data-theme=win95],[data-theme=mac]) input[type=text]:focus, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) #notes:focus { background: #fffff0; }
+    :is([data-theme=light],[data-theme=win95],[data-theme=mac]) input[type=text]:focus, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) #notes:focus, :is([data-theme=light],[data-theme=win95],[data-theme=mac]) .octa:focus { background: #fffff0; }
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) input[type=checkbox] { accent-color: #1b8a1b; }
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) button { color: #000; background: linear-gradient(#fdfdfd, #d2d2d2); border: 1px solid #6b6b6b; border-radius: 3px; box-shadow: inset 1px 1px #fff; }
     :is([data-theme=light],[data-theme=win95],[data-theme=mac]) button:hover:not(:disabled) { background: linear-gradient(#fff, #e2e2e2); border-color: #1f5fbf; }
@@ -279,9 +279,9 @@
     [data-theme=classic] .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px #0000000f; }
     [data-theme=classic] .modcard { background: #f7f9fc; border: 1px solid var(--line); border-radius: 8px; }
     [data-theme=classic] .controls label, [data-theme=classic] .lim, [data-theme=classic] .typed b, [data-theme=classic] .prsel, [data-theme=classic] caption { color: var(--muted); font-weight: 600; }
-    [data-theme=classic] select, [data-theme=classic] input[type=text], [data-theme=classic] #notes, [data-theme=classic] .anpop textarea {
+    [data-theme=classic] select, [data-theme=classic] input[type=text], [data-theme=classic] #notes, [data-theme=classic] .octa, [data-theme=classic] .anpop textarea {
       color: #1f2933; background: #fff; border: 1px solid #c3c9d2; border-radius: 4px; box-shadow: inset 0 1px 1px #0000000d; }
-    [data-theme=classic] select:focus, [data-theme=classic] input[type=text]:focus, [data-theme=classic] #notes:focus, [data-theme=classic] .anpop textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px #2f6fd640; }   /* the active field glows blue */
+    [data-theme=classic] select:focus, [data-theme=classic] input[type=text]:focus, [data-theme=classic] #notes:focus, [data-theme=classic] .octa:focus, [data-theme=classic] .anpop textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px #2f6fd640; }   /* the active field glows blue */
     [data-theme=classic] input[type=checkbox], [data-theme=classic] input[type=radio] { accent-color: var(--blue); }
     [data-theme=classic] button { color: #1f2933; background: linear-gradient(#fff, #eef0f3); border: 1px solid #b9c0ca; border-radius: 6px; box-shadow: 0 1px 1px #0000000f; }
     [data-theme=classic] button:hover:not(:disabled) { background: linear-gradient(#fff, #e3e8ef); border-color: #9aa6b5; }
@@ -330,7 +330,7 @@
     :root[data-theme=win95] button:hover:not(:disabled) { background: #c0c0c0; }
     :root[data-theme=win95] button:active:not(:disabled) { background: #c0c0c0; box-shadow: var(--sunken); }
     :root[data-theme=win95] button.slot { border: 2px solid var(--c); }
-    :root[data-theme=win95] select, :root[data-theme=win95] input[type=text], :root[data-theme=win95] #notes, :root[data-theme=win95] .anpop textarea { border: 0; border-radius: 0; box-shadow: var(--sunken); }
+    :root[data-theme=win95] select, :root[data-theme=win95] input[type=text], :root[data-theme=win95] #notes, :root[data-theme=win95] .octa, :root[data-theme=win95] .anpop textarea { border: 0; border-radius: 0; box-shadow: var(--sunken); }
     :root[data-theme=win95] .card { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--raised); }
     :root[data-theme=win95] .modcard { border: 0; border-radius: 0; box-shadow: var(--sunken); }
     :root[data-theme=win95] .tab { border-radius: 0; background: #c0c0c0; box-shadow: inset 1px 1px #fff, inset -1px 0 #000; border: 0; }
@@ -364,8 +364,8 @@
     :root[data-theme=mac] button:active:not(:disabled) { background: #e8e8ed; box-shadow: none; }
     :root[data-theme=mac] button.slot { border: 2px solid var(--c); }
     :root[data-theme=mac] button.slot.on, :root[data-theme=mac] button.slot.on:hover:not(:disabled) { background: var(--c); color: #000; box-shadow: none; }
-    :root[data-theme=mac] select, :root[data-theme=mac] input[type=text], :root[data-theme=mac] #notes, :root[data-theme=mac] .anpop textarea { border: 1px solid #d1d1d6; border-radius: 6px; box-shadow: inset 0 1px 1px #0000000d; }
-    :root[data-theme=mac] select:focus, :root[data-theme=mac] input[type=text]:focus, :root[data-theme=mac] #notes:focus { outline: none; background: #fff; border-color: #007aff; box-shadow: 0 0 0 3px #007aff40; }
+    :root[data-theme=mac] select, :root[data-theme=mac] input[type=text], :root[data-theme=mac] #notes, :root[data-theme=mac] .octa, :root[data-theme=mac] .anpop textarea { border: 1px solid #d1d1d6; border-radius: 6px; box-shadow: inset 0 1px 1px #0000000d; }
+    :root[data-theme=mac] select:focus, :root[data-theme=mac] input[type=text]:focus, :root[data-theme=mac] #notes:focus, :root[data-theme=mac] .octa:focus { outline: none; background: #fff; border-color: #007aff; box-shadow: 0 0 0 3px #007aff40; }
     :root[data-theme=mac] input[type=checkbox] { accent-color: #007aff; }
     :root[data-theme=mac] :focus-visible { outline: 3px solid #007aff80; outline-offset: 1px; }
     :root[data-theme=mac] .card { background: #fff; border: 1px solid #e0e0e5; border-radius: 10px; box-shadow: 0 1px 3px #0000001a; }
@@ -392,8 +392,8 @@
     :root[data-theme=retro] button:hover:not(:disabled), :root[data-theme=retro] .tab.on, :root[data-theme=retro] .tab.on:hover:not(:disabled) { color: #000; background: #33ff33; text-shadow: none; }
     :root[data-theme=retro] button.slot { border: 2px solid var(--c); }
     :root[data-theme=retro] button.slot.on, :root[data-theme=retro] button.slot.on:hover:not(:disabled) { background: var(--c); color: #000; }
-    :root[data-theme=retro] select, :root[data-theme=retro] input[type=text], :root[data-theme=retro] #notes, :root[data-theme=retro] .anpop textarea { color: #33ff33; background: #000; border: 1px solid #1f7a1f; border-radius: 0; }
-    :root[data-theme=retro] select:focus, :root[data-theme=retro] input[type=text]:focus, :root[data-theme=retro] #notes:focus { outline: none; border-color: #33ff33; box-shadow: 0 0 6px #33ff33; }
+    :root[data-theme=retro] select, :root[data-theme=retro] input[type=text], :root[data-theme=retro] #notes, :root[data-theme=retro] .octa, :root[data-theme=retro] .anpop textarea { color: #33ff33; background: #000; border: 1px solid #1f7a1f; border-radius: 0; }
+    :root[data-theme=retro] select:focus, :root[data-theme=retro] input[type=text]:focus, :root[data-theme=retro] #notes:focus, :root[data-theme=retro] .octa:focus { outline: none; border-color: #33ff33; box-shadow: 0 0 6px #33ff33; }
     :root[data-theme=retro] input[type=checkbox] { accent-color: #33ff33; }
     :root[data-theme=retro] .readout { background: #000; border-radius: 0; } :root[data-theme=retro] .readout canvas { display: block; background: #050806; border: 1px solid #1f7a1f; }   /* the hover values as a green seven-segment display, like SloshLab's counter */
     :root[data-theme=retro] .card { border: 1px solid #1f7a1f; border-radius: 0; box-shadow: 0 0 8px #33ff3322; }
@@ -407,11 +407,46 @@
     :root[data-theme=retro] .anpop, :root[data-theme=retro] .ctxmenu, :root[data-theme=retro] .rptdlg { color: #33ff33; background: #000; border: 1px solid #33ff33; border-radius: 0; box-shadow: 0 0 14px #33ff3355; }
     :root[data-theme=retro] .help::after { background: #000; color: #33ff33; border-radius: 0; }
   }
+
+  /* ---- Image to Text tab ---- */
+  .ocgrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1rem; align-items: start; } @media (max-width: 900px) { .ocgrid { grid-template-columns: 1fr; } }
+  .ocside { display: grid; gap: .8rem; }
+  .ocpic { display: grid; place-items: center; min-height: 7rem; max-height: 18rem; overflow: auto; padding: .4rem; border: 1px solid var(--line); border-radius: 4px; } .ocpic img { max-width: 100%; height: auto; display: block; }
+  .octa { width: 100%; min-height: 9rem; resize: vertical; padding: .5rem .7rem; color: var(--text); background: #0e141b; border: 1px solid var(--line); border-radius: 4px; font: .92rem/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre; overflow: auto; }
+  .ocbar { height: 6px; border-radius: 99px; background: #ffffff22; overflow: hidden; } .ocbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .ocdrop.over { outline: 2px dashed var(--accent); outline-offset: 4px; }
+  #ocStatus.err { color: #ff6b6b; }
+  /* ---- the self-playing demo (▶ Watch the demo) ---- */
+  #tourShield { position: fixed; inset: 0; z-index: 85; cursor: progress; }
+  #tourCap { position: fixed; z-index: 94; top: 12px; left: 50%; transform: translateX(-50%); width: min(780px, calc(100vw - 24px)); display: flex; align-items: center; gap: .9rem; padding: .75rem 1rem .85rem; border-radius: 12px; background: #0b1220f5; color: #fff; border: 1px solid #ffffff40; box-shadow: 0 10px 30px #000a; font: 600 1.05rem/1.35 "Segoe UI", system-ui, sans-serif; text-shadow: none; overflow: hidden; }
+  #tourCap .tn { flex: none; min-width: 2.6rem; text-align: center; padding: .15rem .5rem; border-radius: 99px; background: #1a9fff; font-size: .85rem; }
+  #tourCap .tt { flex: 1; }
+  #tourCap .tx { flex: none; cursor: pointer; font-size: .85rem; font-weight: 600; padding: .25rem .7rem; border-radius: 8px; border: 1px solid #ffffff66; background: #ffffff1c; color: #fff; user-select: none; } #tourCap .tx:hover { background: #ffffff40; }
+  #tourCap .tb { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: #ffd84a; transition: width .3s linear; }
+  #tourCur { position: fixed; z-index: 96; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+  #tourCur svg { display: block; filter: drop-shadow(0 2px 3px #0009); margin: -2px 0 0 -3px; }
+  #tourCur .tk { position: absolute; left: 20px; top: 20px; padding: .1rem .5rem; border-radius: 6px; background: #ffd84a; color: #000; font: 700 .8rem "Segoe UI", system-ui, sans-serif; box-shadow: 0 2px 6px #0008; }
+  .tourRip { position: fixed; z-index: 95; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 3px solid #ffd84a; border-radius: 50%; pointer-events: none; animation: tourRip .55s ease-out forwards; }
+  @keyframes tourRip { from { transform: scale(.25); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+  .tourHi { outline: 3px solid #ffd84a !important; outline-offset: 3px; border-radius: 6px; }
+  #tourPick { position: fixed; z-index: 88; left: 50%; top: 50%; transform: translate(-50%, -45%); width: min(560px, calc(100vw - 24px)); background: #f3f3f3; color: #1f1f1f; border: 1px solid #8a8a8a; border-radius: 8px; box-shadow: 0 18px 50px #000b; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; text-shadow: none; overflow: hidden; animation: tourPop .2s ease-out; }
+  @keyframes tourPop { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -45%); } }
+  #tourPick .tpH { padding: .55rem .9rem; background: #fff; border-bottom: 1px solid #d0d0d0; font-weight: 600; } #tourPick .tpH span { font-weight: 400; color: #666; margin-left: .7rem; }
+  #tourPick .tpL { background: #fff; padding: .35rem; display: grid; gap: 1px; }
+  #tourPick .tpR { display: flex; gap: 1rem; align-items: center; padding: .4rem .7rem; border-radius: 4px; border: 1px solid transparent; } #tourPick .tpR b { flex: 1; font-weight: 400; } #tourPick .tpR i { color: #777; font-style: normal; font-size: .85em; }
+  #tourPick .tpR::before { content: ""; width: 12px; height: 15px; border: 1.5px solid #4d5566; border-radius: 1px; background: #fff; flex: none; }
+  #tourPick .tpR.on { background: #cce4f7; border-color: #99c9ee; }
+  #tourPick .tpF { display: flex; gap: .6rem; align-items: center; padding: .65rem .9rem; border-top: 1px solid #d0d0d0; } #tourPick .tpF span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #444; }
+  #tourPick .tpB { padding: .3rem 1.1rem; border: 1px solid #adadad; background: #e6e6e6; border-radius: 4px; } #tourPick .tpB.go { border-color: #0067c0; background: #d6e9f8; }
+  .tourMenu { position: fixed; z-index: 89; background: #fff; color: #1f1f1f; border: 1px solid #8a8a8a; border-radius: 6px; box-shadow: 0 10px 28px #0009; padding: .2rem; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; text-shadow: none; }
+  .tourMenu div { padding: .25rem .7rem; border-radius: 4px; white-space: nowrap; } .tourMenu div.on { background: #1a9fff; color: #fff; }
+  body.tour #cv { height: var(--tourH, 630px); } body.tour .dispbox { display: none; }   /* the graph and the buttons it answers to fit on one screen */
+  @media print { #tourShield, #tourCap, #tourCur, .tourRip, #tourPick, .tourMenu { display: none !important; } }
 </style>
 </head>
 <body>
 <main>
-  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset><fieldset><legend>Graph hover</legend><label><input type="checkbox" id="hoverFlag"> Show the data flag on the graph (press F)</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
+  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><button type="button" id="tourBtn" title="A short demo that plays by itself: open scans, measure, shift, smooth and print">▶ Watch the demo</button><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset><fieldset><legend>Graph hover</legend><label><input type="checkbox" id="hoverFlag"> Show the data flag on the graph (press F)</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
 
   <section id="app" class="card">
     <div id="printHead" class="keep"><p id="printStamp"></p><img id="printLogo" alt="Andover Corporation" src="data:image/png;base64,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"></div>
@@ -448,6 +483,7 @@
       <button type="button" class="tab" role="tab" data-tab="ranges">Ranges</button>
       <button type="button" class="tab" role="tab" data-tab="specs">Specs</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
+      <button type="button" class="tab" role="tab" data-tab="ocr">Image to Text</button>
       <button type="button" class="tab playtab" role="tab" data-tab="play" tabindex="-1" aria-hidden="true">Play</button>   <!-- an invisible easter egg: still clickable, just not seen -->
       <button type="button" class="tab" role="tab" data-tab="library">Reference</button>
       <button type="button" class="tab" role="tab" data-tab="tips">Tips</button>
@@ -628,15 +664,53 @@
 
     <div class="panel" data-tab="export" hidden>
       <div class="bar">
-        <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
+        <button id="csv" title="Save as: choose a name and a place. Saves the main scan with any shifts and smoothing applied, only the active range if one is set">Save as CSV…</button>
         <label class="prsel">On the report, ranges are
           <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
         </label>
         <button id="printbtn" title="Clean black-on-white page with the graph, table, notes and a date/time stamp">Print Report</button>
       </div>
     </div>
+    <div class="panel" data-tab="ocr" hidden>
+      <div class="bar ocdrop" id="ocDrop">
+        <button type="button" id="ocChoose">Choose a picture</button>
+        <button type="button" id="ocPaste" title="Paste the picture you copied or screenshotted">Paste</button>
+        <input type="file" id="ocFile" accept="image/*" hidden>
+        <span class="hint">…or press Ctrl+V with a screenshot copied, or drop a picture on the page. It is read in your browser and nothing is uploaded.</span>
+      </div>
+      <div class="ocgrid">
+        <div class="ocside">
+          <div class="ocpic"><span class="hint" id="ocHint">No picture yet.</span><img id="ocPreview" alt="The picture to read" hidden></div>
+          <div class="controls">
+            <label class="txt">Text is <select id="ocPsm" aria-label="What kind of text the picture holds">
+              <option value="3">paragraphs or a page (automatic)</option><option value="6">one block of lines, like a list or a column</option><option value="11">scattered, like a table or a form</option></select></label>
+            <label title="Only 0 to 9 and number punctuation are allowed, which stops letters being guessed in place of digits"><input type="checkbox" id="ocDigits"> Numbers only</label>
+            <label title="Light text on a dark background is turned around first. This is picked for you when the picture is mostly dark."><input type="checkbox" id="ocInvert"> Light text on dark</label>
+          </div>
+        </div>
+        <div class="ocside">
+          <div class="bar"><b>Text it found</b><span class="hint">Fix any mistakes here and the result below follows.</span></div>
+          <div class="ocbar" id="ocBar" hidden><i id="ocBarFill"></i></div>
+          <p class="hint" id="ocStatus" role="status"></p>
+          <textarea id="ocRaw" class="octa" spellcheck="false" aria-label="The text found in the picture" placeholder="The text from your picture appears here."></textarea>
+          <div class="bar"><b>Result</b>
+            <label><input type="radio" name="ocLayout" value="asis" checked> As it is</label>
+            <label><input type="radio" name="ocLayout" value="col"> One column</label>
+            <label><input type="radio" name="ocLayout" value="row"> One row</label>
+          </div>
+          <div class="controls">
+            <label class="txt">Each item is a <select id="ocUnit"><option value="lines">whole line</option><option value="words">single word or number</option></select></label>
+            <label class="txt">Row separator <select id="ocSep"><option value="tab">Tab (pastes across Excel cells)</option><option value="comma">Comma</option><option value="space">Space</option></select></label>
+            <label><input type="checkbox" id="ocTidy" checked> Tidy extra spaces</label>
+            <label><input type="checkbox" id="ocSkip" checked> Skip blank lines</label>
+          </div>
+          <textarea id="ocOut" class="octa" readonly spellcheck="false" aria-label="The result" placeholder="The result appears here."></textarea>
+          <div class="bar"><button type="button" id="ocCopy" disabled>Copy</button><button type="button" id="ocClear">Clear</button><span class="hint" id="ocCount"></span></div>
+        </div>
+      </div>
+    </div>
     <div class="panel" data-tab="tips" hidden>
-      <div class="bar"><button type="button" id="demo">Try sample data</button><span class="hint">Loads a sample filter scan, so you can try everything out without a file of your own.</span></div>
+      <div class="bar"><button type="button" id="demo">Try sample data</button><button type="button" id="tourBtn2" title="A short demo that plays by itself">▶ Watch the demo</button><span class="hint">Loads a sample filter scan, so you can try everything out without a file of your own.</span></div>
       <div class="tipgrid tips">
         <div><h4>Ranges</h4>
           <span><b>Drag</b> mark a range</span>
@@ -687,7 +761,7 @@
         <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent, the angle of incidence (AOI) it was taken at, and its polarization (Random unless the scan was S or P). They are labels only and do not move the data. Use the Modify tab to shift a scan. They are printed in the Filter Data box on the report. Leave a box empty to leave it blank.">?</span>
       </div>
     </div>
-    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
+    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Save as CSV" saves the main scan only.</p>
   </section>
 
   <div class="rptbg" id="rptDlg" hidden>
@@ -2354,6 +2428,7 @@ const ICONS = {
   specs: DOC + '<path d="M4.8 7l1 1 1.9-2M4.8 11l1 1 1.9-2" fill="none" stroke="#1d7a2b" stroke-width="1.3"/><path d="M8.8 7h2.5M8.8 11h2.5" stroke="#7a8aa0"/>',
   filter: '<path d="M1.5 2.5h13l-5 6v5l-3 1.5v-6.5z" fill="#79b4f0" stroke="#244c80" stroke-linejoin="round"/><path d="M3.5 3.5h9" stroke="#d4eaff"/>',
   save: '<rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="#3a5fb0" stroke="#1d2f5c"/><rect x="4" y="2" width="8" height="5" fill="#fff"/><rect x="9.5" y="3" width="1.5" height="3" fill="#3a5fb0"/><rect x="3.5" y="9.5" width="9" height="5" fill="#dcdcdc" stroke="#1d2f5c"/>',
+  ocr: '<rect x="1.5" y="2.5" width="13" height="11" rx="1" fill="#fff" stroke="#4d5566"/><path d="M4.8 11.2L8 4.8l3.2 6.4M5.9 9.2h4.2" stroke="#1d3d73" stroke-width="1.4" fill="none"/>',
   bulb: '<path d="M8 1.5a4.5 4.5 0 0 1 2.6 8.2v1.8h-5.2v-1.8A4.5 4.5 0 0 1 8 1.5z" fill="#ffe14d" stroke="#8a7000"/><path d="M6.5 7.5l1.5 1.5 1.5-1.5" fill="none" stroke="#c99a00"/><rect x="5.5" y="12" width="5" height="2.5" rx=".5" fill="#b5b5b5" stroke="#555"/>',
   print: '<rect x="4.5" y="1.5" width="7" height="5" fill="#fff" stroke="#555"/><rect x="1.5" y="6.5" width="13" height="6" rx="1" fill="#bdbdbd" stroke="#444"/><rect x="4.5" y="10.5" width="7" height="4" fill="#fff" stroke="#555"/><circle cx="12.5" cy="8.5" r=".9" fill="#2e9e3e"/>',
   zoomin: '<circle cx="6.5" cy="6.5" r="4.5" fill="#e3f2ff" stroke="#333" stroke-width="1.3"/><path d="M10 10l4.5 4.5" stroke="#6b4a1c" stroke-width="2.4"/><path d="M4.3 6.5h4.4M6.5 4.3v4.4" stroke="#1d5bb8" stroke-width="1.3"/>',
@@ -2367,7 +2442,7 @@ const ICON_FOR = {                               // which picture goes on which 
   zoom: "zoomin", clear: "del", clearall: "del", reset: "zoomout", anClear: "del", addspec: "plus", specSetLoad: "open", specSetDel: "del",
   specSetSave: "save", specCsvOut: "save", specCsvAll: "save", specCsvIn: "open", csv: "save", printbtn: "print", rptGo: "print",
   "tab:data": "doc", "tab:library": "books", "tab:modify": "pencil", "tab:display": "monitor", "tab:ranges": "ruler", "tab:annotate": "note",
-  "tab:specs": "specs", "tab:filter": "chart", "tab:export": "save", "tab:tips": "bulb",
+  "tab:specs": "specs", "tab:filter": "chart", "tab:export": "save", "tab:ocr": "ocr", "tab:tips": "bulb",
 };
 for (const [k, name] of Object.entries(ICON_FOR)) {
   const el = k.startsWith("tab:") ? document.querySelector('.tab[data-tab="' + k.slice(4) + '"]') : $(k); if (!el) continue;
@@ -2395,6 +2470,17 @@ addEventListener("wheel", e => {
 
 // ---------- 7. SAVING ----------
 const save = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+async function saveAs(blob, suggested) {        // a real Save As window where the browser has one (Chrome, Edge); anywhere else, ask for the name here
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await showSaveFilePicker({ suggestedName: suggested, types: [{ description: "CSV file", accept: { "text/csv": [".csv"] } }] });
+      const w = await h.createWritable(); await w.write(blob); await w.close(); return;
+    } catch (e) { if (e && e.name === "AbortError") return; }   // Cancel in that window: nothing is saved. Any other problem falls back to asking below.
+  }
+  const asked = prompt("Save as (file name):", suggested.replace(/\.csv$/i, "")); if (asked === null) return;   // Cancel: nothing is saved
+  let name = asked.trim().replace(/[\\/:*?"<>|]/g, "_") || "data"; if (!/\.csv$/i.test(name)) name += ".csv";
+  save(blob, name);
+}
 $("csv").onclick = () => {                       // every column, only the rows inside the active range (or the current view)
   if (!view) return;
   const r = ranges[cur] || view, esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -2407,7 +2493,8 @@ $("csv").onclick = () => {                       // every column, only the rows 
     const y = PY.get(c)[k]; return y !== c.v[i] ? String(rnd(y)) : c.raw[i];
   };
   for (let k = 0; k < n; k++) { const i = sh && sh.ord ? sh.ord[k] : k; if (XS[k] >= r.a && XS[k] <= r.b) lines.push(cols.map(c => esc(cell(c, i, k))).join(",")); }
-  save(new Blob([lines.join("\n")], { type: "text/csv" }), "range.csv");
+  const tag = [edited && "edited", ranges[cur] && "range"].filter(Boolean).join(" ");   // the suggested name says what was done to it
+  saveAs(new Blob([lines.join("\n")], { type: "text/csv" }), shortName(files[0].fname) + (tag ? " " + tag : "") + ".csv");
 };
 
 // ---------- 8. PRINTING ----------
@@ -2583,7 +2670,7 @@ function loadPasted(text) {                      // cells copied from Excel arri
 addEventListener("paste", e => {                 // Ctrl+V anywhere except while typing in a box
   const el = e.target; if (el && el.closest && (el.closest("textarea, [contenteditable]") || (el.closest("input") && !/^(checkbox|radio|color|file)$/.test(el.type)))) return;
   const t = e.clipboardData && e.clipboardData.getData("text/plain");
-  if (!t || !t.trim()) { const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(f => f.type.startsWith("image/")); if (f) { e.preventDefault(); pastePic(f); } return; }   // a screenshot: put it on the graph
+  if (!t || !t.trim()) { const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(f => f.type.startsWith("image/")); if (f) { e.preventDefault(); if (curTab() === "ocr") ocrLoad(f); else pastePic(f); } return; }   // a screenshot: on the Image to Text tab it is read; anywhere else it goes on the graph
   e.preventDefault(); loadPasted(t);
 });
 $("pastebtn").onclick = async () => {
@@ -2598,7 +2685,9 @@ addEventListener("drop", e => {
   e.preventDefault();
   const ents = [...(e.dataTransfer.items || [])].map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);   // must be read now: the list is emptied once this handler returns
   if (ents.some(en => en.isDirectory)) return folderDropped(ents);
-  if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files, false);
+  const dropped = [...e.dataTransfer.files];
+  if (dropped.length && curTab() === "ocr" && dropped[0].type.startsWith("image/")) return ocrLoad(dropped[0]);   // a picture dropped on the Image to Text tab is read
+  if (dropped.length) openFiles(e.dataTransfer.files, false);
 });
 
 // ---------- 9b. FIND SCANS IN A FOLDER (filter by long/shortpass and where the edge falls) ----------
@@ -2962,7 +3051,243 @@ $("libSave").onclick = () => {
   if (saveUserLib(u)) { $("libName").value = ""; refreshLib(); $("libMat").value = "u:" + name; libPick(); say("Saved “" + name + "” to Reference (kept in this browser)."); }
 };
 $("libDel").onclick = () => { const v = $("libMat").value; if (!v.startsWith("u:")) return; const u = userLib(); delete u[v.slice(2)]; saveUserLib(u); refreshLib(); };
-refreshLib();</script>
+refreshLib();
+
+// ---------- 10b. IMAGE TO TEXT TAB: read the text in a screenshot, then copy it as it is, as one column or as one row ----------
+// The reader (tesseract.js, kept in vendor/tesseract) runs in this browser; nothing is uploaded. It loads the first time it is needed.
+const curTab = () => (document.querySelector(".tab.on") || { dataset: {} }).dataset.tab;
+let ocrLoad = null;                              // set below: read a picture (used by Ctrl+V and by dropping a picture on this tab)
+{
+  const V = "vendor/tesseract/", ocSay = (t, err) => { $("ocStatus").textContent = t; $("ocStatus").classList.toggle("err", !!err); };
+  const ocBar = p => { $("ocBar").hidden = p === null; $("ocBarFill").style.width = Math.round((p || 0) * 100) + "%"; };
+  let worker = null, starting = null, busy = false, again = false, pic = null;   // pic: { url, bmp } is the picture now loaded
+  const loadLib = () => window.Tesseract ? Promise.resolve() : new Promise((ok, no) => { const el = document.createElement("script"); el.src = V + "tesseract.min.js"; el.onload = ok; el.onerror = () => no(new Error("the reader file is missing")); document.head.append(el); });
+  async function getWorker() {                   // about 10 MB the first time, then the browser keeps it
+    if (worker) return worker;
+    if (starting) return starting;
+    ocSay("Loading the reader. This takes a few seconds the first time only…"); ocBar(0);
+    starting = loadLib().then(() => Tesseract.createWorker("eng", 1, {
+      workerPath: V + "worker.min.js", corePath: V + "core", langPath: V + "lang", workerBlobURL: false,
+      logger: m => { if (busy && m.status === "recognizing text") { ocSay("Reading the picture…"); ocBar(m.progress); } else if (/loading|initializ/.test(m.status || "")) ocBar(Math.min(.95, m.progress || 0)); }
+    })).then(w => (worker = w), e => { starting = null; throw e; });
+    return starting;
+  }
+  function prepare() {                           // bigger, grey, framed in white, and turned around if the text is light: all of which help it read
+    const bmp = pic.bmp, big = Math.max(bmp.width, bmp.height);
+    let k = big < 1000 ? 3 : big < 2000 ? 2 : 1; while (k > 1 && bmp.width * bmp.height * k * k > 16e6) k--;
+    const pad = 24, c = document.createElement("canvas"); c.width = Math.round(bmp.width * k) + pad * 2; c.height = Math.round(bmp.height * k) + pad * 2;
+    const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
+    x.imageSmoothingQuality = "high"; x.drawImage(bmp, pad, pad, c.width - pad * 2, c.height - pad * 2);
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data, inv = $("ocInvert").checked;
+    for (let i = 0; i < p.length; i += 4) { let g = .299 * p[i] + .587 * p[i + 1] + .114 * p[i + 2]; if (inv) g = 255 - g; p[i] = p[i + 1] = p[i + 2] = g; p[i + 3] = 255; }
+    x.putImageData(d, 0, 0); return c;
+  }
+  async function read() {                        // one reading at a time; a change made meanwhile reads again afterwards
+    if (!pic) return;
+    if (busy) { again = true; return; }
+    busy = true; again = false; $("ocCopy").disabled = true;
+    try {
+      const w = await getWorker(); ocSay("Reading the picture…"); ocBar(0);
+      await w.setParameters({ tessedit_pageseg_mode: $("ocPsm").value, preserve_interword_spaces: "1", tessedit_char_whitelist: $("ocDigits").checked ? "0123456789.,+-−–%()/:eE " : "" });
+      const { data } = await w.recognize(prepare());
+      $("ocRaw").value = data.text.replace(/\s+$/, "");
+      ocSay($("ocRaw").value.trim() ? "Done. Check the numbers and names against the picture." : "I couldn't find any text. Try another reading style, or a sharper picture.");
+      format();
+    } catch (e) {
+      console.error(e);
+      ocSay(location.protocol === "file:" ? "The reader can't start from a saved file. Open this page from the website instead." : "Sorry, the reader couldn't start (" + (e && e.message || e) + ").", true);
+    } finally { busy = false; ocBar(null); if (again) read(); }
+  }
+  async function load(blob) {
+    if (!blob || !/^image\//.test(blob.type)) return ocSay("That isn't a picture. Use a screenshot or a photo (PNG, JPG, and so on).", true);
+    let bmp; try { bmp = await createImageBitmap(blob, { imageOrientation: "from-image" }); } catch (e) { return ocSay("I couldn't open that picture.", true); }
+    ocSay("Reading the picture…");
+    if (pic) URL.revokeObjectURL(pic.url);
+    pic = { url: URL.createObjectURL(blob), bmp };
+    $("ocPreview").src = pic.url; $("ocPreview").hidden = false; $("ocHint").hidden = true;
+    const t = document.createElement("canvas"); t.width = 64; t.height = Math.max(1, Math.round(64 * bmp.height / bmp.width));   // mostly dark? then the text is probably light
+    const tx = t.getContext("2d", { willReadFrequently: true }); tx.drawImage(bmp, 0, 0, t.width, t.height);
+    const px = tx.getImageData(0, 0, t.width, t.height).data; let sum = 0; for (let i = 0; i < px.length; i += 4) sum += .299 * px[i] + .587 * px[i + 1] + .114 * px[i + 2];
+    $("ocInvert").checked = sum / (px.length / 4) < 110;
+    read();
+  }
+  ocrLoad = load;
+  $("ocChoose").onclick = () => $("ocFile").click();
+  $("ocFile").onchange = () => { load($("ocFile").files[0]); $("ocFile").value = ""; };
+  $("ocPaste").onclick = async () => {
+    try { for (const it of await navigator.clipboard.read()) { const t = it.types.find(t => t.startsWith("image/")); if (t) return load(await it.getType(t)); } ocSay("There's no picture on the clipboard. Take a screenshot first (on Windows: Win + Shift + S).", true); }
+    catch (e) { ocSay("Your browser didn't allow that. Press Ctrl + V on this page instead.", true); }
+  };
+  $("ocRaw").addEventListener("paste", e => { const f = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/")); if (f) { e.preventDefault(); load(f.getAsFile()); } });   // a picture pasted while the cursor is in the text box
+  addEventListener("dragover", () => { if (curTab() === "ocr") $("ocDrop").classList.add("over"); });
+  addEventListener("dragleave", e => { if (!e.relatedTarget) $("ocDrop").classList.remove("over"); });
+  addEventListener("drop", () => $("ocDrop").classList.remove("over"));
+  for (const id of ["ocPsm", "ocDigits", "ocInvert"]) $(id).addEventListener("change", read);
+
+  function format() {                            // from the text box to a plain block, a column or a row
+    const layout = document.querySelector("input[name=ocLayout]:checked").value, unit = $("ocUnit").value, tidy = $("ocTidy").checked, skip = $("ocSkip").checked;
+    let lines = $("ocRaw").value.replace(/\r/g, "").split("\n");
+    lines = tidy ? lines.map(l => l.replace(/[ \t]+/g, " ").trim()) : lines.map(l => l.replace(/\s+$/, ""));
+    if (skip || layout !== "asis") lines = lines.filter(l => l.trim() !== "");
+    let out, n;
+    if (layout === "asis") { out = lines.join("\n"); n = lines.filter(l => l.trim()).length; $("ocCount").textContent = n + (n === 1 ? " line" : " lines"); }
+    else {
+      const items = unit === "words" ? lines.join(" ").split(/\s+/).filter(Boolean) : lines;
+      out = layout === "col" ? items.join("\n") : items.join({ tab: "\t", comma: ",", space: " " }[$("ocSep").value]);
+      $("ocCount").textContent = items.length + (items.length === 1 ? " item" : " items");
+    }
+    $("ocOut").value = out; $("ocCopy").disabled = !out; if (!out) $("ocCount").textContent = "";
+    $("ocSep").disabled = layout !== "row"; $("ocUnit").disabled = layout === "asis";
+  }
+  for (const id of ["ocRaw", "ocUnit", "ocSep", "ocTidy", "ocSkip"]) $(id).addEventListener(id === "ocRaw" ? "input" : "change", format);
+  document.querySelectorAll("input[name=ocLayout]").forEach(r => r.addEventListener("change", format));
+  $("ocCopy").onclick = async () => {
+    const t = $("ocOut").value; let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) { $("ocOut").select(); try { ok = document.execCommand("copy"); } catch (e2) {} }
+    const b = $("ocCopy"); b.textContent = ok ? "Copied ✓" : "Press Ctrl + C"; setTimeout(() => { b.textContent = "Copy"; }, 1600);
+  };
+  $("ocClear").onclick = () => {
+    if (pic) URL.revokeObjectURL(pic.url); pic = null; again = false;
+    $("ocPreview").hidden = true; $("ocPreview").removeAttribute("src"); $("ocHint").hidden = false; $("ocRaw").value = ""; ocSay(""); format();
+  };
+  format();
+}
+
+// ---------- 11. DEMO: a short tour that plays by itself (the ▶ Watch the demo button, or open plot.html#demo) ----------
+// It drives the real page: a pretend mouse presses the real buttons and drags on the real graph. Only the system's own
+// file-picker window is drawn by hand, because a web page is not allowed to open that one by itself.
+let tourRun = 0, tourOff = null;                 // tourRun counts plays (an old play stops when a new one starts); tourOff ends the one in progress
+function tourScans() {                           // two scans of the same filter: the stored sample, and a second run that reads 2 nm low and is a little noisy
+  const raw = $("sampledata").textContent.trim().split("\n"), isNum = l => /^[\d.]+,[\d.eE+-]+$/.test(l.trim());
+  const head = raw.filter((l, i) => !isNum(l) && i < raw.findIndex(isNum)).join("\n"), rows = raw.filter(isNum).map(l => l.split(",").map(Number));
+  let seed = 20260611; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  const run2 = rows.map(([w, t]) => { const v = t * .985 + gauss() * (.35 + .012 * t); return (w - 2).toFixed(1) + "," + Math.min(100, Math.max(0, v)).toFixed(3); });
+  return [$("sampledata").textContent, head + "\n" + run2.join("\n") + "\n"];
+}
+async function playTour(speed = 1) {
+  if (tourOff) tourOff();
+  if (files.length && !confirm("The demo plays by itself and clears the graph first. Your files on your computer are not touched.\n\nStart the demo?")) return;
+  const me = ++tourRun, alive = () => tourRun === me, STOP = { stop: true };
+  const el = (tag, id, cls) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; document.body.append(e); return e; };
+  const shield = el("div", "tourShield"), cap = el("div", "tourCap"), cur = el("div", "tourCur");
+  cap.innerHTML = '<span class="tn"></span><span class="tt"></span><span class="tx" role="button" tabindex="0" title="Esc also stops it">Skip ✕</span><i class="tb"></i>';
+  cur.innerHTML = '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M3 2l17 8-7.5 2.2L9.5 20z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg><b class="tk" hidden>Ctrl</b>';
+  cur.style.opacity = 0;
+  const extras = [], saved = { title: rpt.title }, onKey = e => { if (e.key === "Escape") end(); };
+  function end() { if (tourRun === me) tourRun++; tourOff = null; removeEventListener("keydown", onKey, true); for (const n of [shield, cap, cur, ...extras]) n.remove(); document.querySelectorAll(".tourHi").forEach(n => n.classList.remove("tourHi")); document.body.classList.remove("tour"); draw(); }
+  tourOff = end; addEventListener("keydown", onKey, true);
+  document.body.style.setProperty("--tourH", Math.round(Math.max(240, Math.min(630, innerHeight - 540))) + "px"); document.body.classList.add("tour");
+  cap.querySelector(".tx").onclick = end;
+  const sleep = ms => new Promise((ok, no) => setTimeout(() => alive() ? ok() : no(STOP), ms / speed));
+  const frame = () => new Promise((ok, no) => requestAnimationFrame(() => alive() ? ok() : no(STOP)));
+  let pos = { x: innerWidth * .78, y: innerHeight * .7 }, step = 0;
+  const put = (x, y) => { pos = { x, y }; cur.style.transform = "translate(" + x + "px," + y + "px)"; };
+  put(pos.x, pos.y);
+  const say = (n, html, hold = 0) => { step = n; cap.querySelector(".tn").textContent = n ? n + " / 6" : "Demo"; cap.querySelector(".tt").innerHTML = html; cap.querySelector(".tb").style.width = (n / 6 * 100) + "%"; return hold ? sleep(hold) : 0; };
+  const ctr = e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  async function glide(x, y, ms = 800, each) {  // move the pretend mouse smoothly
+    cur.style.opacity = 1;
+    const x0 = pos.x, y0 = pos.y, t0 = performance.now(), d = ms / speed;
+    for (;;) {
+      const k = Math.min(1, (performance.now() - t0) / d), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      put(x0 + (x - x0) * e, y0 + (y - y0) * e); if (each) each(pos.x, pos.y);
+      if (k >= 1) return; await frame();
+    }
+  }
+  async function reveal(e) {                    // scroll it into view first (small screens)
+    const r = e.getBoundingClientRect();
+    if (r.top < 90 || r.bottom > innerHeight - 12) { e.scrollIntoView({ block: r.height > innerHeight - 140 ? "start" : "center", behavior: "smooth" }); await sleep(450); await sleep(0); }
+  }
+  async function point(e, ms = 800) { await reveal(e); e.classList.add("tourHi"); const c = ctr(e); await glide(c.x, c.y, ms); }
+  const ripple = () => { const r = el("div", "", "tourRip"); r.style.left = pos.x + "px"; r.style.top = pos.y + "px"; setTimeout(() => r.remove(), 600); };
+  async function press(e, real = true) { ripple(); await sleep(260); if (real) e.click(); await sleep(160); e.classList.remove("tourHi"); }
+  async function typeInto(e, text, per = 110) { await point(e, 650); e.focus(); e.value = ""; ripple(); await sleep(250); for (const ch of text) { e.value += ch; e.dispatchEvent(new Event("input", { bubbles: true })); await sleep(per); } e.dispatchEvent(new Event("change", { bubbles: true })); await sleep(250); e.classList.remove("tourHi"); }
+  async function pickOption(sel, value) {       // the menu of a drop-down, drawn by hand so it can be seen
+    await point(sel, 750); ripple(); await sleep(250);
+    const r = sel.getBoundingClientRect(), m = el("div", "", "tourMenu"); extras.push(m); m.style.left = r.left + "px"; m.style.top = r.bottom + 2 + "px"; m.style.minWidth = r.width + "px";
+    const rows = [...sel.options].map(o => { const d = document.createElement("div"); d.textContent = o.text; m.append(d); return [o, d]; });
+    await sleep(350); const [o, d] = rows.find(([o]) => o.value === value); d.classList.add("on"); const c = ctr(d); await glide(c.x, c.y, 600); await sleep(250); ripple(); await sleep(220);
+    m.remove(); sel.value = o.value; sel.dispatchEvent(new Event("change", { bubbles: true })); sel.classList.remove("tourHi"); await sleep(200);
+  }
+  async function tab(id) { const b = document.querySelector('.tab[data-tab="' + id + '"]'); await point(b, 700); ripple(); await sleep(220); showTab(id, false); window.scrollTo(0, 0); b.classList.remove("tourHi"); await sleep(250); }
+  const ptr = (type, x, y, ctrl) => cv.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons: type === "pointerup" ? 0 : 1, pointerId: 7, pointerType: "mouse", isPrimary: true, ctrlKey: ctrl }));
+  async function dragOn(a, b, ctrl = false, ms = 1100) {   // press at a, drag to b on the real graph, let go
+    await glide(a.x, a.y, 700);
+    const key = cur.querySelector(".tk"); key.hidden = !ctrl; if (ctrl) await sleep(350);
+    cv.setPointerCapture = cv.releasePointerCapture = () => {};   // pretend pointers cannot be captured by the page
+    try { ripple(); ptr("pointerdown", a.x, a.y, ctrl); await sleep(150); await glide(b.x, b.y, ms, (x, y) => ptr("pointermove", x, y, ctrl)); ptr("pointerup", b.x, b.y, ctrl); }
+    finally { delete cv.setPointerCapture; delete cv.releasePointerCapture; key.hidden = true; }
+  }
+  const toPx = (x, y) => { const r = cv.getBoundingClientRect(); return { x: r.left + G.L + (x - view.a) / (view.b - view.a) * G.pw, y: r.top + G.T + G.ph - (y - G.lo) / (G.hi - G.lo) * G.ph }; };
+  const rise = (ds, level) => { const x = ds.cols[0].v, y = ds.cols[1].v; for (let i = 1; i < x.length; i++) if (y[i - 1] < level && y[i] >= level) return x[i - 1] + (x[i] - x[i - 1]) * (level - y[i - 1]) / (y[i] - y[i - 1]); return NaN; };
+
+  try {
+    const [t1, t2] = tourScans();
+    // ---- 1. open two files ----
+    clearGraph(); lines.length = 0; renderLines(); landing = false; showTab("data", false); window.scrollTo(0, 0);
+    await say(1, "<b>Open a scan.</b> Pick one file, or hold <b>Ctrl</b> to pick several at once.", 600);
+    await point($("openbtn"), 900); ripple(); await sleep(250); $("openbtn").classList.remove("tourHi");
+    const dlg = el("div", "tourPick"); extras.push(dlg);
+    dlg.innerHTML = '<div class="tpH">Open<span>Documents › scans</span></div><div class="tpL"><div class="tpR"><b>1064HC10_run1.csv</b><i>9:41 AM</i><i>5 KB</i></div><div class="tpR"><b>1064HC10_run2.csv</b><i>9:58 AM</i><i>5 KB</i></div><div class="tpR"><b>1550LP_check.csv</b><i>Yesterday</i><i>7 KB</i></div><div class="tpR"><b>AR_1064_scan3.csv</b><i>Yesterday</i><i>6 KB</i></div></div><div class="tpF"><span></span><div class="tpB go">Open</div><div class="tpB">Cancel</div></div>';
+    const rowsEl = [...dlg.querySelectorAll(".tpR")], nameEl = dlg.querySelector(".tpF span"), names = () => rowsEl.filter(r => r.classList.contains("on")).map(r => '"' + r.querySelector("b").textContent + '"').join(" ");
+    await sleep(450);
+    let c = ctr(rowsEl[0]); await glide(c.x, c.y, 700); ripple(); await sleep(200); rowsEl[0].classList.add("on"); nameEl.textContent = "File name: " + names(); await sleep(450);
+    cur.querySelector(".tk").hidden = false; await sleep(350);
+    c = ctr(rowsEl[1]); await glide(c.x, c.y, 600); ripple(); await sleep(200); rowsEl[1].classList.add("on"); nameEl.textContent = "File name: " + names(); await sleep(700);
+    cur.querySelector(".tk").hidden = true;
+    c = ctr(dlg.querySelector(".tpB.go")); await glide(c.x, c.y, 600); ripple(); await sleep(300); dlg.remove();
+    ingest(t1, "1064HC10_run1.csv"); addOverlay(t2, "1064HC10_run2.csv");
+    $("title").value = "1064HC10: run 1 and run 2"; $("ymin").value = "0"; $("ymax").value = "100"; landing = false; showTab("data", false);
+    say(1, "<b>Both scans land on one graph</b>, and the Filter data panel fills itself in.", 0); await glide(innerWidth * .66, innerHeight * .34, 700); await sleep(1500);
+
+    // ---- 2. measure ----
+    say(2, "<b>Ctrl + drag to measure.</b> Run 2 reads low, and the graph tells you by how much, right where you look.");
+    await reveal(cv); const [d1, d2] = files, lvl = 50, A = toPx(rise(d1, lvl), lvl), B = toPx(rise(d2, lvl), lvl);
+    await sleep(300); await dragOn(A, B, true, 1000); await sleep(2000);
+
+    // ---- 3. shift one file ----
+    say(3, "<b>Shift one file</b> to line it up. Pick which file to change, then say how far.");
+    lines.length = 0; renderLines(); draw();
+    await tab("modify");
+    await pickOption($("modfile"), String(d2.id));
+    await typeInto($("shx"), "2");
+    await point($("shgo"), 650); await press($("shgo")); await sleep(1300);
+
+    // ---- 4. smooth all ----
+    say(4, "…or choose <b>All files</b> and change them together. Here, smooth both.");
+    await pickOption($("modfile"), "all");
+    await point($("smgo"), 700); await press($("smgo")); await sleep(1400);
+
+    // ---- 5. a range ----
+    say(5, "<b>Drag across the graph</b> to mark a range. Its average, lowest and highest are read for every scan.");
+    await tab("ranges"); await reveal(cv);
+    const R0 = toPx(1060.5, 40), R1 = toPx(1067.5, 40); await dragOn(R0, R1, false, 900); await sleep(1900);
+
+    // ---- 6. print ----
+    say(6, "<b>Print a clean one-page report</b> with the graph, the numbers and the date.");
+    await tab("export");
+    await point($("printbtn"), 800); await press($("printbtn"));
+    await sleep(400); await typeInto($("rptTitle"), "1064HC10: run 1 vs run 2", 70);
+    await typeInto(RI[4], "1064HC10", 90);
+    await say(6, "It opens your normal print window. <b>Cancel it</b> if you only wanted to see how.", 1300);
+    await point($("rptGo"), 800); ripple(); await sleep(350);
+    cur.style.opacity = 0; shield.remove();
+    await sleep(250); $("rptGo").click();             // the real report: the page's own print window opens here (blocks until it is closed)
+    await sleep(500);
+
+    // ---- done ----
+    cap.querySelector(".tn").textContent = "Done"; cap.querySelector(".tb").style.width = "100%";
+    cap.querySelector(".tt").innerHTML = "<b>That's the tour.</b> Drop in your own CSV, or press <b>Try sample data</b> on the Tips tab.";
+    const again = document.createElement("span"); again.className = "tx"; again.textContent = "▶ Replay"; again.setAttribute("role", "button"); again.tabIndex = 0; again.onclick = () => playTour(speed);
+    cap.insertBefore(again, cap.querySelector(".tx")); cap.querySelector(".tx:last-of-type").textContent = "Close ✕";
+    cap.querySelector(".tx:last-of-type").onclick = end;
+    $("rptTitle").value = saved.title || ""; showTab("data", false);
+  } catch (e) { if (e !== STOP) { console.error(e); end(); } }
+}
+$("tourBtn").onclick = $("tourBtn2").onclick = () => playTour();
+if (location.hash === "#demo") setTimeout(() => playTour(), 700);
+</script>
 </body>
 </html>
 
