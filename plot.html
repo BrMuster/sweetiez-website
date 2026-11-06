@@ -655,7 +655,7 @@
 
     <div class="panel" data-tab="export" hidden>
       <div class="bar">
-        <button id="csv" title="Saves the active range, or everything currently shown if no range is set">Export range as CSV</button>
+        <button id="csv" title="Save as: choose a name and a place. Saves the main scan with any shifts and smoothing applied, only the active range if one is set">Save as CSV…</button>
         <label class="prsel">On the report, ranges are
           <select id="prshade"><option value="outline">outlined only</option><option value="shade">shaded in color</option><option value="none">not drawn</option></select>
         </label>
@@ -714,7 +714,7 @@
         <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent, the angle of incidence (AOI) it was taken at, and its polarization (Random unless the scan was S or P). They are labels only and do not move the data. Use the Modify tab to shift a scan. They are printed in the Filter Data box on the report. Leave a box empty to leave it blank.">?</span>
       </div>
     </div>
-    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Export range as CSV" saves the main scan only.</p>
+    <p class="hint">The first row is treated as column names if it contains any text. Each Range button holds its own selection, so you can compare up to six. Units are labels only; they don't convert the numbers. Overlays use their own first column as X; "Save as CSV" saves the main scan only.</p>
   </section>
 
   <div class="rptbg" id="rptDlg" hidden>
@@ -2422,6 +2422,17 @@ addEventListener("wheel", e => {
 
 // ---------- 7. SAVING ----------
 const save = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+async function saveAs(blob, suggested) {        // a real Save As window where the browser has one (Chrome, Edge); anywhere else, ask for the name here
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await showSaveFilePicker({ suggestedName: suggested, types: [{ description: "CSV file", accept: { "text/csv": [".csv"] } }] });
+      const w = await h.createWritable(); await w.write(blob); await w.close(); return;
+    } catch (e) { if (e && e.name === "AbortError") return; }   // Cancel in that window: nothing is saved. Any other problem falls back to asking below.
+  }
+  const asked = prompt("Save as (file name):", suggested.replace(/\.csv$/i, "")); if (asked === null) return;   // Cancel: nothing is saved
+  let name = asked.trim().replace(/[\\/:*?"<>|]/g, "_") || "data"; if (!/\.csv$/i.test(name)) name += ".csv";
+  save(blob, name);
+}
 $("csv").onclick = () => {                       // every column, only the rows inside the active range (or the current view)
   if (!view) return;
   const r = ranges[cur] || view, esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -2434,7 +2445,8 @@ $("csv").onclick = () => {                       // every column, only the rows 
     const y = PY.get(c)[k]; return y !== c.v[i] ? String(rnd(y)) : c.raw[i];
   };
   for (let k = 0; k < n; k++) { const i = sh && sh.ord ? sh.ord[k] : k; if (XS[k] >= r.a && XS[k] <= r.b) lines.push(cols.map(c => esc(cell(c, i, k))).join(",")); }
-  save(new Blob([lines.join("\n")], { type: "text/csv" }), "range.csv");
+  const tag = [edited && "edited", ranges[cur] && "range"].filter(Boolean).join(" ");   // the suggested name says what was done to it
+  saveAs(new Blob([lines.join("\n")], { type: "text/csv" }), shortName(files[0].fname) + (tag ? " " + tag : "") + ".csv");
 };
 
 // ---------- 8. PRINTING ----------
