@@ -47,6 +47,9 @@
   .fdlist .fdinfo { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   body.signal .tab:not([data-tab=data], [data-tab=display]), body.signal :is(.tipcol, #sideCol, #notesBox, #notesBox + .hint, .finder, .meas), body.signal .controls:has(#spec) { display: none !important; }   /* a signal file is just a line to zoom around in: no wavelengths, ranges, specs or reports */
   .signalonly { display: none; } body.signal .signalonly { display: block; } body.signal .plotrow { grid-template-columns: 1fr; }
+  .ic { display: inline-block; width: 16px; height: 16px; margin-right: .45rem; vertical-align: -3px; flex: none; } .ic svg { display: block; width: 16px; height: 16px; overflow: visible; }   /* the small Windows-style pictures on tabs and buttons */
+  .tab .ic { margin-right: .35rem; }
+  :root[data-theme=retro] .ic { filter: grayscale(1) sepia(1) hue-rotate(65deg) saturate(3) brightness(1.1); }   /* green screen: the pictures turn green too */
   .scanno { flex: none; font-size: .8em; opacity: .75; white-space: nowrap; }
   #printHead, #printImg, #printLegend, #printFields, #printStamp, #printTables, #printData { display: none; }
   #sideCol { display: contents; }                                                                  /* only a wrapper on screen; it becomes the report's right-hand column when printing */
@@ -67,11 +70,13 @@
     #printFields { display: flex; flex-direction: column; flex: 1; min-height: 0; font-size: 9px; color: #000; }
     #printFields .pbox { display: flex; flex-direction: column; flex: 1 1 0; border: 1px solid #888; margin-bottom: 3mm; } #printFields .pbox:last-child { margin-bottom: 0; }
     #printFields h4 { flex: none; text-align: center; font-size: 13px; font-weight: 700; padding: 1.2mm 0; border-bottom: 1px solid #888; }
-    #printFields .pfr { flex: 1 1 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; align-content: center; gap: 0 2mm; padding: 0 2mm; line-height: 1.2; border-top: 1px solid #ddd; } #printFields h4 + .pfr { border-top: 0; }   /* label and value share a line; a group (Low side data...) puts its lines underneath; rows grow to use the height */
+    #printFields .pfr { flex: 1 1 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; align-content: center; gap: 0 2mm; padding: 0 2mm; line-height: 1.2; border-top: 1px solid #ddd; } #printFields h4 + .pfr, #printFields .pbox > .pfr:first-child { border-top: 0; }   /* label and value share a line; a group (Low side data...) puts its lines underneath; rows grow to use the height */
     #printFields .l { display: inline; color: #444; font-size: 10.5px; } #printFields .v { display: inline; color: #000; font-size: 12px; text-align: right; }
     #printFields .sub { display: flex; justify-content: space-between; gap: 2mm; flex: 0 0 100%; }   /* no indent: the lines line up with the other labels and values */
     #printFields .pfr.grp { row-gap: .5mm; } #printFields .pfr.grp > .l { flex: 0 0 100%; margin-bottom: 1.4mm; }   /* the group heading (Tx. Coordinates...) gets its own line with a little space under it */ #printFields .sub .l { color: #444; } #printFields .sub .v { white-space: nowrap; }
     #printFields :is(.fdtop, .fdsides) { flex: 1 1 0; align-content: center; align-items: center; padding: 0 2mm; line-height: 1.2; border-top: 1px solid #ddd; } #printFields h4 + :is(.fdtop, .fdsides) { border-top: 0; } #printFields .fdtop .l { display: block; } #printFields .fdtop .v { display: block; text-align: left; white-space: nowrap; }
+    #printFields .pbox.tight { flex: none; } #printFields .pbox.tight .pfr { flex: none; padding-top: 1.1mm; padding-bottom: 1.1mm; } #printFields .pbox.tight .pfr.grp > .l { margin-bottom: .8mm; }   /* range numbers and conditions: only as tall as their lines */
+    #printFields .pfr.pair { justify-content: space-between; } #printFields .pfr.pair .l { margin-right: 1.5mm; }
     #printFields .v.odd { color: #000; font-weight: 700; background: #ffe14d; padding: 0 3px; }   /* a changed condition stands out */
     #printStamp { display: block; color: #222; font-size: 11px; text-align: right; } #printStamp:empty { display: none; } #printHead { position: relative; } #printHead #printStamp { position: absolute; top: 0; right: 0; text-align: right; font-size: 10px; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -81,7 +86,7 @@
     .card { background: none; padding: 0; border-radius: 0; gap: .6rem; }
     #printHead { display: block; border-bottom: 2px solid #000; padding-bottom: .2rem; }
     #printLogo { display: block; height: 15mm; width: auto; margin-bottom: 3mm; }
-    #printImg { display: block; width: 100%; height: auto; max-height: 170mm; object-fit: contain; object-position: left top; border: 1px solid #ccc; }   /* the picture is drawn 1000 x 800 so it fills this space */
+    #printImg { display: block; width: 100%; height: auto; max-height: 170mm; object-fit: contain; object-position: left top; border: 1px solid #888; }   /* the picture is drawn sharp so it fills this space; its frame matches the boxes beside it */
     #printLegend { display: flex; flex-wrap: wrap; gap: .2rem 1.2rem; color: #000; }
     #printLegend span { display: inline-flex; align-items: center; gap: .4rem; }
     .screenonly { display: none !important; }
@@ -121,6 +126,7 @@
   .tips span { display: grid; justify-items: start; gap: .2rem; }
   .tips b { font-weight: 600; font-size: .76rem; color: var(--text); background: #ffffff12; border: 1px solid var(--line); border-radius: 4px; padding: .05rem .45rem; }
   .tipx { padding: .1rem .55rem; font-size: .8rem; background: transparent; color: var(--muted); }
+  .tabs .tab:not(:last-child) { margin-right: 4px; }   /* a little air between the tabs */
   .tabs .playtab { margin-left: auto; opacity: 0; cursor: default; }   /* the hidden Play tab sits just left of Tips, at the far right */
   .tipgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem 2.5rem; align-items: start; font-size: .9rem; }
   .tipgrid > div { display: grid; gap: .55rem; } .tipgrid h4 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
@@ -162,7 +168,8 @@
   button { font: inherit; padding: .45rem .9rem; color: var(--text); background: #ffffff14; border: 0; border-radius: 4px; cursor: pointer; transition: background .15s, transform .1s; }
   button:hover:not(:disabled) { background: #ffffff2b; } button:active:not(:disabled) { transform: scale(.97); }
   button:disabled { opacity: .4; cursor: not-allowed; }
-  .typed { display: grid; grid-template-columns: auto 8.5rem 8.5rem; gap: .4rem .6rem; align-items: center; justify-content: start; }   /* wide enough for a value like 1068.660745 */
+  .typed { display: grid; grid-template-columns: auto 8.5rem 8.5rem repeat(4, auto) repeat(3, 12rem); gap: .4rem .6rem; max-width: 100%; overflow-x: auto; align-items: center; justify-content: start; }
+  .typed .th { font-size: .85em; color: var(--muted); text-align: center; } .typed .ck { justify-self: center; display: flex; padding: 0 .35rem; cursor: pointer; } .typed .ck input { margin: 0; } .typed input.ind { box-sizing: border-box; text-align: right; cursor: default; font-variant-numeric: tabular-nums; } .typed .th.ind0, .typed input.ind0 { margin-left: 1rem; } .typed input.ind.ind0 { width: calc(100% - 1rem); } .typed .th.indh { text-align: right; }   /* the result boxes: read-only, they fill in by themselves */   /* wide enough for a value like 1068.660745 */
   .rangebar { justify-content: space-between; } .rangeact { margin-left: auto; justify-content: flex-end; }
   .typed input[type=text] { width: 100%; min-width: 0; }
   .typed b { font-weight: 600; }
@@ -394,7 +401,7 @@
 </head>
 <body>
 <main>
-  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">&#9881; Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset><fieldset><legend>Graph hover</legend><label><input type="checkbox" id="hoverFlag"> Show the data flag on the graph (press F)</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
+  <div class="pagehead"><img id="pageLogo" alt="Andover Corporation"><h1 class="srOnly">Plot a CSV</h1><span class="headr"><div class="settings"><button id="setBtn" type="button" aria-expanded="false" aria-controls="setBox">Settings</button><div id="setBox" class="setbox" role="dialog" aria-label="Settings" hidden><fieldset><legend>Theme</legend><label><input type="radio" name="theme" value="light"> Light</label><label><input type="radio" name="theme" value="dark"> Dark</label><label><input type="radio" name="theme" value="classic"> Classic</label><label><input type="radio" name="theme" value="win95"> Windows 95</label><label><input type="radio" name="theme" value="mac"> Mac</label><label><input type="radio" name="theme" value="retro"> Retro</label></fieldset><fieldset><legend>Graph background</legend><label><input type="radio" name="gbg" value="gray"> Light gray</label><label><input type="radio" name="gbg" value="white"> White</label><label><input type="radio" name="gbg" value="black"> Black</label><label><input type="radio" name="gbg" value="theme"> Match the theme</label></fieldset><fieldset><legend>Graph hover</legend><label><input type="checkbox" id="hoverFlag"> Show the data flag on the graph (press F)</label></fieldset></div></div><a class="home" href="index.html">← Home</a></span></div>
 
   <section id="app" class="card">
     <div id="printHead" class="keep"><p id="printStamp"></p><img id="printLogo" alt="Andover Corporation" src="data:image/png;base64,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"></div>
@@ -427,7 +434,6 @@
 
     <div class="tabs" role="tablist">
       <button type="button" class="tab" role="tab" data-tab="data">Data</button>
-      <button type="button" class="tab" role="tab" data-tab="library">Library</button>
       <button type="button" class="tab" role="tab" data-tab="modify">Modify</button>
       <button type="button" class="tab" role="tab" data-tab="display">Display</button>
       <button type="button" class="tab" role="tab" data-tab="ranges">Ranges</button>
@@ -436,6 +442,7 @@
       <button type="button" class="tab" role="tab" data-tab="filter">Filter</button>
       <button type="button" class="tab" role="tab" data-tab="export">Export</button>
       <button type="button" class="tab playtab" role="tab" data-tab="play" tabindex="-1" aria-hidden="true">Play</button>   <!-- an invisible easter egg: still clickable, just not seen -->
+      <button type="button" class="tab" role="tab" data-tab="library">Reference</button>
       <button type="button" class="tab" role="tab" data-tab="tips">Tips</button>
     </div>
 
@@ -478,15 +485,14 @@
     <div class="panel" data-tab="data" hidden>
       <div class="bar">
         <button type="button" id="openbtn">Open a CSV</button>
-        <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here">Paste from Excel</button>
-        <button type="button" id="demo">Try sample data</button>
+        <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here (or press Ctrl+V on this page)">Paste</button>
         <button type="button" id="clearbtn" title="Remove everything from the graph and start over">Clear graph</button>
         <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
-        <span class="hint">…or drop a CSV file anywhere on this page, or copy cells in Excel and press Ctrl+V here.</span>
+        <span class="hint">…or drop a CSV file anywhere on this page, or copy cells in Excel and press Ctrl+V here. A screenshot pasted the same way goes onto the graph as a picture.</span>
       </div>
       <p id="msg" class="hint" role="status"></p>
       <p class="hint signalonly">Signal view: drag across the graph to zoom, and double-click to zoom back out.</p>
-      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">+ Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
+      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
       <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
       <div class="series" id="series"></div>
       <div class="finder">
@@ -520,12 +526,12 @@
         <label class="txt">Thickness <input type="text" id="libD" class="unit" value="1" aria-label="Thickness in millimetres"> mm</label>
         <button type="button" id="libAdd">Add to graph</button>
         <button type="button" id="libClear" title="Remove everything from the graph and start over">Clear graph</button>
-        <button type="button" id="libDel" hidden>Delete from library</button>
+        <button type="button" id="libDel" hidden>Delete from Reference</button>
       </div>
       <div class="controls">
         <b>My scans</b>
         <input type="text" id="libName" placeholder="Name, e.g. ZWB1 3 mm" aria-label="Name for the saved scan" style="width:15rem">
-        <button type="button" id="libSave">Save main scan to library</button>
+        <button type="button" id="libSave">Save main scan to Reference</button>
         <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="Saves the first (main) CSV on the graph under this name, so you can add it back any time, for example ZWB1 or green glass. Saved scans appear at the bottom of the material list. They are kept in this browser on this computer only.">?</span>
       </div>
     </div>    <div class="panel" data-tab="display" hidden>
@@ -535,6 +541,7 @@
           <label><input type="radio" name="meas" id="kT" checked> Transmission</label>
           <label><input type="radio" name="meas" id="kR"> Reflection</label>
         </span>
+        <label class="meas" title="Show the graph as optical density, O.D. = -log10(T), the usual unit for blocking specs"><input type="checkbox" id="odY"> Show as O.D.</label>
       </div>
       <div class="controls">
         <label>Line style
@@ -562,14 +569,7 @@
         </div>
       </div>
       <div class="typed" id="typed" aria-label="Type range coordinates"></div>
-      <div class="controls">
-        <b>Show for each range</b>
-        <label><input type="checkbox" id="cMin"> Min</label>
-        <label><input type="checkbox" id="cMinAt"> Min at</label>
-        <label><input type="checkbox" id="cMax"> Max</label>
-        <label><input type="checkbox" id="cMaxAt"> Max at</label>
-        <label><input type="checkbox" id="cAvg"> Average</label>
-      </div>
+      <p class="hint">Tick what each range should show. The boxes on the right fill in by themselves (point at a Min or Max box to see where it is), and the table under the graph lists every scan. O.D. adds the optical density beside each number, without changing the graph.</p>
     </div>
 
     <div class="panel" data-tab="annotate" hidden>
@@ -585,8 +585,8 @@
 
     <div class="panel" data-tab="specs" hidden>
       <div class="specbox">
-        <div class="bar"><b>Specs</b><button type="button" id="addspec">+ Add spec</button>
-          <span class="hint">Solid line: absolute, every point in the range must pass. Dotted line: the average over the range must pass. C W/L, B/W and the 5% and 50% points are checked per scan and aren't drawn. A 5% or 50% point is the wavelength at that percent of the scan's max; on a bandpass it uses the side nearer your target.</span></div>
+        <div class="bar"><b>Specs</b><button type="button" id="addspec">Add spec</button>
+          </div>
         <div class="bar" id="specSets">
           <b>Saved sets</b>
           <select id="specSetPick" aria-label="Load a saved set of specs"></select>
@@ -608,7 +608,7 @@
         <div class="bar"><b>Draw on the graph</b>
           <label class="txt">Ctrl + drag draws
             <select id="drawAs" aria-label="What Ctrl and drag on the graph draws">
-              <option value="solid">a solid line</option><option value="dash">a dashed line</option>
+              <option value="meas" selected>a measurement (difference in nm and %)</option><option value="solid">a solid line</option><option value="dash">a dashed line</option>
               <option value="abs">a spec: absolute</option><option value="avg">a spec: average</option><option value="best">a spec: best effort</option>
             </select></label>
           <label class="txt">Spec passes
@@ -650,13 +650,14 @@
       </div>
     </div>
     <div class="panel" data-tab="tips" hidden>
+      <div class="bar"><button type="button" id="demo">Try sample data</button><span class="hint">Loads a sample filter scan, so you can try everything out without a file of your own.</span></div>
       <div class="tipgrid tips">
         <div><h4>Ranges</h4>
           <span><b>Drag</b> mark a range</span>
           <span><b>Shift + drag</b> snap to whole nm</span>
           <span><b>Click a range band</b> zoom to it</span></div>
         <div><h4>Lines and notes</h4>
-          <span><b>Ctrl + drag</b> draw a line or spec</span>
+          <span><b>Ctrl + drag</b> measure, or draw a line or spec</span>
           <span><b>Right-click</b> a scan: add a note or remove it</span>
           <span><b>Drag a note's dot</b> slide it along the scan</span>
           <span><b>Drag a note's corner</b> resize and wrap it</span></div>
@@ -694,8 +695,8 @@
     <div id="notesBox">
       <b>Conditions</b>
       <div class="controls screenonly">
-        <label class="txt">Temperature <input type="text" id="tempC" class="unit" value="22" aria-label="Temperature in degrees Celsius"> °C</label>
-        <label class="txt">AOI <input type="text" id="aoi" class="unit" value="0" aria-label="Angle of incidence in degrees"> °</label>
+        <label class="txt">Temp <input type="text" id="tempC" class="unit" value="22" aria-label="Temperature in degrees Celsius"> °C</label>
+        <label class="txt">A.O.I. <input type="text" id="aoi" class="unit" value="0" aria-label="Angle of incidence in degrees"> °</label>
         <label class="txt">Polarization <select id="pol" aria-label="Polarization"><option>Random</option><option>S-pol</option><option>P-pol</option></select></label>
         <span class="help" tabindex="0" role="note" aria-label="Help" data-tip="The temperature the scan is meant to represent, the angle of incidence (AOI) it was taken at, and its polarization (Random unless the scan was S or P). They are labels only and do not move the data. Use the Modify tab to shift a scan. They are printed in the Filter Data box on the report. Leave a box empty to leave it blank.">?</span>
       </div>
@@ -908,7 +909,7 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const COLORS = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6", "#e8d44d", "#ff8c42"];
 const RC = ["#1a9fff", "#f5a623", "#4cd964", "#ff5a7a", "#b07cff", "#2ed3c6"];   // one colour per range slot
 let cols = [], n = 0, X = [], xkind = "num", view = null, G = {}, zbox = null, ySaved = null, zoomed = false, clean = false;   // zoomed / clean: drive the faint "double-click to reset" hint
-let ranges = Array(6).fill(null), shown = Array(6).fill(true), cur = 0, hov = null, drag = false, light = false;   // shown[k]: range k is drawn on the graph
+let ranges = Array(6).fill(null), dragged = Array(6).fill(false), shown = Array(6).fill(true), cur = 0, hov = null, drag = false, light = false;   // shown[k]: range k is drawn on the graph
 const LED_SEGS = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg", "-": "g", " ": "" };
 let ldPick = null;                               // which curve the Filter data panel shows (its checkbox); null = all of them
 let showFlag = false, roKey = null; try { showFlag = localStorage.getItem("plotHoverFlag") === "1"; } catch (e) {}   // the hover flag on the graph is off until it's asked for; the readout below the graph always works
@@ -1109,6 +1110,11 @@ function shiftedDs(ds) {                         // null when nothing is shifted
   for (let i = 1; i < n; i++) if (asc ? X[i] < X[i - 1] : X[i] > X[i - 1]) { ord = Array.from({ length: n }, (_, k) => k).sort((p, q) => (asc ? X[p] - X[q] : X[q] - X[p]) || 0); break; }   // pieces moved by different amounts can overlap
   return ds._sh = { src: X0, stamp: shiftStamp, X: ord ? ord.map(i => X[i]) : X, dy: ord ? ord.map(i => dy[i]) : dy, ord };
 }
+const odOn = () => !signalMode && $("odY").checked;   // the graph in optical density instead of percent
+const toOD = v => v > 0 ? -Math.log10(v / 100) : NaN;   // 1% is O.D. 2, 0.01% is O.D. 4; zero or below has no O.D.
+const plotY = v => odOn() ? toOD(v) : v;           // a data value (percent) as a height on the graph
+const yShow = v => odOn() ? (isFinite(toOD(v)) ? fmt(toOD(v)) + " O.D." : "–") : ys(v);
+const specPlot = sp => sp.meas === "OD" ? (odOn() ? +sp.v : 100 * 10 ** -sp.v) : plotY(+sp.v);   // where a spec's line sits on the graph
 const measName = () => signalMode ? "Signal" : $("kR").checked ? "Reflection" : "Transmission";
 
 // ---------- 3. FORMATTING AND AXIS TICKS ----------
@@ -1124,7 +1130,7 @@ const YUNIT = "%";                                   // the Y axis is always per
 const yU = () => " " + YUNIT;
 const xs = v => (signalMode ? String(Math.round(v)) : fx(v)) + xU(), ys = v => fmt(v) + yU();
 function axisLabel(ax) {                         // "Temperature (°C)"
-  const name = ax === "x" ? XLAB : measName(), unit = ax === "x" ? XUNIT : YUNIT;
+  const name = ax === "x" ? XLAB : odOn() ? "Optical Density" : measName(), unit = ax === "x" ? XUNIT : odOn() ? "O.D." : YUNIT;
   return name && unit ? name + " (" + unit + ")" : name || (unit ? "(" + unit + ")" : "");
 }
 function ticks(a, b, cnt) {                     // "nice" round tick positions (1, 2, 5 × powers of ten)
@@ -1148,18 +1154,19 @@ function minorTicks(a, b, len) {                 // small ruler marks: every 1 u
 const levels = () => [["m1", "lv1"], ["m2", "lv2"]]               // the percentages that are switched on, e.g. [50, 5]
   .map(([box, txt], li) => ({ on: $(box).checked, p: Number($(txt).value), li }))
   .filter(l => l.on && l.p > 0 && l.p < 100);
-function edgePts(s, pct) {                       // find where series s crosses pct% of its peak, inside the current view
+const ALL = { a: -Infinity, b: Infinity };     // the whole scan: measurements use this, so zooming in never changes them
+function edgePts(s, pct) {                       // find where series s crosses pct% of its peak, over the whole scan (shifts and smoothing count; zooming does not)
   let pk = -Infinity, pkx;
-  for (let i = 0; i < s.n; i++) {                // step 1: the peak (highest value on screen)
+  for (let i = 0; i < s.n; i++) {                // step 1: the peak (highest value in the scan)
     const x = s.X[i], y = s.c.v[i];
-    if (x >= view.a && x <= view.b && isFinite(y) && y > pk) { pk = y; pkx = x; }
+    if (isFinite(y) && y > pk) { pk = y; pkx = x; }
   }
   if (!(pk > 0)) return null;
   const thr = pk * pct / 100, pts = [];          // step 2: the threshold, e.g. 50% of 92.1 = 46.05
   let x0 = NaN, y0 = NaN;
   for (let i = 0; i < s.n; i++) {                // step 3: walk the curve and catch every time it steps over the threshold
     const x = s.X[i], y = s.c.v[i];
-    if (!(x >= view.a && x <= view.b) || !isFinite(y)) continue;
+    if (!isFinite(y)) continue;
     if (isFinite(y0) && ((y0 < thr && y >= thr) || (y0 >= thr && y < thr)))
       pts.push({ x: x0 + (thr - y0) / (y - y0) * (x - x0), up: y > y0 });   // straight-line interpolation between the two rows
     x0 = x; y0 = y;
@@ -1209,7 +1216,7 @@ function confetti() {                            // the same burst as the Horses
   })();
 }
 const specRange = sp => isNmSpec(sp) ? "–" : fx(Math.min(+sp.a, +sp.b)) + " – " + xs(Math.max(+sp.a, +sp.b));
-const specName = sp => isNmSpec(sp) ? ({ CWL: "C W/L ", BW: "B/W ", P5: "5% point ", P50: "50% point " })[sp.meas] + (sp.op === "pm" ? fmt(+sp.v) + " ± " + xs(+sp.tol) : (sp.op === "ge" ? "≥ " : "≤ ") + xs(+sp.v)) : sp.meas + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + yU() + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
+const specName = sp => isNmSpec(sp) ? ({ CWL: "C W/L ", BW: "B/W ", P5: "5% point ", P50: "50% point " })[sp.meas] + (sp.op === "pm" ? fmt(+sp.v) + " ± " + xs(+sp.tol) : (sp.op === "ge" ? "≥ " : "≤ ") + xs(+sp.v)) : (sp.meas === "OD" ? "O.D." : sp.meas) + " " + (sp.op === "ge" ? "≥" : "≤") + " " + fmt(+sp.v) + (sp.meas === "OD" ? "" : yU()) + (sp.kind === "avg" ? " avg" : sp.kind === "best" ? " best effort" : " abs");
 function renderSpecs() {                         // one row of fields per spec
   const box = $("specRows"); box.innerHTML = "";
   specs.forEach((sp, k) => {
@@ -1227,14 +1234,14 @@ function renderSpecs() {                         // one row of fields per spec
     const line = document.createElement("i"); line.className = "specline " + sp.kind; line.title = "How this spec is drawn";
     const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this spec"; del.setAttribute("aria-label", "Remove spec " + (k + 1));
     del.onclick = () => { specs.splice(k, 1); renderSpecs(); draw(); };
-    const MEAS = [["T", "T"], ["R", "R"], ["CWL", "C W/L"], ["BW", "B/W"], ["P5", "5% point"], ["P50", "50% point"]];
+    const MEAS = [["T", "T"], ["R", "R"], ["OD", "O.D."], ["CWL", "C W/L"], ["BW", "B/W"], ["P5", "5% point"], ["P50", "50% point"]];
     if (isNmSpec(sp)) { if (sp.tol === undefined) sp.tol = "";          // no range or line on the graph: a C W/L, B/W or 5% / 50% point is one number per scan
       row.append(vis, pick("meas", MEAS, "measurement"), pick("op", [["pm", "± within"], ["ge", "≥ at least"], ["le", "≤ at most"]], "condition"), txt("v", sp.meas === "BW" ? "Value" : "Target", "pct"), span(XUNIT));
       if (sp.op === "pm") row.append(span("±"), txt("tol", "Tolerance", "pct"), span(XUNIT));
       row.append(del); }
     else row.append(vis, txt("a", "From"), span("to"), txt("b", "To"), span(XUNIT),
       pick("meas", MEAS, "measurement"), pick("op", [["ge", "≥ at least"], ["le", "≤ at most"]], "condition"),
-      txt("v", "Value", "pct"), span(YUNIT),
+      txt("v", "Value", "pct"), span(sp.meas === "OD" ? "O.D." : YUNIT),
       pick("kind", [["abs", "Absolute"], ["avg", "Average"], ["best", "Best Effort"]], "type"), line, del);
     box.append(row);
   });
@@ -1242,13 +1249,13 @@ function renderSpecs() {                         // one row of fields per spec
 }
 function edgePoint(sp, s) {                       // a scan's 5% or 50% point, the same numbers as the Filter data panel: long-wave pass uses its low side, short-wave pass its high side, anything with both uses the one nearer the target
   const E = reportEdges(s); if (!E) return null;
-  const t = effType(s), p = pointPct(sp), n = t === "notch" && p === 50 ? notch(s, view) : null, lo = n ? n.lo : t === "swp" ? null : E.rise[p], hi = n ? n.hi : t === "lwp" ? null : E.fall[p]; if (lo == null && hi == null) return null;   // a notch's 50% point is halfway between its max and the bottom of the dip, the same as its C W/L and B/W
+  const t = effType(s), p = pointPct(sp), n = t === "notch" && p === 50 ? notch(s, ALL) : null, lo = n ? n.lo : t === "swp" ? null : E.rise[p], hi = n ? n.hi : t === "lwp" ? null : E.fall[p]; if (lo == null && hi == null) return null;   // a notch's 50% point is halfway between its max and the bottom of the dip, the same as its C W/L and B/W
   const high = lo == null || (hi != null && Math.abs(hi - +sp.v) < Math.abs(lo - +sp.v));
   return { x: high ? hi : lo, word: lo != null && hi != null ? (high ? "high side" : "low side") : "" };
 }
 function nmValue(sp, s) {                        // a scan's C W/L or B/W, the same numbers as the Filter data panel
   let lo = null, hi = null;
-  if (effType(s) === "notch") { const n = notch(s, view); if (n) { lo = n.lo; hi = n.hi; } }
+  if (effType(s) === "notch") { const n = notch(s, ALL); if (n) { lo = n.lo; hi = n.hi; } }
   else { const E = reportEdges(s); if (E) { lo = E.rise[50]; hi = E.fall[50]; } }
   return lo == null || hi == null ? NaN : sp.meas === "CWL" ? (lo + hi) / 2 : hi - lo;
 }
@@ -1257,18 +1264,18 @@ function checkSpec(sp, s) {                      // measure one series against o
   if (isNmSpec(sp)) { const pt = pointPct(sp) ? edgePoint(sp, s) : null, got = pt ? pt.x : pointPct(sp) ? NaN : nmValue(sp, s); if (!isFinite(got)) return null;
     const pm = sp.op === "pm", pass = pm ? Math.abs(got - v) <= +sp.tol + 1e-9 : sp.op === "ge" ? got >= v : got <= v;
     return { got, at: NaN, word: pt ? pt.word : "", text: xs(got), pass, margin: pm ? +sp.tol - Math.abs(got - v) : got - v }; }   // ±: how far inside the tolerance it is
-  const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b);
-  if (a === b) { const got = yAtX(s, a); if (!isFinite(got)) return null;   // one wavelength: read the scan there, between data points if it has to
-    return { got, at: a, word: "", text: ys(got), pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v }; }
-  let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
+  const a = Math.min(+sp.a, +sp.b), b = Math.max(+sp.a, +sp.b), f = sp.meas === "OD" ? toOD : y => y, show = sp.meas === "OD" ? y => fmt(y) + " O.D." : ys;   // an O.D. spec is checked on the O.D. of each point
+  if (a === b) { const got = f(yAtX(s, a)); if (!isFinite(got)) return null;   // one wavelength: read the scan there, between data points if it has to
+    return { got, at: a, word: "", text: show(got), pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v }; }
+  let cnt = 0, sum = 0, raw = 0, mn = Infinity, mx = -Infinity, xa, xb;
   for (let i = 0; i < s.n; i++) {
-    const x = s.X[i], y = s.c.v[i];
+    const x = s.X[i], y = f(s.c.v[i]);
     if (!(x >= a && x <= b) || !isFinite(y)) continue;
-    cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
+    cnt++; sum += y; raw += s.c.v[i]; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
   }
   if (!cnt) return null;
-  const got = sp.kind === "avg" ? sum / cnt : sp.op === "ge" ? mn : mx;
-  return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max", text: ys(got),
+  const got = sp.kind === "avg" ? (sp.meas === "OD" ? toOD(raw / cnt) : sum / cnt) : sp.op === "ge" ? mn : mx;   // average O.D. = the O.D. of the average T
+  return { got, at: sp.kind === "avg" ? NaN : sp.op === "ge" ? xa : xb, word: sp.kind === "avg" ? "avg" : sp.op === "ge" ? "min" : "max", text: show(got),
            pass: sp.kind === "best" || (sp.op === "ge" ? got >= v : got <= v), margin: got - v };   // best effort always passes
 }
 function specTable(S) {
@@ -1286,20 +1293,57 @@ function specTable(S) {
     if (r) { const res = tr.lastChild; res.className = r.pass ? "pass" : "fail"; }
   }));
 }
+let pics = [], picHov = -1;                      // pictures pasted onto the graph: { img, fx, fy, fw, ar }, placed and sized as fractions of the plot area so they print in the same spot
+const picRect = p => ({ x: G.L + p.fx * G.pw, y: G.T + p.fy * G.ph, w: p.fw * G.pw, h: p.fw * G.pw * p.ar });
+const picAt = e => {                             // which picture (and which part of it) is under the pointer
+  if (!view || !pics.length) return null;
+  const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  for (let i = pics.length - 1; i >= 0; i--) { const r = picRect(pics[i]);
+    if (Math.hypot(mx - (r.x + r.w - 11), my - (r.y + 11)) <= 9) return { i, part: "x" };
+    if (mx >= r.x + r.w - 16 && mx <= r.x + r.w + 4 && my >= r.y + r.h - 16 && my <= r.y + r.h + 4) return { i, part: "grip" };
+    if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return { i, part: "body" }; }
+  return null;
+};
+function dragPic(e, h) {                         // drag the picture to move it, or its bottom-right corner to resize it (it keeps its shape)
+  cv.setPointerCapture(e.pointerId); drag = true; hov = null;
+  const p = pics[h.i], sx = e.clientX, sy = e.clientY, f0 = { ...p };
+  const move = ev => { const dx = (ev.clientX - sx) / G.pw, dy = (ev.clientY - sy) / G.ph;
+    if (h.part === "grip") p.fw = Math.max(.03, Math.min(f0.fw + dx, 1 - p.fx, (1 - p.fy) * G.ph / (G.pw * p.ar)));   // grows no further than the edge of the graph
+    else { p.fx = Math.min(Math.max(0, f0.fx + dx), 1 - p.fw); p.fy = Math.min(Math.max(0, f0.fy + dy), Math.max(0, 1 - p.fw * G.pw * p.ar / G.ph)); }   // stays inside the graph, so its X and corner are always reachable
+    redraw(); };
+  const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); drag = false; redraw(true); };
+  cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+}
+function pastePic(blob) {                        // a screenshot from the clipboard goes on the graph, at a sensible size in the top-left corner
+  if (!view) return say("Load a scan first, then paste the picture onto its graph.");
+  const img = new Image();
+  img.onload = () => { const ar = img.naturalHeight / img.naturalWidth; let fw = Math.min(.45, img.naturalWidth / G.pw); if (fw * G.pw * ar > G.ph * .6) fw = G.ph * .6 / (G.pw * ar);
+    pics.push({ img, fx: .03, fy: .03, fw, ar }); draw(); say("Picture pasted. Drag it to move it, drag its bottom-right corner to resize it, and click its X to remove it."); };
+  img.onerror = () => say("That picture couldn't be read."); img.src = URL.createObjectURL(blob);
+}
+let measBoxes = [];                              // where each measurement's label was drawn, so it can be grabbed and moved
+const measHit = e => { const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top; for (let i = measBoxes.length - 1; i >= 0; i--) { const b = measBoxes[i]; if (mx >= b.x0 && mx <= b.x1 && my >= b.y0 && my <= b.y1) return b; } return null; };
+function dragMeas(e, b) {                        // drag a measurement's label somewhere clearer; the numbers stay with their line
+  cv.setPointerCapture(e.pointerId); drag = true; hov = null; cv.style.cursor = "grabbing";
+  const sx = e.clientX, sy = e.clientY, ox0 = b.mx - b.ax, oy0 = b.my - b.ay;
+  const move = ev => { b.l.ox = ox0 + ev.clientX - sx; b.l.oy = oy0 + ev.clientY - sy; redraw(); };
+  const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); drag = false; cv.style.cursor = ""; redraw(true); };
+  cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+}
 let lines = [], ldrag = null;                    // drawn lines: { x1, y1, x2, y2, dash }; ldrag is the one being dragged out right now (screen only)
 function renderLines() {                         // one row per drawn line, under the spec rows
   const box = $("lineRows"); box.innerHTML = "";
   lines.forEach((l, k) => {
     const row = document.createElement("div"); row.className = "specrow";
-    const lab = document.createElement("span"); lab.className = "hint"; lab.textContent = "Line " + (k + 1) + ":  " + xs(l.x1) + ", " + ys(l.y1) + "  →  " + xs(l.x2) + ", " + ys(l.y2);
+    const lab = document.createElement("span"); lab.className = "hint"; lab.textContent = (l.meas ? "Measurement " : "Line ") + (k + 1) + ":  " + xs(l.x1) + ", " + ys(l.y1) + "  →  " + xs(l.x2) + ", " + ys(l.y2) + (l.meas ? "   = " + measText(l) + ",  " + measYText(l) : "");
     const st = document.createElement("select"); st.setAttribute("aria-label", "Line " + (k + 1) + " style"); st.add(new Option("Solid", "solid")); st.add(new Option("Dashed", "dash"));
     st.value = l.dash ? "dash" : "solid"; st.onchange = () => { l.dash = st.value === "dash"; draw(); };
     const mk = document.createElement("button"); mk.type = "button"; mk.textContent = "Make it a spec"; mk.title = "Turn this line into a spec (flat, at its average height)";
-    mk.onclick = () => { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText((l.y1 + l.y2) / 2), kind: "abs" });
+    mk.onclick = () => { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: odOn() ? "OD" : $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText((l.y1 + l.y2) / 2), kind: "abs" });
       lines.splice(k, 1); renderSpecs(); renderLines(); draw(); };
     const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "Remove this line"; del.setAttribute("aria-label", "Remove line " + (k + 1));
     del.onclick = () => { lines.splice(k, 1); renderLines(); draw(); };
-    row.append(lab, st, mk, del); box.append(row);
+    row.append(lab, st, ...(l.meas ? [] : [mk]), del); box.append(row);   // a measurement is not a spec
   });
 }
 // saved spec sets: a named list of specs (say, one per part number) kept in this browser's localStorage and loaded in one click
@@ -1327,7 +1371,7 @@ $("specSetDel").onclick = () => {
   delete all[name]; try { localStorage.setItem(SPECSETKEY, JSON.stringify(all)); } catch (e) {} fillSpecSets(); $("specSetNote").textContent = "Deleted " + name + ".";
 };
 fillSpecSets();
-// spec CSV: Set, From, To, Measure (T/R/CWL/BW/P5/P50), Condition (>=, <= or +/-), Value, Type (Absolute / Average / Best Effort), Tolerance - one row per spec, easy to read from LabVIEW
+// spec CSV: Set, From, To, Measure (T/R/OD/CWL/BW/P5/P50), Condition (>=, <= or +/-), Value, Type (Absolute / Average / Best Effort), Tolerance - one row per spec, easy to read from LabVIEW
 const KINDW = { abs: "Absolute", avg: "Average", best: "Best Effort" };
 function specCsv(sets) {
   const esc = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s, out = ["Set,From,To,Measure,Condition,Value,Type,Tolerance"];
@@ -1354,7 +1398,7 @@ $("specCsvFile").onchange = async () => {
   if (ix.a < 0 || ix.b < 0 || ix.v < 0) { $("specSetNote").textContent = "That file needs From, To and Value columns (see the layout beside the buttons)."; return; }
   const get = (r, k) => ix[k] < 0 ? "" : (r[ix[k]] || "").trim(), sets = {};
   for (const r of rows) {
-    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^(p50|50)/i.test(get(r, "meas")) ? "P50" : /^(p|5)/i.test(get(r, "meas")) ? "P5" : /^c/i.test(get(r, "meas")) ? "CWL" : /^b/i.test(get(r, "meas")) ? "BW" : /^r/i.test(get(r, "meas")) ? "R" : "T", tol: get(r, "tol"), op: /\+|±/.test(get(r, "op")) ? "pm" : /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
+    const sp = { a: get(r, "a"), b: get(r, "b"), v: get(r, "v"), meas: /^(p50|50)/i.test(get(r, "meas")) ? "P50" : /^(p|5)/i.test(get(r, "meas")) ? "P5" : /^c/i.test(get(r, "meas")) ? "CWL" : /^b/i.test(get(r, "meas")) ? "BW" : /^o/i.test(get(r, "meas")) ? "OD" : /^r/i.test(get(r, "meas")) ? "R" : "T", tol: get(r, "tol"), op: /\+|±/.test(get(r, "op")) ? "pm" : /</.test(get(r, "op")) || /^(le|at most)/i.test(get(r, "op")) ? "le" : "ge",
                  kind: /avg|aver/i.test(get(r, "kind")) ? "avg" : /best/i.test(get(r, "kind")) ? "best" : "abs" };
     if (!specOK(sp)) continue; (sets[get(r, "set") || shortName(f.name)] ||= []).push(sp);
   }
@@ -1370,21 +1414,21 @@ $("addspec").onclick = () => { specs.push({ a: "", b: "", meas: "T", op: "ge", v
 function render() {
   if (!view || !cv.clientWidth) return;                                 // nothing to draw while the canvas is hidden (e.g. mid-print)
   const W = cv.clientWidth, H = cv.clientHeight;
-  const dpr = light ? Math.min(6, Math.max(devicePixelRatio || 1, 3, Math.ceil(2400 / W))) : devicePixelRatio || 1;   // the picture for paper is drawn extra sharp (about 300 dpi), not at screen size
+  const dpr = light ? Math.min(8, Math.max(devicePixelRatio || 1, 6, Math.ceil(4800 / W))) : devicePixelRatio || 1;   // the picture for paper is drawn extra sharp (about 700 dpi), not at screen size
   cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const title = light ? rpt.title || "" : $("title").value.trim(), xl = axisLabel("x"), yl = axisLabel("y");
   const L = light ? (yl ? 78 : 52) : yl ? 104 : 80, R = light ? 30 : 20, T = (title ? 44 : 14) + ($("spec").value.trim() ? 22 : 0), B = xl ? 70 : 42, pw = W - L - R, ph = H - T - B;
-  const ty = v => v, S = active();
+  const ty = plotY, S = active();
   const style = $("style").value, dots = $("pts").checked || style === "dots";
   let lo = Infinity, hi = -Infinity, vis = 0;
   for (const s of S) for (let i = 0; i < s.n; i++) {
     const x = s.X[i], y = ty(s.c.v[i]);
     if (x >= view.a && x <= view.b && isFinite(y)) { vis++; if (y < lo) lo = y; if (y > hi) hi = y; }
   }
-  for (const sp of specs) { const y = specOK(sp) && specShown(sp) && !isNmSpec(sp) ? ty(+sp.v) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
+  for (const sp of specs) { const y = specOK(sp) && specShown(sp) && !isNmSpec(sp) ? specPlot(sp) : NaN; if (isFinite(y)) { if (lo === Infinity) lo = hi = y; if (y < lo) lo = y; if (y > hi) hi = y; } }   // keep spec lines on screen
   if (lo === Infinity) { lo = 0; hi = 1; } else if (hi === lo) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * .06; lo -= pad; hi += pad;
-  const fixed = id => { const s = $(id).value.trim(); return s === "" ? NaN : ty(Number(s)); };   // typed Y limits override auto-scaling
+  const fixed = id => { const s = $(id).value.trim(); return s === "" ? NaN : Number(s); };   // typed Y limits override auto-scaling (in O.D. when the graph is)
   const y0 = fixed("ymin"), y1 = fixed("ymax");
   if (isFinite(y0)) lo = y0; if (isFinite(y1)) hi = y1;
   if (hi <= lo) hi = lo + 1;
@@ -1457,8 +1501,8 @@ function render() {
   }
   for (const sp of specs) {                                            // specifications: solid = absolute, dotted = average
     if (!specOK(sp) || !specShown(sp) || isNmSpec(sp)) continue;
-    const yv = ty(+sp.v); if (!isFinite(yv)) continue;
-    const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = sp.op === "ge" ? -1 : 1;   // ticks point to the passing side
+    const yv = specPlot(sp); if (!isFinite(yv)) continue;
+    const x0 = px(Math.min(+sp.a, +sp.b)), x1 = px(Math.max(+sp.a, +sp.b)), Y = py(yv), up = (sp.op === "ge") !== ((sp.meas === "OD") !== odOn()) ? -1 : 1;   // ticks point to the passing side (O.D. runs the other way from percent)
     ctx.strokeStyle = ctx.fillStyle = sp.kind === "best" ? "#4cd964" : P.spec; ctx.lineWidth = 2.5; ctx.lineCap = "round";
     ctx.setLineDash(sp.kind === "avg" || sp.kind === "best" ? [0.1, 6] : []);
     ctx.beginPath(); ctx.moveTo(x0, Y); ctx.lineTo(x1, Y); ctx.stroke(); ctx.setLineDash([]);
@@ -1470,8 +1514,29 @@ function render() {
   const seg = (l, c, w, dash) => { ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();   // drawn lines stay inside the plot area
     ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.setLineDash(dash ? [9, 7] : []);
     ctx.beginPath(); ctx.moveTo(px(l.x1), py(l.y1)); ctx.lineTo(px(l.x2), py(l.y2)); ctx.stroke(); ctx.restore(); };
-  if (!signalMode) for (const l of lines) seg(l, P.title, 2.5, l.dash);
-  if (ldrag && !light) seg(ldrag, "#f5a623", 2, true);                 // the line while you drag it out
+  pics.forEach((p, i) => { const r = picRect(p);
+    ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip(); ctx.drawImage(p.img, r.x, r.y, r.w, r.h);
+    if (!light && i === picHov && !drag) {                            // handles: a dashed frame, an X to remove it and a corner to resize it
+      ctx.strokeStyle = "#1a9fff"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.strokeRect(r.x + .5, r.y + .5, r.w - 1, r.h - 1); ctx.setLineDash([]);
+      ctx.fillStyle = "#d9322b"; ctx.beginPath(); ctx.arc(r.x + r.w - 11, r.y + 11, 8, 0, 7); ctx.fill();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(r.x + r.w - 14, r.y + 8); ctx.lineTo(r.x + r.w - 8, r.y + 14); ctx.moveTo(r.x + r.w - 8, r.y + 8); ctx.lineTo(r.x + r.w - 14, r.y + 14); ctx.stroke();
+      ctx.fillStyle = "#1a9fff"; ctx.beginPath(); ctx.moveTo(r.x + r.w, r.y + r.h - 14); ctx.lineTo(r.x + r.w, r.y + r.h); ctx.lineTo(r.x + r.w - 14, r.y + r.h); ctx.fill();
+    }
+    ctx.restore(); });
+  const placed = []; measBoxes = [];
+  const measLabel = (l, c) => {                                        // dots on both ends and the difference beside the middle
+    ctx.fillStyle = c; for (const [x, y] of [[l.x1, l.y1], [l.x2, l.y2]]) { ctx.beginPath(); ctx.arc(px(x), py(y), 3.5, 0, 7); ctx.fill(); }
+    const t = measText(l), t2 = measYText(l); ctx.font = "600 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    const w = Math.max(ctx.measureText(t).width, ctx.measureText(t2).width), ax = (px(l.x1) + px(l.x2)) / 2, ay = (py(l.y1) + py(l.y2)) / 2;   // ax, ay: the middle of the line
+    let mx = Math.min(Math.max(ax, L + w / 2 + 6), L + pw - w / 2 - 6), my = Math.max(Math.min(py(l.y1), py(l.y2)) - 8, T + 40);
+    if (l.ox != null) { mx = Math.min(Math.max(ax + l.ox, L + w / 2 + 6), L + pw - w / 2 - 6); my = Math.min(Math.max(ay + l.oy, T + 40), T + ph - 2); }   // a label you moved stays where you put it, relative to its line
+    else { while (placed.some(b => Math.abs(b.x - mx) < (b.w + w) / 2 + 6 && Math.abs(b.y - my) < 40)) my += 41; }   // two measurements close together: stack their labels instead of overlapping
+    placed.push({ x: mx, y: my, w });
+    if (l.ox != null && (mx - w / 2 - 5 > ax || mx + w / 2 + 5 < ax || my - 37 > ay || my + 2 < ay)) { ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(Math.min(Math.max(ax, mx - w / 2 - 5), mx + w / 2 + 5), Math.min(Math.max(ay, my - 37), my + 2)); ctx.stroke(); ctx.setLineDash([]); }   // a dotted leader back to its line
+    if (!light && l !== ldrag) measBoxes.push({ l, x0: mx - w / 2 - 5, y0: my - 37, x1: mx + w / 2 + 5, y1: my + 2, ax, ay, mx, my });
+    ctx.globalAlpha = .9; ctx.fillStyle = P.bg; ctx.fillRect(mx - w / 2 - 5, my - 37, w + 10, 39); ctx.globalAlpha = 1; ctx.fillStyle = c; ctx.fillText(t, mx, my - 18); ctx.fillText(t2, mx, my); };   // across on top, up or down underneath
+  if (!signalMode) for (const l of lines) { seg(l, P.title, l.meas ? 2 : 2.5, l.dash); if (l.meas) measLabel(l, P.title); }
+  if (ldrag && !light) { seg(ldrag, "#f5a623", 2, true); if (ldrag.meas) measLabel(ldrag, "#f5a623"); }   // the line while you drag it out
   for (const { p, li } of levels()) for (const s of S) {               // edge points: faint dashed level line + a marker at each crossing
     const e = edgePts(s, p); if (!e) continue;
     const yl = ty(e.thr); if (!isFinite(yl)) continue;
@@ -1510,10 +1575,12 @@ function render() {
       }
       ctx.restore();
     }
-    if (!light && !clean) {                                           // a small X at the top right: click it to remove this range
+    if (!light && !clean && dragged[k]) {                             // a small X at the top right: click it to remove this range (only on ranges you dragged; typed ones are handled in their boxes)
       const c = xBtn(k), g = 4;
       ctx.strokeStyle = RC[k]; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.beginPath();
-      ctx.moveTo(c.x - g, c.y - g); ctx.lineTo(c.x + g, c.y + g); ctx.moveTo(c.x + g, c.y - g); ctx.lineTo(c.x - g, c.y + g); ctx.stroke(); ctx.lineCap = "butt";
+      ctx.moveTo(c.x - g, c.y - g); ctx.lineTo(c.x + g, c.y + g); ctx.moveTo(c.x + g, c.y - g); ctx.lineTo(c.x - g, c.y + g);
+      const o = okBtn(k); ctx.moveTo(o.x - 5, o.y); ctx.lineTo(o.x - 1.5, o.y + 4); ctx.lineTo(o.x + 5, o.y - 4.5);   // and a check mark: keep it and move on
+      ctx.stroke(); ctx.lineCap = "butt";
     }
   });
   if (!light && !clean && (zoomed || ySaved)) {                        // a faint reminder, never printed
@@ -1560,7 +1627,7 @@ function render() {
       S.forEach(s => {
         const v = hoverY(s, x0), y = ty(v);
         if (!isFinite(v)) return;                                       // this scan has no data at this wavelength
-        lines.push({ t: s.nick + ": " + ys(v), c: s.color, name: s.nick, val: ys(v), at: "" });
+        lines.push({ t: s.nick + ": " + yShow(v), c: s.color, name: s.nick, val: yShow(v), at: "" });
         if (isFinite(y)) { ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(hx, py(y), 4, 0, 7); ctx.fill(); }
       });
       roLines = lines;
@@ -1630,7 +1697,7 @@ function setReadout(lines) {                     // the same values as the flag,
 addEventListener("resize", () => { $("readout").style.minHeight = ""; });   // a remembered height is no use at a new window width
 // ---------- 3d. FILTER TYPES (Bandpass, LWP, SWP, AR, Notch) ----------
 const ftype = () => signalMode ? "none" : (["Band", "Lwp", "Swp", "Ar", "Notch"].find(k => $("f" + k).checked) || "none").toLowerCase();
-const rangeGroups = () => ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
+const rangeGroups = () => ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: ALL, k: -1 }];   // no range marked: the whole scan, not just what is on screen
 function rangeStats(s, r) {                      // count, average, and the lowest / highest point of series s inside range r
   const o = { cnt: 0, sum: 0, mn: Infinity, mx: -Infinity, imn: -1, imx: -1 };
   for (let i = 0; i < s.n; i++) {
@@ -1679,7 +1746,7 @@ function filterTable(S) {                        // the results table under the 
                  notch: ["C W/L", "Notch width (FWHM)", "Min " + m + "%", "Min at", "Baseline " + m + "%", "OD at min"] }[ft];
   t.createCaption().textContent = { band: "Bandpass: the 50% points are half of the max " + measName(), lwp: "Long-wave pass: the cut-on is the 50% point of the max " + measName(),
     swp: "Short-wave pass: the cut-off is the 50% point of the max " + measName(), ar: "Anti-reflection " + measName(),
-    notch: "Notch: width is measured halfway between the baseline and the dip" }[ft] + ", inside each range (the whole view if no range is marked)";
+    notch: "Notch: width is measured halfway between the baseline and the dip" }[ft] + ", inside each range (the whole scan if no range is marked)";
   const addRow = (cells, tag, color) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); }); if (color) tr.firstChild.style.color = color; };
   addRow(["Range", "Series", ...head], "th");
   const edge = v => v === null ? "not in range" : xs(v), nm = v => v === null ? "–" : xs(v), w = v => v === null ? "–" : fmt(v) + xU();
@@ -1725,25 +1792,25 @@ const edgeSlope = d => d[80] != null && d[50] != null && d[5] != null && d[50] !
 function fdRows(type, s) {                       // the rows for this kind of filter: { l: label, v: value } or { l: label, subs: [[label, value], ...] }; wavelengths carry no unit, because the headings say (nm) once
   const U = yU(), M = ($("kR").checked ? "R" : "T") + "%", nm = v => v == null ? "–" : v.toFixed(2), pct = v => v == null ? "–" : v.toFixed(2) + " %";
   if (type === "ar") {
-    const st = rangeStats(s, view); if (!st.cnt) return [{ l: "Avg " + M, v: "–" }];
+    const st = rangeStats(s, ALL); if (!st.cnt) return [{ l: "Avg " + M, v: "–" }];
     return [{ l: "Avg " + M, v: st.avg.toFixed(2) + U }, { l: "Max " + M, v: st.mx.toFixed(2) + U }, { l: "Min " + M, v: st.mn.toFixed(2) + U }, { l: "Max at", v: nm(st.xmx) }, { l: "Min at", v: nm(st.xmn) }];
   }
   if (type === "notch") {
-    const n = notch(s, view); if (!n) return [{ l: "Base " + M, v: "–" }];
+    const n = notch(s, ALL); if (!n) return [{ l: "Base " + M, v: "–" }];
     return [{ l: "C W/L", v: nm(n.cwl) }, { l: "Width", v: nm(n.bw) }, { l: "OD", v: n.od == null ? "–" : n.od.toFixed(2) },
             { l: "Base " + M, v: n.base.toFixed(2) + U }, { l: "Min " + M, v: n.dip.toFixed(2) + U }, { l: "Min at", v: nm(n.dipx) }];
   }
   const pkL = "Peak " + M, E = reportEdges(s); if (!E) return [{ l: pkL, v: "–" }];
-  const peak = { l: pkL, v: E.pk.toFixed(2) + U }, side = d => [80, 50, 5].map(p => [p + "%", nm(d[p])]);
+  const peak = { l: pkL, v: E.pk.toFixed(2) + U }, side = d => [5, 50, 80].map(p => [p + "%", nm(d[p])]);
   if (type === "band") {
     const lo = E.rise[50], hi = E.fall[50], ok = lo != null && hi != null;
-    return [{ l: "C W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "B/W", v: ok ? nm(hi - lo) : "–" }, peak, { l: "Low side", subs: side(E.rise) }, { l: "High side", subs: side(E.fall) }];
+    return [{ l: "C W/L", v: ok ? nm((lo + hi) / 2) : "–" }, { l: "B/W", v: ok ? nm(hi - lo) : "–" }, peak, { l: "Low 50%", v: nm(lo) }, { l: "High 50%", v: nm(hi) }];   // a bandpass is judged on its 50% points; the 5% and 80% points are left to the Ranges tab
   }
   if (type === "lwp") return [peak, { l: "Slope", v: pct(edgeSlope(E.rise)) }, { l: "Edge", subs: side(E.rise) }];
   if (type === "swp") return [peak, { l: "Slope", v: pct(edgeSlope(E.fall)) }, { l: "Edge", subs: side(E.fall) }];
   const pair = (a, b, f) => { const t = [a, b].filter(v => v != null).map(f); return t.length ? t.join(" / ") : "–"; };   // type not known: show every edge found, rising first
   return [peak, { l: "Slope", v: pair(edgeSlope(E.rise), edgeSlope(E.fall), x => x.toFixed(2)) + (edgeSlope(E.rise) != null || edgeSlope(E.fall) != null ? " %" : "") },
-          { l: "Edge", subs: [80, 50, 5].map(p => [p + "%", pair(E.rise[p], E.fall[p], x => x.toFixed(2))]) }];
+          { l: "Edge", subs: [5, 50, 80].map(p => [p + "%", pair(E.rise[p], E.fall[p], x => x.toFixed(2))]) }];
 }
 function fdCompact(parent, rows) {               // the short layout, on the panel and the report: numbers three across, then low and high side points next to each other; returns how many "lines" of height it wants
   const mk = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }; let units = 0;
@@ -1761,7 +1828,7 @@ function fillRows(parent, rows) {                // draw rows made by fdRows (or
   let units = 0;
   const span = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
   for (const o of rows) {
-    const r = document.createElement("div"); r.className = "pfr"; r.append(span("l", o.l + ":"));
+    const r = document.createElement("div"); r.className = "pfr"; r.append(span("l", o.l + (o.color ? "" : ":"))); if (o.color) Object.assign(r.firstChild.style, { color: printColor(o.color), fontWeight: 700 });
     const u = 1 + .8 * (o.subs ? o.subs.length : 0); r.style.flexGrow = u; units += u; if (o.subs) r.classList.add("grp");
     if (o.subs) for (const [a, b] of o.subs) { const d = document.createElement("div"); d.className = "sub"; d.append(span("l", a + ":"), span("v", b)); r.append(d); }
     else r.append(span("v" + (o.odd ? " odd" : ""), o.v));
@@ -1792,6 +1859,7 @@ function renderLive(S) {                         // the Filter data panel beside
   body.scrollTop = top;
 }
 $("rptType").onchange = () => { RPT_TYPE = $("rptType").value; try { localStorage.setItem("plotRptType", RPT_TYPE); } catch (e) {} draw(); };
+$("odY").onchange = () => { $("ymin").value = $("ymax").value = ""; ySaved = null; renderSpecs(); draw(); };   // the old Y limits were in the other unit
 $("ldCurve").onchange = () => { const S = active(), v = $("ldCurve").value; ldPick = v === "all" ? null : S[+v].box; $("ldBody").scrollTop = 0; renderLive(S); };
 const GBGS = {                                   // graph colours for the Graph background setting on the page (the printed report is always black on white)
   gray: { bg: "#e4e4e4", ink: "#000000", tick: "#222", grid: "#b0b0b0", label: "#000", title: "#000", spec: "#000", noteBg: "#ffffffee", noteLine: "#444", noteText: "#000" },
@@ -1817,7 +1885,7 @@ function paintEmpty() {                       // nothing loaded yet: a plain pro
   ctx.fillStyle = pe[1]; ctx.font = "20px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText("Open a CSV file to see your graph", W / 2, H / 2 - 16);
   ctx.fillStyle = "#8f98a0"; ctx.font = "15px system-ui";
-  ctx.fillText("Use the Data tab below, drop a file on this page, or try the sample data.", W / 2, H / 2 + 16);
+  ctx.fillText("Use the Data tab below, drop a file on this page, or try the sample data on the Tips tab.", W / 2, H / 2 + 16);
 }
 const draw = () => { if (!view) return paintEmpty(); document.querySelectorAll(".mname").forEach(e => e.textContent = measName());
   document.querySelectorAll("#series label").forEach(l => { const nm = l.querySelector("input[type=text]"), c = l._s.c;   // keep the name boxes in step with the Scan type
@@ -1825,7 +1893,7 @@ const draw = () => { if (!view) return paintEmpty(); document.querySelectorAll("
 function edges(S) {                              // the Edge points table under the stats table
   const L = levels(), t = $("edges"); t.innerHTML = "";
   $("edgeBox").hidden = !L.length || !S.length || !view; if ($("edgeBox").hidden) return;
-  t.createCaption().textContent = "Edge points (percent of the max " + measName() + " in the current view)";
+  t.createCaption().textContent = "Edge points (percent of the scan's max " + measName() + ")";
   const addRow = (cells, tag, color) => { const tr = t.insertRow();
     cells.forEach((v, i) => { const c = document.createElement(tag); c.textContent = v; if (tag === "td" && i === 5) c.className = "cross"; tr.append(c); });
     if (color) tr.firstChild.style.color = color; };
@@ -1849,12 +1917,22 @@ RC.forEach((c, k) => {
   $("slots").append(b);
 });
 { const h = document.createElement("span"); h.className = "help"; h.tabIndex = 0; h.setAttribute("role", "note"); h.setAttribute("aria-label", "Help"); h.textContent = "?";
-  h.dataset.tip = "Drag on the graph to mark the highlighted (filled) range. Click a range button to show or hide its shading on the graph; a dashed button is hidden. Click a shaded band on the graph to zoom to it. Hidden ranges still appear in the tables below.";
+  h.dataset.tip = "Drag on the graph to mark the highlighted (filled) range. Click the check mark at its top right to keep it: the shading goes away and your next drag marks the next range (the X removes it). Click a range button to show or hide its shading on the graph; a dashed button is hidden. Click a shaded band on the graph to zoom to it. Hidden ranges still appear in the tables below.";
   $("slots").append(h); }
-const TI = RC.map((c, k) => {                    // typed From / To boxes, one pair per range
+const SHOWS = [["mn", "Min"], ["mx", "Max"], ["avg", "Avg"], ["od", "O.D."]];
+const rshow = RC.map(() => ({ mn: false, mx: false, avg: true, od: false }));   // what each range shows in the table: a new range starts with its average
+for (const t of ["", "", "", ...SHOWS.map(x => x[1])]) { const h = document.createElement("span"); h.className = "th"; h.textContent = t; $("typed").append(h); }
+const IND_HEAD = ["Min", "Max", "Average"].map((t, j) => { const h = document.createElement("span"); h.className = "th indh" + (j ? "" : " ind0"); h.textContent = t; $("typed").append(h); return h; });
+const IND = [];                                   // each range's Min / Max / Average boxes
+const TI = RC.map((c, k) => {                    // typed From / To boxes, one pair per range, then its Min / Max / Avg / O.D. ticks
   const mk = ph => { const i = document.createElement("input"); i.type = "text"; i.placeholder = ph; i.setAttribute("aria-label", "Range " + (k + 1) + " " + ph); i.onchange = () => typed(k); return i; };
   const lab = document.createElement("b"); lab.textContent = "Range " + (k + 1); lab.style.color = c;
-  const a = mk("From"), b = mk("To"); $("typed").append(lab, a, b); return [a, b];
+  const a = mk("From"), b = mk("To"); $("typed").append(lab, a, b);
+  for (const [key, name] of SHOWS) { const l = document.createElement("label"), i = document.createElement("input"); l.className = "ck"; i.type = "checkbox"; i.checked = rshow[k][key];
+    i.setAttribute("aria-label", "Range " + (k + 1) + ": show " + name); i.onchange = () => { rshow[k][key] = i.checked; draw(); }; l.append(i); $("typed").append(l); }
+  IND[k] = ["mn", "mx", "avg"].map((key, j) => { const o = document.createElement("input"); o.type = "text"; o.readOnly = true; o.tabIndex = -1; o.className = "ind" + (j ? "" : " ind0");
+    o.setAttribute("aria-label", "Range " + (k + 1) + " " + ["minimum", "maximum", "average"][j]); $("typed").append(o); return o; });
+  return [a, b];
 });
 const showIn = v => xkind === "date" ? new Date(v).toISOString() : String(+v.toPrecision(10));
 const readIn = s => { s = s.trim(); return s === "" ? NaN : xkind === "date" ? (/^\d+(\.\d+)?$/.test(s) ? Number(s) : Date.parse(s)) : Number(s); };
@@ -1863,7 +1941,9 @@ function typed(k) {                              // apply what was typed into ra
   if (ia.value.trim() === "" && ib.value.trim() === "") ranges[k] = null;
   else if (isFinite(a) && isFinite(b) && a !== b) ranges[k] = { a: Math.min(a, b), b: Math.max(a, b) };
   else { for (const i of [ia, ib]) i.style.borderColor = "#ff5a7a"; return; }   // not usable yet: flag it, keep the old range
-  cur = k; shown[k] = true; draw();
+  shown[k] = true; dragged[k] = false; cur = k;
+  for (let j = 1; j <= 6; j++) { const n = (k + j) % 6; if (!ranges[n]) { cur = n; break; } }   // a drag on the graph goes into the next empty range, never over one you typed
+  draw();
 }
 function stats(S) {
   [...$("slots").querySelectorAll("button")].forEach((b, k) => {
@@ -1877,13 +1957,23 @@ function stats(S) {
   });
   $("zoom").disabled = $("clear").disabled = !ranges[cur];
   $("clearall").disabled = !ranges.some(Boolean);
+  const s0 = S[0];                                 // the boxes beside the ranges show the first scan; the table under the graph lists every scan
+  IND_HEAD.forEach((h, j) => h.textContent = ["Min", "Max", "Average"][j] + (S.length > 1 && s0 ? " · " + s0.nick : ""));
+  IND.forEach((boxes, k) => {
+    const r = ranges[k], pk = rshow[k]; let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
+    if (r && s0) for (let i = 0; i < s0.n; i++) { const x = s0.X[i], y = s0.c.v[i]; if (!(x >= r.a && x <= r.b) || !isFinite(y)) continue; cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; } }
+    const show = v => ys(v) + (pk.od ? isFinite(toOD(v)) ? "  (" + fmt(toOD(v)) + " O.D.)" : "  (no O.D.)" : "");
+    [["mn", mn, xa], ["mx", mx, xb], ["avg", sum / cnt, null]].forEach(([key, v, at], j) => { const o = boxes[j];
+      o.style.visibility = pk[key] ? "" : "hidden"; o.value = cnt ? show(v) : ""; o.title = cnt && at != null ? "at " + xs(at) : ""; });   // Min and Max say where they are when you point at them
+  });
   const t = $("stats"); t.innerHTML = "";
   if ($("spec").value.trim()) t.createCaption().textContent = "Specs: " + $("spec").value.trim();
-  const want = [["cMin", "Min"], ["cMinAt", "Min at"], ["cMax", "Max"], ["cMaxAt", "Max at"], ["cAvg", "Average"]].filter(([id]) => $(id).checked);
+  const groups = ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
+  const picks = k => k < 0 ? {} : rshow[k];                            // the whole view (no range marked) shows only the scan names
+  const want = [["mn", "Min"], ["mnAt", "Min at"], ["mx", "Max"], ["mxAt", "Max at"], ["avg", "Average"]].filter(([id]) => groups.some(g => picks(g.k)[id.replace("At", "")]));
   const addRow = (cells, tag, color) => { const tr = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; tr.append(c); });
                                           if (color) tr.firstChild.style.color = color; };
   addRow(["Range", "Series", ...want.map(w => w[1])], "th");
-  const groups = ranges.some(Boolean) ? ranges.map((r, k) => r && { r, k }).filter(Boolean) : [{ r: view, k: -1 }];
   for (const { r, k } of groups) {
     const label = (k < 0 ? "View" : "#" + (k + 1)) + "  " + xs(r.a) + "  →  " + xs(r.b);
     S.forEach((s, si) => {
@@ -1893,8 +1983,9 @@ function stats(S) {
         if (!(x >= r.a && x <= r.b) || !isFinite(y)) continue;
         cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; }
       }
-      const val = { cMin: ys(mn), cMinAt: xs(xa), cMax: ys(mx), cMaxAt: xs(xb), cAvg: ys(sum / cnt) };
-      addRow([si ? "" : label, s.nick, ...want.map(([id]) => cnt ? val[id] : "–")], "td", k < 0 ? "var(--strong)" : RC[k]);
+      const pk = picks(k), withOD = v => ys(v) + (pk.od ? isFinite(toOD(v)) ? "  (" + fmt(toOD(v)) + " O.D.)" : "  (no O.D.)" : "");   // O.D. of the number shown: the lowest T is the highest O.D.
+      const val = { mn: withOD(mn), mnAt: xs(xa), mx: withOD(mx), mxAt: xs(xb), avg: withOD(sum / cnt) };
+      addRow([si ? "" : label, s.nick, ...want.map(([id]) => !pk[id.replace("At", "")] ? "" : cnt ? val[id] : "–")], "td", k < 0 ? "var(--strong)" : RC[k]);
     });
   }
 }
@@ -1926,7 +2017,7 @@ function drawNotes(P, W, H, px, py) {           // each note: a dot on its point
   const out = [];
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   for (const nt of notes) {
-    const ax = px(nt.ax), ay = py(nt.ay), lines = noteLines(nt);
+    const ax = px(nt.ax), ay = py(nt.sk ? plotY(nt.ay) : nt.ay), lines = noteLines(nt);   // a note on a scan holds the scan's own value
     ctx.font = noteFont(nt); const lh = Math.round((nt.fs || 14) * 1.4);          // each note has its own font
     if (!lines.length || !(nt.ax >= view.a && nt.ax <= view.b) || ay < G.T - 1 || ay > G.T + G.ph + 1) continue;   // its point is off the screen
     let shown = lines, w;
@@ -1963,7 +2054,7 @@ function anchorAt(e) {                          // a data point close to the poi
   let best = null, bd = 16;
   for (const s of active()) for (let i = 0; i < s.n; i++) {
     const x = s.X[i], y = s.c.v[i]; if (!(x >= view.a && x <= view.b) || !isFinite(y)) continue;
-    const p = toPx(x, y), d = Math.hypot(p.x - mx, p.y - my); if (d < bd) { bd = d; best = { ax: x, ay: y, s }; }
+    const p = toPx(x, plotY(y)), d = Math.hypot(p.x - mx, p.y - my); if (d < bd) { bd = d; best = { ax: x, ay: y, s }; }
   }
   return best || { ax: view.a + (mx - G.L) / G.pw * (view.b - view.a), ay: G.hi - (my - G.T) / G.ph * (G.hi - G.lo) };
 }
@@ -2074,6 +2165,18 @@ const bandAt = e => {                           // which range's band the pointe
   for (const k of [cur, 0, 1, 2, 3, 4, 5]) { const r = ranges[k]; if (r && shown[k] && x >= r.a && x <= r.b) return k; }
   return -1;
 };
+const okBtn = k => { const c = xBtn(k); return { x: c.x - 20, y: c.y }; };   // the check mark sits just left of the X
+const okBtnAt = e => {                          // which range's check mark the pointer is over (-1 for none)
+  if (!view) return -1;
+  const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = okBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
+  return -1;
+};
+function acceptRange(k) {                        // keep range k but hide its shading, and make the next empty range the one a drag fills
+  shown[k] = false;
+  for (let j = 1; j <= 6; j++) { const n = (k + j) % 6; if (!ranges[n]) { cur = n; shown[n] = true; break; } }
+  draw();
+}
 function xBtn(k) {                              // centre of range k's little X, kept inside the plot area
   const r = ranges[k], x1 = Math.min(G.L + G.pw, G.L + (r.b - view.a) / (view.b - view.a) * G.pw);
   return { x: x1 - 13, y: G.T + 13 };
@@ -2081,19 +2184,23 @@ function xBtn(k) {                              // centre of range k's little X,
 const xBtnAt = e => {                           // which range's X the pointer is over (-1 for none)
   if (!view) return -1;
   const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
-  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k]) continue; const c = xBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
+  for (const k of [cur, 0, 1, 2, 3, 4, 5]) { if (!ranges[k] || !shown[k] || !dragged[k]) continue; const c = xBtn(k); if (Math.abs(mx - c.x) <= 9 && Math.abs(my - c.y) <= 9) return k; }
   return -1;
 };
 const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = true; draw(); };
 cv.addEventListener("pointermove", e => {
   if (drag || !view) return;
-  const nh = noteHit(e); cv.style.cursor = nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : xBtnAt(e) >= 0 ? "pointer" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
+  const pc = picAt(e), ph0 = pc ? pc.i : -1; if (ph0 !== picHov) { picHov = ph0; redraw(); }
+  const nh = noteHit(e); cv.style.cursor = !nh && measHit(e) ? "move" : !nh && pc ? (pc.part === "x" ? "pointer" : pc.part === "grip" ? "nwse-resize" : "move") : nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : xBtnAt(e) >= 0 || okBtnAt(e) >= 0 ? "pointer" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
   const f = frac(e); hov = f >= 0 && f <= 1 ? view.a + f * (view.b - view.a) : null; redraw();
 });
-cv.addEventListener("pointerleave", () => { hov = null; redraw(); });
+cv.addEventListener("pointerleave", () => { hov = null; picHov = -1; redraw(); });
 
 const yAt = e => G.hi - Math.min(1, Math.max(0, (e.clientY - cv.getBoundingClientRect().top - G.T) / G.ph)) * (G.hi - G.lo);
 const yText = v => String(+v.toPrecision(6));
+const sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v));
+const measText = l => { const d = l.x2 - l.x1; return sgn(d) + " nm  (" + (l.x1 ? sgn(d / l.x1 * 100) : "–") + " %)"; };
+const measYText = l => sgn(l.y2 - l.y1) + (odOn() ? " O.D." : " %" + ($("kR").checked ? "R" : "T"));   // the height difference: points of %T (or %R, or O.D. when the graph shows it)   // e.g. from 2075 to 2100: +25.00 nm (+1.20 %), the change measured from where you started
 function boxZoom(e) {                            // right-drag: zoom both X and Y to the box
   if (!view) return;
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
@@ -2111,17 +2218,17 @@ function boxZoom(e) {                            // right-drag: zoom both X and 
 }
 function lineDraw(e) {                          // Ctrl + drag: draw a line (or a spec) from where you pressed to where you let go
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
-  const as = $("drawAs").value, flat = as !== "solid" && as !== "dash", sx = e.clientX, sy = e.clientY;
+  const as = $("drawAs").value, meas = as === "meas", flat = as !== "solid" && as !== "dash" && !meas, sx = e.clientX, sy = e.clientY;
   const snap = (x, ev) => ev.shiftKey ? Math.round(x) : x;              // Shift: whole nanometres, as for ranges
   const x0 = snap(xAt(e), e), y0 = yAt(e); let moved = false;
-  const at = ev => ({ x1: x0, y1: y0, x2: snap(xAt(ev), ev), y2: flat ? y0 : yAt(ev) });
+  const at = ev => ({ x1: x0, y1: y0, x2: snap(xAt(ev), ev), y2: flat ? y0 : yAt(ev), meas });
   const move = ev => { if (Math.abs(ev.clientX - sx) > 4 || Math.abs(ev.clientY - sy) > 4) moved = true; if (moved) { ldrag = at(ev); redraw(); } };
   const up = ev => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up);
     drag = false; ldrag = null; const l = at(ev);
     if (moved && ev.type === "pointerup" && (l.x2 !== l.x1 || (!flat && l.y2 !== l.y1))) {
       if (flat && l.x2 === l.x1) return redraw(true);
-      if (flat) { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText(l.y1), kind: as }); renderSpecs(); }
-      else { lines.push({ ...l, dash: as === "dash" }); renderLines(); }
+      if (flat) { specs.push({ a: yText(Math.min(l.x1, l.x2)), b: yText(Math.max(l.x1, l.x2)), meas: odOn() ? "OD" : $("kR").checked ? "R" : "T", op: $("drawOp").value, v: yText(l.y1), kind: as }); renderSpecs(); }
+      else { lines.push({ ...l, dash: as === "dash" }); renderLines(); }   // a measurement is a line that also shows the difference
       draw();
     } else redraw(true); };
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
@@ -2133,12 +2240,15 @@ cv.addEventListener("pointerdown", e => {
   if (e.button !== 0) return;
   if (e.ctrlKey) return lineDraw(e);
   const xb = xBtnAt(e); if (xb >= 0) { ranges[xb] = null; shown[xb] = true; return draw(); }   // the X on a range removes it
+  const ok = okBtnAt(e); if (ok >= 0) return acceptRange(ok);           // the check mark keeps it
   const nh = noteHit(e); if (nh) return dragNote(e, nh);               // grab a note to move it
+  const mh = measHit(e); if (mh) return dragMeas(e, mh);               // or a measurement's label
+  const pc = picAt(e); if (pc) { if (pc.part === "x") { pics.splice(pc.i, 1); picHov = -1; return draw(); } return dragPic(e, pc); }   // or a pasted picture
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
   const x0 = xAt(e), sx = e.clientX, hit = bandAt(e); let moved = false;
   const snap = (x, ev) => ev.shiftKey ? Math.round(x) : x;   // hold Shift: snap to whole nanometres
   const move = ev => { if (Math.abs(ev.clientX - sx) > 4) moved = true;
-    if (moved) { const a = snap(x0, ev), b = snap(xAt(ev), ev); if (a !== b) { ranges[cur] = { a: Math.min(a, b), b: Math.max(a, b) }; shown[cur] = true; redraw(true); } } };
+    if (moved) { const a = snap(x0, ev), b = snap(xAt(ev), ev); if (a !== b) { ranges[cur] = { a: Math.min(a, b), b: Math.max(a, b) }; shown[cur] = true; dragged[cur] = true; redraw(true); } } };
   const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up);
     drag = false; if (!moved && hit >= 0) zoomTo(hit); else redraw(true); };   // a click (not a drag) on a band zooms to it
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
@@ -2152,9 +2262,10 @@ function resetView() {                           // Reset view button and double
   view = baseView(); zoomed = false; draw();
 }
 $("reset").onclick = resetView;
-cv.addEventListener("dblclick", e => { const b = noteHit(e); if (b && b.part === "grip") { delete b.nt.bw; return redraw(true); } b ? openNotePop(e, { note: b.nt }) : resetView(); });   // double-click the corner: automatic width again
+cv.addEventListener("dblclick", e => { const m = measHit(e); if (m) { delete m.l.ox; delete m.l.oy; return redraw(true); }   // double-click a measurement's label: back to its own spot
+  const b = noteHit(e); if (b && b.part === "grip") { delete b.nt.bw; return redraw(true); } b ? openNotePop(e, { note: b.nt }) : resetView(); });   // double-click the corner: automatic width again
 for (const id of ["xmin", "xmax"]) $(id).addEventListener("input", () => { if (view) { view = baseView(); zoomed = false; draw(); } });   // typed X limits apply right away
-for (const id of ["fNone", "fBand", "fLwp", "fSwp", "fAr", "fNotch", "fShow", "cMin", "cMinAt", "cMax", "cMaxAt", "cAvg", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec", "anShow", "anReport"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
+for (const id of ["fNone", "fBand", "fLwp", "fSwp", "fAr", "fNotch", "fShow", "kT", "kR", "style", "pts", "title", "spec", "ymin", "ymax", "m1", "m2", "lv1", "lv2", "dec", "anShow", "anReport"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, draw);
 // ---------- 5b. MODIFY TAB: shift and smooth, per scan ----------
 let modSel = "all";                              // which scan the Modify buttons change: a scan's id, or "all" (only offered when several are loaded)
 const targets = () => modSel === "all" || files.length < 2 ? files : files.filter(f => f.id === +modSel);
@@ -2234,8 +2345,48 @@ let tab0 = "ranges"; try { tab0 = localStorage.getItem("plotTab") || tab0; } cat
 const startTab = () => TABS.some(b => b.dataset.tab === tab0) ? tab0 : "ranges";
 showTab("data", false); draw();                  // opens on the main page with an empty graph and the Open button
 
+// ---------- 6a. ICONS ON TABS AND BUTTONS (drawn here, 16 x 16, in the classic Windows style) ----------
+const DOC = '<path d="M3.5 1.5h6l3 3v10h-9z" fill="#fff" stroke="#4d5566"/><path d="M9.5 1.5v3h3" fill="#dde3ee" stroke="#4d5566"/>';
+const ICONS = {
+  open: '<path d="M1.5 13.5v-10h4l1.5 1.5h6v2.5" fill="#f3cf5b" stroke="#86620a"/><path d="M1.5 13.5l2.5-6.5h11l-2.5 6.5z" fill="#ffe28a" stroke="#86620a" stroke-linejoin="round"/>',
+  paste: '<rect x="2.5" y="2.5" width="10" height="12" rx="1" fill="#c8954f" stroke="#6b4a1c"/><rect x="5.5" y="1.5" width="4" height="3" rx=".5" fill="#d9d9d9" stroke="#555"/><rect x="7.5" y="6.5" width="7" height="8" fill="#fff" stroke="#4d5566"/><path d="M9 9h4M9 11h4M9 13h2.5" stroke="#7a8aa0"/>',
+  doc: DOC + '<path d="M5 7.5h6M5 9.5h6M5 11.5h6" stroke="#7a8aa0"/>',
+  addfile: DOC + '<path d="M5 6.5h4M5 8.5h3" stroke="#7a8aa0"/><circle cx="11.5" cy="11.5" r="3.5" fill="#2e9e3e" stroke="#16601f"/><path d="M11.5 9.5v4M9.5 11.5h4" stroke="#fff" stroke-width="1.3"/>',
+  plus: '<circle cx="8" cy="8" r="6.5" fill="#2e9e3e" stroke="#16601f"/><path d="M8 4.5v7M4.5 8h7" stroke="#fff" stroke-width="1.8"/>',
+  del: '<circle cx="8" cy="8" r="6.5" fill="#d9322b" stroke="#8a1410"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#fff" stroke-width="1.7"/>',
+  check: '<rect x="2.5" y="2.5" width="11" height="11" fill="#fff" stroke="#4d5566"/><path d="M4.8 8.2l2.1 2.1 4.4-4.8" fill="none" stroke="#1d7a2b" stroke-width="1.9"/>',
+  uncheck: '<rect x="2.5" y="2.5" width="11" height="11" fill="#fff" stroke="#4d5566"/>',
+  books: '<rect x="1.5" y="3.5" width="3.5" height="10" fill="#3a6fc4" stroke="#1d3d73"/><rect x="5" y="2.5" width="3.5" height="11" fill="#c43a3a" stroke="#6e1d1d"/><path d="M9.5 4.6l3-1.1 3 9.6-3 1.1z" fill="#3aa452" stroke="#1d5e2c" stroke-linejoin="round"/>',
+  pencil: '<path d="M2.5 13.5l1-3.5 7.6-7.6 2.5 2.5-7.6 7.6z" fill="#f2c14e" stroke="#6b4a1c" stroke-linejoin="round"/><path d="M2.6 13.4l.9-3.2 2.3 2.3z" fill="#f4dcb8" stroke="#6b4a1c" stroke-linejoin="round"/><path d="M10.4 3.1l2.5 2.5" stroke="#d9534f" stroke-width="2"/>',
+  monitor: '<rect x="1.5" y="2.5" width="13" height="9" rx="1" fill="#d6d6d6" stroke="#444"/><rect x="3" y="4" width="10" height="6" fill="#3d7bd6"/><path d="M3.5 9l3-3 2 2 2-2.5 2.5 3.5" fill="none" stroke="#bfe0ff"/><path d="M5.5 14.5h5M8 11.5v3" stroke="#444"/>',
+  ruler: '<rect x="1.5" y="5.5" width="13" height="5" fill="#f3d36b" stroke="#86620a"/><path d="M3.5 5.5v2M6 5.5v1.5M8.5 5.5v2.5M11 5.5v1.5M13 5.5v2" stroke="#86620a"/>',
+  note: '<path d="M2.5 2.5h11v8l-3 3h-8z" fill="#fff38a" stroke="#9a8a10" stroke-linejoin="round"/><path d="M13.5 10.5h-3v3" fill="#e8dc60" stroke="#9a8a10" stroke-linejoin="round"/><path d="M4.5 5.5h7M4.5 7.5h7M4.5 9.5h4" stroke="#b3a32a"/>',
+  specs: DOC + '<path d="M4.8 7l1 1 1.9-2M4.8 11l1 1 1.9-2" fill="none" stroke="#1d7a2b" stroke-width="1.3"/><path d="M8.8 7h2.5M8.8 11h2.5" stroke="#7a8aa0"/>',
+  filter: '<path d="M1.5 2.5h13l-5 6v5l-3 1.5v-6.5z" fill="#79b4f0" stroke="#244c80" stroke-linejoin="round"/><path d="M3.5 3.5h9" stroke="#d4eaff"/>',
+  save: '<rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="#3a5fb0" stroke="#1d2f5c"/><rect x="4" y="2" width="8" height="5" fill="#fff"/><rect x="9.5" y="3" width="1.5" height="3" fill="#3a5fb0"/><rect x="3.5" y="9.5" width="9" height="5" fill="#dcdcdc" stroke="#1d2f5c"/>',
+  bulb: '<path d="M8 1.5a4.5 4.5 0 0 1 2.6 8.2v1.8h-5.2v-1.8A4.5 4.5 0 0 1 8 1.5z" fill="#ffe14d" stroke="#8a7000"/><path d="M6.5 7.5l1.5 1.5 1.5-1.5" fill="none" stroke="#c99a00"/><rect x="5.5" y="12" width="5" height="2.5" rx=".5" fill="#b5b5b5" stroke="#555"/>',
+  print: '<rect x="4.5" y="1.5" width="7" height="5" fill="#fff" stroke="#555"/><rect x="1.5" y="6.5" width="13" height="6" rx="1" fill="#bdbdbd" stroke="#444"/><rect x="4.5" y="10.5" width="7" height="4" fill="#fff" stroke="#555"/><circle cx="12.5" cy="8.5" r=".9" fill="#2e9e3e"/>',
+  zoomin: '<circle cx="6.5" cy="6.5" r="4.5" fill="#e3f2ff" stroke="#333" stroke-width="1.3"/><path d="M10 10l4.5 4.5" stroke="#6b4a1c" stroke-width="2.4"/><path d="M4.3 6.5h4.4M6.5 4.3v4.4" stroke="#1d5bb8" stroke-width="1.3"/>',
+  zoomout: '<circle cx="6.5" cy="6.5" r="4.5" fill="#e3f2ff" stroke="#333" stroke-width="1.3"/><path d="M10 10l4.5 4.5" stroke="#6b4a1c" stroke-width="2.4"/><path d="M4.3 6.5h4.4" stroke="#1d5bb8" stroke-width="1.3"/>',
+  gear: '<circle cx="8" cy="8" r="5.6" fill="none" stroke="#6b6b6b" stroke-width="2.6" stroke-dasharray="2.2 2.2"/><circle cx="8" cy="8" r="4.4" fill="#a3a3a3" stroke="#4a4a4a"/><circle cx="8" cy="8" r="1.7" fill="#f2f2f2" stroke="#4a4a4a"/>',
+  chart: '<rect x="1.5" y="1.5" width="13" height="13" fill="#fff" stroke="#4d5566"/><path d="M3 12l3-4.5 3 2.5 4-6.5" fill="none" stroke="#2a63c6" stroke-width="1.5"/>',
+};
+const ICON_FOR = {                               // which picture goes on which button or tab
+  setBtn: "gear", openbtn: "open", pastebtn: "paste", demo: "chart", clearbtn: "del", addcsv: "addfile", serAll: "check", serNone: "uncheck",
+  fdOpen: "open", fdShow: "chart", fdAll: "check", fdNone: "uncheck", libAdd: "plus", libClear: "del", libDel: "del", libSave: "save",
+  zoom: "zoomin", clear: "del", clearall: "del", reset: "zoomout", anClear: "del", addspec: "plus", specSetLoad: "open", specSetDel: "del",
+  specSetSave: "save", specCsvOut: "save", specCsvAll: "save", specCsvIn: "open", csv: "save", printbtn: "print", rptGo: "print",
+  "tab:data": "doc", "tab:library": "books", "tab:modify": "pencil", "tab:display": "monitor", "tab:ranges": "ruler", "tab:annotate": "note",
+  "tab:specs": "specs", "tab:filter": "chart", "tab:export": "save", "tab:tips": "bulb",
+};
+for (const [k, name] of Object.entries(ICON_FOR)) {
+  const el = k.startsWith("tab:") ? document.querySelector('.tab[data-tab="' + k.slice(4) + '"]') : $(k); if (!el) continue;
+  const i = document.createElement("span"); i.className = "ic"; i.setAttribute("aria-hidden", "true");
+  i.innerHTML = '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">' + ICONS[name] + "</svg>"; el.prepend(i);
+}
+
 // ---------- 6b. MOUSE WHEEL ON NUMBER FIELDS (click in the box first, then scroll) ----------
-const NUMBOX = "#xmin, #xmax, #ymin, #ymax, #shfrom, #shto, #shx, #shy, #smfrom, #smto, #lv1, #lv2, .specrow input, #typed input";
+const NUMBOX = "#xmin, #xmax, #ymin, #ymax, #shfrom, #shto, #shx, #shy, #smfrom, #smto, #lv1, #lv2, .specrow input, #typed input:not([readonly])";
 addEventListener("wheel", e => {
   const el = e.target;
   if (!(el instanceof HTMLInputElement) || el !== document.activeElement || !el.matches(NUMBOX)) return;   // only the box you clicked in, so page scrolling is safe
@@ -2282,6 +2433,32 @@ function multiTable(forced, S) {                 // the Multi reports' table: on
     return o; };
   const data = S.map(flat), keys = [...new Set(data.flatMap(d => Object.keys(d)))].filter(k => type !== "band" || !/^(Low|High) (80|5)%/.test(k));   // a bandpass keeps to the 50% points so the table stays readable
   return { title: "Filter Data: " + (TYPE_NAMES[type] ? TYPE_NAMES[type] + " " : "") + "(" + XUNIT + ")", heads: ["Scan", ...keys], rows: S.map((s, i) => [{ t: s.nick, color: s.color }, ...keys.map(k => data[i][k] ?? "–")]) };
+}
+function rangeVals(s, r) {                        // one scan inside one range: lowest, highest (and where) and average
+  let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
+  for (let i = 0; i < s.n; i++) { const x = s.X[i], y = s.c.v[i]; if (!(x >= r.a && x <= r.b) || !isFinite(y)) continue; cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; } }
+  return cnt ? { mn, xa, mx, xb, avg: sum / cnt } : null;
+}
+const RKEYS = [["mn", "Min"], ["mx", "Max"], ["avg", "Avg"]];
+const rangeVal = (k, v, key, at) => ys(v[key]) + (rshow[k].od ? isFinite(toOD(v[key])) ? " (" + fmt(toOD(v[key])) + " O.D.)" : " (no O.D.)" : "") + (at && key !== "avg" ? " at " + fx(key === "mn" ? v.xa : v.xb) : "");
+const rangeLines = () => rangeList().reduce((n, { k }) => n + 1 + RKEYS.filter(([key]) => rshow[k][key]).length, 0);   // how many lines the Range Data box would need
+const rangeList = () => ranges.map((r, k) => r && RKEYS.some(([key]) => rshow[k][key]) ? { r, k } : null).filter(Boolean);   // the ranges that have something ticked
+function rangeRows(s) {                          // the report's Range Data box: a group per range, a line per ticked value
+  return rangeList().map(({ r, k }) => { const v = rangeVals(s, r);
+    const pct = x => fmt(x) + " %" + ($("kR").checked ? "R" : "T"), subs = RKEYS.filter(([key]) => rshow[k][key]).map(([key, name]) => [name, v ? pct(v[key]) : "no data"]);   // just the numbers: no "at", and O.D. once, for the average
+    if (rshow[k].od) subs.push(["O.D.", v && isFinite(toOD(v.avg)) ? fmt(toOD(v.avg)) : "–"]);
+    return { l: fx(r.a) + " – " + fx(r.b), color: RC[k], subs }; });
+}
+function rangeTable(S) {                         // the same for Multi and Custom reports: a row per ticked value and a column per scan
+  const list = rangeList(); if (!list.length || !S.length) return null; const rows = [];
+  if (S.length === 1) {                          // one scan: a row per range and a column per value, which keeps it short enough to stay under the graph
+    const keys = RKEYS.filter(([key]) => list.some(({ k }) => rshow[k][key]));
+    return { title: "Range Data (" + XUNIT + ")", heads: ["Range", ...keys.map(x => x[1])], rows: list.map(({ r, k }) => { const v = rangeVals(S[0], r);
+      return [{ t: "Range " + (k + 1) + "  " + fx(r.a) + " – " + fx(r.b), color: RC[k] }, ...keys.map(([key]) => !rshow[k][key] ? "" : v ? rangeVal(k, v, key, true) : "no data")]; }) };
+  }
+  for (const { r, k } of list) RKEYS.filter(([key]) => rshow[k][key]).forEach(([key, name], j) =>
+    rows.push([j ? "" : { t: "Range " + (k + 1) + "  " + fx(r.a) + " – " + fx(r.b), color: RC[k] }, name, ...S.map(s => { const v = rangeVals(s, r); return v ? rangeVal(k, v, key, S.length <= 3) : "no data"; })]));
+  return { title: "Range Data (" + XUNIT + ")", heads: ["Range", "", ...S.map(s => ({ t: s.nick, color: s.color }))], rows };
 }
 function shortNames(S) {                         // full scan names for the report's key: drop an ending they all share, like ": Tx (%)"
   const parts = S.map(s => /^(.*): ([^:]*)$/.exec(s.name)), same = S.length > 1 && parts.every(m => m && m[2] === parts[0][2]);
@@ -2330,6 +2507,7 @@ function preparePrint() {                        // fill in the print-only parts
   const tbls = [], side = multi && S.length >= 1 && S.length <= 8;     // up to 8 scans: their numbers go in a column beside the graph, with a column of the table per scan
   const mt = multi && S.length ? multiTable(forced, S) : null; if (mt && !side) tbls.push(mt);
   const spt = specReport(S); if (spt) tbls.push(spt);
+  const rgt = wide ? rangeTable(S) : rangeLines() > 10 ? rangeTable(S.slice(0, 1)) : null; if (rgt) tbls.push(rgt);   // Multi and Custom list the ranges in a table; a single scan gets its own box beside the graph, unless there are too many lines to fit there
   const rw = side ? Math.min(140, Math.max(72, 30 + S.length * (S.length <= 4 ? 20 : 13.5))) : 0;   // mm: how wide that column is
   const keyText = shortNames(S).map((f, i) => S[i].nick === f ? f : S[i].nick + ": " + f);   // the key under the graph says which scan is which file
   let keyRows = 0, keyLeft = 0; for (const k of keyText) { const w = 8 + k.length * 1.75; if (w > keyLeft) { keyRows++; keyLeft = wide ? 267 : 211; } keyLeft -= w; }   // how many lines it wraps to
@@ -2347,23 +2525,29 @@ function preparePrint() {                        // fill in the print-only parts
   light = false; cv.style.width = cv.style.height = ""; render();
   $("printStamp").textContent = rpt.stamp ? "Printed " + new Date().toLocaleString() : "";
   const pf = $("printFields"); pf.innerHTML = "";
-  const box = title => { const b = document.createElement("div"), h = document.createElement("h4"); b.className = "pbox"; h.textContent = title; b.append(h); pf.append(b); return b; };
+  const box = title => { const b = document.createElement("div"); b.className = "pbox"; if (title) { const h = document.createElement("h4"); h.textContent = title; b.append(h); } pf.append(b); return b; };
   const row = (parent, label, value, odd) => { const r = document.createElement("div"), l = document.createElement("span"), v = document.createElement("span");
     r.className = "pfr"; l.className = "l"; v.className = "v" + (odd ? " odd" : ""); l.textContent = label + ":"; v.textContent = value; r.append(l, v); parent.append(r); return r; };
   const idBox = box("Filter I.D."), idRows = [];
   for (const [k, label] of RPT) { idRows.push({ l: label, v: rpt[k] || "" }); if (k === "op") idRows.push({ l: "Date", v: new Date().toLocaleDateString() }); }   // the date follows the technician
   const s = S[0], conds = [];
-  for (const [name, id, def, unit] of [["Polarization", "pol", "Random", ""], ["Angle of Incidence", "aoi", "0", " °"], ["Ambient Temperature", "tempC", "22", " °C"]]) {   // the conditions the scan stands for; one that differs from the usual (Random, 0°, 22 °C) is highlighted
+  for (const [name, id, def, unit] of [["Polarization", "pol", "Random", ""], ["A.O.I.", "aoi", "0", " °"], ["Temp", "tempC", "22", " °C"]]) {   // the conditions the scan stands for; one that differs from the usual (Random, 0°, 22 °C) is highlighted
     const v = $(id).value.trim(), odd = v !== "" && v.toLowerCase() !== def.toLowerCase() && !(isFinite(+v) && isFinite(+def) && +v === +def);
     $(id).classList.toggle("odd", odd); conds.push({ l: name, v: v === "" ? "" : v + unit, odd });
   }
   if (wide) idRows.push(...conds);                                     // Multi and Custom have no Filter Data box, so the conditions join this strip
-  idBox.style.flexGrow = fillRows(idBox, idRows) + 1;
+  idBox.style.flexGrow = wide ? fillRows(idBox, idRows) + 1 : fillRows(idBox, idRows) * .8 + 1;   // on a single report its rows sit closer together, leaving room for the numbers below
   if (!wide) {
     const fd = box("Filter Data (" + XUNIT + ")"), rows = [];
     if (S.length > 1) rows.push({ l: "Data for", v: s.nick });
-    const units = fillRows(fd, rows) + (s ? fdCompact(fd, fdRows(forced || effType(s), s)) : 0) + fillRows(fd, conds);   // the same numbers as the panel beside the graph, then the conditions
+    const units = fillRows(fd, rows) + (s ? fdCompact(fd, fdRows(forced || effType(s), s)) : 0);   // the same numbers as the panel beside the graph
     fd.style.flexGrow = units + 1;
+    const rr = s ? rangeRows(s) : [];
+    if (rr.length && !rgt) { const rb = box(null); rb.classList.add("tight"); fillRows(rb, rr); }   // what you ticked on the Ranges tab
+    const cb = box(null); cb.classList.add("tight"); fillRows(cb, conds.slice(0, 1));   // the conditions sit on their own at the bottom: Polarization, then A.O.I. and Temp side by side
+    const pair = document.createElement("div"); pair.className = "pfr pair";
+    for (const c of conds.slice(1)) { const l = document.createElement("span"), v = document.createElement("span"); l.className = "l"; v.className = "v" + (c.odd ? " odd" : ""); l.textContent = c.l + ":"; v.textContent = c.v; const d = document.createElement("span"); d.append(l, " ", v); pair.append(d); }
+    cb.append(pair);
   }
   const lg = $("printLegend"); lg.innerHTML = ""; lg.hidden = S.length < 2;   // one scan needs no key
   if (S.length > 1) S.forEach((sr, i) => {
@@ -2408,11 +2592,14 @@ function loadPasted(text) {                      // cells copied from Excel arri
 }
 addEventListener("paste", e => {                 // Ctrl+V anywhere except while typing in a box
   const el = e.target; if (el && el.closest && (el.closest("textarea, [contenteditable]") || (el.closest("input") && !/^(checkbox|radio|color|file)$/.test(el.type)))) return;
-  const t = e.clipboardData && e.clipboardData.getData("text/plain"); if (!t || !t.trim()) return;
+  const t = e.clipboardData && e.clipboardData.getData("text/plain");
+  if (!t || !t.trim()) { const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(f => f.type.startsWith("image/")); if (f) { e.preventDefault(); pastePic(f); } return; }   // a screenshot: put it on the graph
   e.preventDefault(); loadPasted(t);
 });
 $("pastebtn").onclick = async () => {
-  try { const t = await navigator.clipboard.readText(); if (t.trim()) loadPasted(t); else say("Nothing to paste yet: copy some cells in Excel first."); }
+  try { const t = await navigator.clipboard.readText(); if (t.trim()) return loadPasted(t); } catch (e) {}
+  try { for (const it of await navigator.clipboard.read()) { const ty = it.types.find(x => x.startsWith("image/")); if (ty) return pastePic(await it.getType(ty)); }   // no cells: maybe a screenshot
+        say("Nothing to paste yet: copy some cells in Excel, or take a screenshot, first."); }
   catch (e) { say("This browser wouldn't let the button read what you copied. Press Ctrl+V on this page instead."); }
 };
 $("file2").onchange = e => { openFiles(e.target.files, true); e.target.value = ""; };
@@ -2708,7 +2895,7 @@ function fxLeave() {                             // stop everything and put the 
 $("demo").onclick = e => {                       // the Andover 1064HC10 filter scan, stored at the top of this page
   e.preventDefault(); ingest($("sampledata").textContent, "1064HC10_sample.csv");
   $("title").value = "Andover 1064HC10 transmission";
-  $("ymin").value = "0"; $("ymax").value = "100";
+  if (!odOn()) { $("ymin").value = "0"; $("ymax").value = "100"; }   // 0 to 100 suits percent; in O.D. the graph fits itself
   draw();
 };
 
@@ -2720,7 +2907,7 @@ function dropFile(ds) {                          // take one scan off the graph;
 }
 function clearGraph() {                           // back to the empty starting screen
   files = []; scanNo = 0; cols = []; n = 0; X = []; xkind = "num"; view = null; zoomed = false; hov = null; ySaved = null; drag = false;
-  ranges = Array(6).fill(null); shown = Array(6).fill(true); cur = 0; notes = []; noteBoxes = []; shiftStamp++;
+  ranges = Array(6).fill(null); shown = Array(6).fill(true); cur = 0; notes = []; noteBoxes = []; pics = []; picHov = -1; shiftStamp++;
   for (const id of ["title", "spec", "shfrom", "shto", "shx", "shy", "smfrom", "smto", "xmin", "xmax", "ymin", "ymax"]) $(id).value = "";
   TI.forEach(([a, b]) => { a.value = b.value = ""; });
   $("series").innerHTML = ""; for (const id of ["stats", "specTbl", "edges", "bandTbl"]) $(id).innerHTML = "";
@@ -2782,7 +2969,7 @@ $("libSave").onclick = () => {
   if (!files.length || !files[0].text) return say("Load a scan first, then save it here.");
   const name = $("libName").value.trim() || files[0].fname.replace(/\.[^.]+$/, ""), u = userLib();
   u[name] = files[0].text;
-  if (saveUserLib(u)) { $("libName").value = ""; refreshLib(); $("libMat").value = "u:" + name; libPick(); say("Saved “" + name + "” to your library (kept in this browser)."); }
+  if (saveUserLib(u)) { $("libName").value = ""; refreshLib(); $("libMat").value = "u:" + name; libPick(); say("Saved “" + name + "” to Reference (kept in this browser)."); }
 };
 $("libDel").onclick = () => { const v = $("libMat").value; if (!v.startsWith("u:")) return; const u = userLib(); delete u[v.slice(2)]; saveUserLib(u); refreshLib(); };
 refreshLib();</script>
