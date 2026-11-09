@@ -8,10 +8,12 @@
   // Apply the saved look before the page paints, so there's no flash of the default theme
   try {
     const t = localStorage.getItem("homeTheme"), l = localStorage.getItem("homeLayout");
-    document.documentElement.dataset.theme = ["sardine", "coast", "mackerel"].includes(t) ? t : "steam";
+    document.documentElement.dataset.theme = ["sardine", "coast", "mackerel", "lemon", "tuna"].includes(t) ? t : "steam";
     document.documentElement.dataset.layout = ["right", "shelf"].includes(l) ? l : "side";
   } catch (e) { document.documentElement.dataset.theme = "steam"; document.documentElement.dataset.layout = "side"; }
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700&display=swap">   <!-- chunky label lettering for the folk-art tin themes; every theme has a system-font fallback -->
 <style>
 
   /* Every colour the page uses is a variable, so a theme (see section 10) only has to change these.
@@ -43,6 +45,7 @@
     --track: #000a;                        /* progress bar track */
     --tabs-bg: #ffffff08;
     --tile-bg: #000; --tile-text: #fff; --tile-glow: 0 0 10px var(--c);
+    --wall: none; --flower: none;          /* folk-art themes: a repeating wallpaper behind the page, and a little flower for card corners */
     --fish: none; --fish-op: .12;          /* tinned-fish themes tile a little fish picture across the banner */
   }
   * { box-sizing: border-box; margin: 0; }
@@ -77,7 +80,8 @@
 
   /* 3. TWO-COLUMN LAYOUT: fixed sidebar + flexible main area (CSS grid) */
   .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 0; }
-  .side, .main { overflow: auto; }                     /* each side scrolls on its own */
+  .side, .main { overflow: auto; }
+  .main { background: var(--wall) 0 0 / 120px 80px; }                     /* each side scrolls on its own */
   .side { background: var(--side); color: var(--side-text); padding: .8rem .5rem; }
   .side input { width: 100%; padding: .5rem .7rem; margin-bottom: .8rem; color: var(--side-text);
                 background: var(--input-bg); border: 1px solid var(--side-line); border-radius: var(--radius); }
@@ -247,6 +251,70 @@
   :root[data-theme=mackerel] .card { border-color: #d6a93a55; box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px #d6a93a33; }
   :root[data-theme=mackerel] .play { letter-spacing: .12em; border: 1px solid #fff3cf88; }
   :root[data-theme=mackerel] .progress div { background: linear-gradient(90deg, #b88a1e, #e6bf52); }
+
+  /* Folk-art tins (Lemon Tin, Spicy Tuna): hand-lettered fish-can packaging. Thick ink outlines, a ribbon banner across a sun medallion,
+     fish-and-star wallpaper, little flowers in every card corner, and loud flat colour. Both share the rules below; only the colours differ. */
+  :root:is([data-theme=lemon], [data-theme=tuna]) {
+    --ink: #1c1b5e; --paper: #fff4d9; --sun: #ffc933;
+    --text: var(--ink); --strong: var(--ink); --panel: var(--paper); --line: var(--ink); --muted: #5b4f8f; --radius: 8px;
+    --font: "Nunito", "Trebuchet MS", sans-serif; --display: "Lilita One", "Chalkboard SE", "Marker Felt", "Arial Rounded MT Bold", sans-serif;
+    --nav-bg: var(--ink); --nav-text: var(--paper); --nav-hover: var(--sun); --nav-on: var(--sun);
+    --side: var(--sun); --side-text: var(--ink); --side-muted: #7a5a00; --side-line: var(--ink); --input-bg: var(--paper);
+    --hover: #1c1b5e1f; --sel-bg: var(--ink); --sel-text: var(--sun);
+    --hero-blend: normal; --hero-text: var(--ink); --bar-glass: rgba(255, 244, 217, .95);
+    --track: #fff; --tabs-bg: var(--paper); --tile-bg: var(--paper); --tile-text: var(--ink); --tile-glow: 3px 3px 0 var(--ink);
+    --flower: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cg fill='%23fff4d9' stroke='%231c1b5e'%3E%3Ccircle cx='8' cy='3' r='2.6'/%3E%3Ccircle cx='13' cy='8' r='2.6'/%3E%3Ccircle cx='8' cy='13' r='2.6'/%3E%3Ccircle cx='3' cy='8' r='2.6'/%3E%3C/g%3E%3Ccircle cx='8' cy='8' r='2.6' fill='%23ffc933' stroke='%231c1b5e'/%3E%3C/svg%3E");
+  }
+  :root:is([data-theme=lemon], [data-theme=tuna]) body { font-weight: 600; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .top { border-bottom: 3px solid var(--sun); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .top a { font-family: var(--display); letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .side { border-right: 3px solid var(--ink); }
+  :root[data-layout=right]:is([data-theme=lemon], [data-theme=tuna]) .side { border-right: 0; border-left: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .games button { font-weight: 700; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .games i { box-shadow: inset 0 0 0 3px #fff4d9aa, 0 0 0 2px var(--ink); }
+  /* the sun medallion with a white ribbon banner across it */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero { border-bottom: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh) { padding-bottom: 88px; }   /* centre the medallion and ribbon above the strip that overlaps the banner */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg) h1 { padding: .12em 1.1em; font: 400 clamp(1.8rem, 5vw, 3rem) var(--display); letter-spacing: .03em; text-transform: uppercase;
+          color: var(--ink); background: var(--paper); border: 3px solid var(--ink); border-radius: 4px; box-shadow: 5px 5px 0 var(--ink); text-shadow: none; transform: rotate(-3deg); }
+  /* cards: ink outline, a hard shadow, and a flower in each corner */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .card { padding: 1.1rem 1.5rem; border: 3px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink);
+          background: var(--flower) left 5px top 5px / 15px no-repeat, var(--flower) right 5px top 5px / 15px no-repeat,
+                      var(--flower) left 5px bottom 5px / 15px no-repeat, var(--flower) right 5px bottom 5px / 15px no-repeat, var(--paper); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .card h2 { color: var(--ink); font-size: 1rem; letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .cols h3 { display: inline-block; padding: .15em .8em; color: var(--ink); font-size: 1rem; background: var(--paper); border: 3px solid var(--ink); border-radius: 4px; transform: rotate(-1.5deg); box-shadow: 3px 3px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero + .bar { border-bottom: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play { border: 3px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play:hover { filter: none; transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .ask button { font-weight: 700; border: 2px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tabs { border: 3px solid var(--ink); border-radius: 8px; font-weight: 700; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .progress { height: 14px; border: 2px solid var(--ink); border-radius: 99px; overflow: hidden; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tile { border-width: 2px; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tile.locked { box-shadow: 3px 3px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .post { border-bottom: 2px dashed var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .setbox { border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .setbox legend { color: var(--ink); font-family: var(--display); font-size: .9rem; }
+
+  /* Lemon Tin: blue label, sunshine yellow, carnation red (sardines with preserved lemon) */
+  :root[data-theme=lemon] {
+    --bg: #2f66d0; --accent: #d92d3a; --play: linear-gradient(#ee4a56, #d92d3a); --play-text: #fff4d9;
+    --hero-bg: radial-gradient(circle at 50% 96px, #ff8a1f 0 80px, #1c1b5e 80px 85px, #ffc933 85px 94px, #1c1b5e 94px 99px, transparent 99px),
+               repeating-conic-gradient(from 0deg at 50% 96px, #4a82e8 0 7.5deg, #2f66d0 7.5deg 15deg);
+    --ask-bg: #d92d3a1f; --ask-bg-h: #d92d3a44; --ask-text: #b3202c;
+    --wall: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%233a72dc'%3E%3Cg transform='translate(6 8) scale(.42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(114 52) scale(-.42 .42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cpath d='M92 12l2.5 6 6 .5-4.6 4 1.5 6-5.4-3.4-5.4 3.4 1.5-6-4.6-4 6-.5z'/%3E%3Cpath d='M22 62l2 5 5 .4-3.8 3.3 1.2 5-4.4-2.8-4.4 2.8 1.2-5-3.8-3.3 5-.4z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  :root[data-theme=lemon] .progress div { background: repeating-linear-gradient(45deg, #d92d3a 0 8px, #ee4a56 8px 16px); }
+
+  /* Spicy Tuna: hot pink label, orange sun, yellow border (albacore in spicy olive oil) */
+  :root[data-theme=tuna] {
+    --bg: #ee5fa7; --accent: #c01f6a; --play: linear-gradient(#ffa947, #ff7a1a); --play-text: var(--ink);
+    --hero-bg: radial-gradient(circle at 50% 96px, #ff8a1f 0 80px, #1c1b5e 80px 85px, #ffc933 85px 94px, #1c1b5e 94px 99px, transparent 99px),
+               repeating-conic-gradient(from 0deg at 50% 96px, #f67cb8 0 7.5deg, #ee5fa7 7.5deg 15deg);
+    --ask-bg: #c01f6a1f; --ask-bg-h: #c01f6a44; --ask-text: #a3185a;
+    --wall: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%23f574b5'%3E%3Cg transform='translate(6 8) scale(.42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(114 52) scale(-.42 .42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cpath d='M92 12l2.5 6 6 .5-4.6 4 1.5 6-5.4-3.4-5.4 3.4 1.5-6-4.6-4 6-.5z'/%3E%3Cpath d='M22 62l2 5 5 .4-3.8 3.3 1.2 5-4.4-2.8-4.4 2.8 1.2-5-3.8-3.3 5-.4z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  :root[data-theme=tuna] .progress div { background: repeating-linear-gradient(45deg, #ff7a1a 0 8px, #ffa947 8px 16px); }
 </style>
 </head>
 <body>
@@ -263,6 +331,8 @@
         <label><input type="radio" name="theme" value="sardine"><span class="sw" style="--sw:linear-gradient(90deg,#1d3557 34%,#f6cb55 34% 67%,#c8412b 67%)"></span>Sardine Tin</label>
         <label><input type="radio" name="theme" value="coast"><span class="sw" style="--sw:linear-gradient(90deg,#2f6f8f 34%,#cfe8df 34% 67%,#ee6a57 67%)"></span>Cannery Coast</label>
         <label><input type="radio" name="theme" value="mackerel"><span class="sw" style="--sw:linear-gradient(90deg,#0a1d20 34%,#143a40 34% 67%,#d6a93a 67%)"></span>Smoked Mackerel</label>
+        <label><input type="radio" name="theme" value="lemon"><span class="sw" style="--sw:linear-gradient(90deg,#2f66d0 34%,#ffc933 34% 67%,#d92d3a 67%)"></span>Lemon Tin</label>
+        <label><input type="radio" name="theme" value="tuna"><span class="sw" style="--sw:linear-gradient(90deg,#ee5fa7 34%,#ff8a1f 34% 67%,#ffc933 67%)"></span>Spicy Tuna</label>
       </fieldset>
       <fieldset>
         <legend>Layout</legend>
