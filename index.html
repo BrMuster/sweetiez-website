@@ -4,8 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Steams</title>
+<script>
+  // Apply the saved look before the page paints, so there's no flash of the default theme
+  try {
+    const t = localStorage.getItem("homeTheme"), l = localStorage.getItem("homeLayout");
+    document.documentElement.dataset.theme = ["sardine", "coast", "mackerel", "lemon", "tuna"].includes(t) ? t : "steam";
+    document.documentElement.dataset.layout = ["right", "shelf"].includes(l) ? l : "side";
+  } catch (e) { document.documentElement.dataset.theme = "steam"; document.documentElement.dataset.layout = "side"; }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700&display=swap">   <!-- chunky label lettering for the folk-art tin themes; every theme has a system-font fallback -->
 <style>
-  
+
+  /* Every colour the page uses is a variable, so a theme (see section 10) only has to change these.
+     The values here are the original Steam look. */
   :root {
     --bg: #1b2838;        /* main background */
     --side: #171d25;      /* darker sidebar */
@@ -15,48 +27,82 @@
     --muted: #8f98a0;
     --accent: #1a9fff;    /* blue for links, bars, active tab */
     --play: linear-gradient(#5ca51e, #3e7d14);
+    --play-text: #fff;
     --radius: 3px;        /* tiny radius: sharp corners are part of the look */
+    --strong: #fff;                        /* headings and hover text */
+    --font: "Motiva Sans", "Segoe UI", system-ui, sans-serif;
+    --display: var(--font);                /* headings */
+    --nav-bg: var(--side);                 /* top bar */
+    --nav-text: var(--text); --nav-hover: #fff; --nav-on: var(--accent);
+    --side-text: var(--text); --side-muted: var(--muted); --side-line: var(--line);
+    --input-bg: #0e141b;                   /* search box */
+    --hover: #ffffff0f; --sel-bg: #3d4a5c; --sel-text: #fff;   /* sidebar rows */
+    --hero-bg: radial-gradient(circle at 50% 40%, #3b3f8f, #232663 60%, #181a45),
+               repeating-linear-gradient(60deg, #ffffff08 0 30px, transparent 30px 60px);
+    --hero-blend: overlay; --hero-text: #fff;
+    --bar-glass: rgba(22, 32, 45, .55);    /* the see-through strip over the banner */
+    --ask-bg: #1a9fff2e; --ask-bg-h: #1a9fff55; --ask-text: var(--accent);
+    --track: #000a;                        /* progress bar track */
+    --tabs-bg: #ffffff08;
+    --tile-bg: #000; --tile-text: #fff; --tile-glow: 0 0 10px var(--c);
+    --wall: none; --flower: none;          /* folk-art themes: a repeating wallpaper behind the page, and a little flower for card corners */
+    --fish: none; --fish-op: .12;          /* tinned-fish themes tile a little fish picture across the banner */
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
   body {
     display: grid; grid-template-rows: auto 1fr;       /* top bar, then everything else */
     background: var(--bg); color: var(--text);
-    font: 14px/1.4 "Motiva Sans", "Segoe UI", system-ui, sans-serif;
+    font: 14px/1.4 var(--font);
   }
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
 
   /* 2. TOP BAR: uppercase text, with the active tab underlined */
-  .top { display: flex; gap: 1.6rem; padding: .8rem 1.2rem 0; background: var(--side); }
-  .top a { padding-bottom: .6rem; font-size: 1.15rem; text-transform: uppercase; color: var(--text);
+  .top { position: relative; display: flex; align-items: flex-start; gap: 1.6rem; padding: .8rem 1.2rem 0; background: var(--nav-bg); }
+  .top a { padding-bottom: .6rem; font-size: 1.15rem; text-transform: uppercase; color: var(--nav-text);
            text-decoration: none; border-bottom: 3px solid transparent; transition: color .15s; }
-  .top a:hover { color: #fff; }
-  .top a.on { color: var(--accent); border-color: var(--accent); }
+  .top a:hover { color: var(--nav-hover); }
+  .top a.on { color: var(--nav-on); border-color: var(--nav-on); }
+
+  /* SETTINGS: a button at the right of the top bar that drops down the Theme and Layout choices */
+  .setwrap { position: relative; margin-left: auto; padding-bottom: .5rem; }
+  #setBtn { padding: .3rem .8rem; font-size: .85rem; color: var(--nav-text); border: 1px solid currentColor; border-radius: var(--radius); opacity: .85; }
+  #setBtn:hover, #setBtn[aria-expanded=true] { opacity: 1; color: var(--nav-hover); }
+  .setbox { position: absolute; top: calc(100% + .1rem); right: 0; z-index: 40; min-width: 15rem; display: grid; gap: .9rem; padding: .9rem 1.1rem;
+            color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px #0006; }
+  .setbox[hidden] { display: none; }
+  .setbox fieldset { display: grid; gap: .15rem; padding: 0; border: 0; }
+  .setbox legend { margin-bottom: .3rem; font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .setbox label { display: flex; align-items: center; gap: .55rem; padding: .22rem .3rem; border-radius: var(--radius); cursor: pointer; }
+  .setbox label:hover { background: var(--hover); }
+  .setbox input { margin: 0; accent-color: var(--accent); }
+  .setbox .sw { width: 2.2rem; height: .9rem; flex: none; border: 1px solid #0004; border-radius: 3px; background: var(--sw); }   /* a tiny colour strip previewing each theme */
 
   /* 3. TWO-COLUMN LAYOUT: fixed sidebar + flexible main area (CSS grid) */
   .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 0; }
-  .side, .main { overflow: auto; }                     /* each side scrolls on its own */
-  .side { background: var(--side); padding: .8rem .5rem; }
-  .side input { width: 100%; padding: .5rem .7rem; margin-bottom: .8rem; color: var(--text);
-                background: #0e141b; border: 1px solid var(--line); border-radius: var(--radius); }
+  .side, .main { overflow: auto; }
+  .main { background: var(--wall) 0 0 / 120px 80px; }                     /* each side scrolls on its own */
+  .side { background: var(--side); color: var(--side-text); padding: .8rem .5rem; }
+  .side input { width: 100%; padding: .5rem .7rem; margin-bottom: .8rem; color: var(--side-text);
+                background: var(--input-bg); border: 1px solid var(--side-line); border-radius: var(--radius); }
 
   /* 4. COLLAPSIBLE GROUPS: <details> gives you the open/close  */
-  summary { padding: .35rem .5rem; font-size: .8rem; letter-spacing: .06em; color: var(--muted);
+  summary { padding: .35rem .5rem; font-size: .8rem; letter-spacing: .06em; color: var(--side-muted);
             text-transform: uppercase; cursor: pointer; }
   .games { list-style: none; padding: 0; }
   .games button { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .38rem .6rem;
                   text-align: left; border-radius: var(--radius); transition: background .12s; }
-  .games button:hover { background: #ffffff0f; }
-  .games .sel button { background: #3d4a5c; color: #fff; }
+  .games button:hover { background: var(--hover); }
+  .games .sel button { background: var(--sel-bg); color: var(--sel-text); }
   .games i { width: 18px; height: 18px; border-radius: 3px; background: var(--c); flex: none; }
-  .games .dim span { font-weight: 200; color: var(--muted); }
+  .games .dim span { font-weight: 200; color: var(--side-muted); }
 
   /* 5.  BANNER: a gradient */
-  .hero { display: grid; place-items: center; height: 280px; text-align: center;
-          background: radial-gradient(circle at 50% 40%, #3b3f8f, #232663 60%, #181a45),
-                      repeating-linear-gradient(60deg, #ffffff08 0 30px, transparent 30px 60px);
-          background-blend-mode: overlay; }
-  .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 500; text-shadow: 0 2px 12px #000a; color: #fff; }
+  .hero { position: relative; display: grid; place-items: center; height: 280px; text-align: center; overflow: hidden;
+          background: var(--hero-bg); background-blend-mode: var(--hero-blend); }
+  .hero:not(.logo):not(.plotbg):not(.slosh)::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+          background: var(--fish) 0 0 / 120px 80px; opacity: var(--fish-op); }   /* the tiled fish picture, only on the plain banner */
+  .hero h1 { position: relative; font: 500 clamp(1.8rem, 5vw, 3rem) var(--display); text-shadow: 0 2px 12px #000a; color: var(--hero-text); }
 
   /* Falling Pixels banner: a screenshot of the game itself (the title is poured out of water over sand). The <h1> stays in the page for screen readers and Edit mode, just hidden. */
   .hero.logo { background: #0a0a0e url("falling-pixels-hero.png") center 30% / cover no-repeat; background-blend-mode: normal; }
@@ -73,8 +119,8 @@
   /* 6. ACTION BAR: big green button + small label/value stat blocks */
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 1.6rem; padding: 1rem 1.5rem; }
   /* the bar slides up over the bottom of the banner as a see-through, slightly blurred strip (change .55 for more or less see-through) */
-  .hero + .bar { position: relative; margin-top: -88px; background: rgba(22, 32, 45, .55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-  .play { padding: .85rem 2.2rem; font-size: 1.3rem; color: #fff; text-transform: uppercase;
+  .hero + .bar { position: relative; margin-top: -88px; background: var(--bar-glass); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .play { padding: .85rem 2.2rem; font: 1.3rem var(--display); color: var(--play-text); text-transform: uppercase;
           background: var(--play); border-radius: var(--radius); transition: filter .15s, transform .1s; }
   .play { display: inline-block; text-decoration: none; }   /* so a link can look like a button */
   .play:hover { filter: brightness(1.15); }
@@ -83,32 +129,32 @@
   .stat small { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .stat b { font-weight: 500; }
 
-  .tabs { display: flex; gap: 2rem; margin: 0 1.5rem; padding: .7rem 1rem; background: #ffffff08; color: var(--muted); }
+  .tabs { display: flex; gap: 2rem; margin: 0 1.5rem; padding: .7rem 1rem; background: var(--tabs-bg); color: var(--muted); }
 
   /* 7. CONTENT CARDS */
   .cols { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; }
   .card { margin-bottom: 1.2rem; padding: 1rem 1.2rem; background: var(--panel); border-radius: var(--radius); }
-  .card h2, .cols h3 { margin-bottom: .6rem; font-size: .85rem; font-weight: 500; letter-spacing: .08em;
+  .card h2, .cols h3 { margin-bottom: .6rem; font: 500 .85rem var(--display); letter-spacing: .08em;
                        text-transform: uppercase; color: var(--muted); }
   .ask { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; }
-  .ask button { padding: .5rem 1rem; color: var(--accent); background: #1a9fff2e; border-radius: var(--radius); transition: background .15s; }
-  .ask button:hover { background: #1a9fff55; color: #fff; }
+  .ask button { padding: .5rem 1rem; color: var(--ask-text); background: var(--ask-bg); border-radius: var(--radius); transition: background .15s; }
+  .ask button:hover { background: var(--ask-bg-h); color: var(--strong); }
 
   /* UPDATE LOG: one post per update, newest first, like a Steam game's news feed */
   .post { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
   .post:last-of-type { border-bottom: 0; }
   .post small { display: block; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .post h4 { margin: .15rem 0 .4rem; font-size: 1.05rem; font-weight: 500; color: #fff; }
+  .post h4 { margin: .15rem 0 .4rem; font: 500 1.05rem var(--display); color: var(--strong); }
   .post ul { padding-left: 1.2rem; }
   .post li { margin-bottom: .2rem; }
   .none { margin-bottom: .8rem; color: var(--muted); }
 
   /* 8. PROGRESS BAR: one div inside another, the inner width is the percentage */
-  .progress { height: 8px; margin: .5rem 0 1rem; background: #000a; }
+  .progress { height: 8px; margin: .5rem 0 1rem; background: var(--track); }
   .progress div { width: 30%; height: 100%; background: var(--accent); }
   .tiles { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
-  .tile { display: grid; place-items: center; width: 48px; height: 48px; font-size: 1.5rem; color: #fff;
-          background: #000; border: 1px solid var(--c); box-shadow: 0 0 10px var(--c); border-radius: var(--radius); }
+  .tile { display: grid; place-items: center; width: 48px; height: 48px; font-size: 1.5rem; color: var(--tile-text);
+          background: var(--tile-bg); border: 1px solid var(--c); box-shadow: var(--tile-glow); border-radius: var(--radius); }
   .tile.locked { --c: transparent; color: #999; background: #444; filter: grayscale(1) brightness(.7); }
 
   /* 9. SMALL SCREENS: stack everything */
@@ -119,13 +165,193 @@
     .cols { grid-template-columns: 1fr; padding: 1rem; }
     .hero.plotbg, .hero.plotbg + .bar { margin-left: 1rem; margin-right: 1rem; }
     .hero.plotbg { height: clamp(200px, calc((100vw - 2rem) * .2917), 300px); }
+    .top { flex-wrap: wrap; }
   }
+
+  /* 10. LAYOUTS (Settings > Layout). Wide screens only: small screens always stack. */
+  @media (min-width: 801px) {
+    /* Sidebar on the right */
+    :root[data-layout=right] .layout { grid-template-columns: 1fr 260px; }
+    :root[data-layout=right] .side { grid-column: 2; grid-row: 1; }
+    :root[data-layout=right] .main { grid-column: 1; grid-row: 1; }
+    /* Shelf: the game list lies along the top like tins on a shelf, and the page below gets the full width */
+    :root[data-layout=shelf] .layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+    :root[data-layout=shelf] .side { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .3rem 1.4rem; overflow: visible; padding: .7rem 1.2rem; border-bottom: 1px solid var(--side-line); }
+    :root[data-layout=shelf] .side input { width: 220px; margin-bottom: 0; }
+    :root[data-layout=shelf] .side details { flex: 1 1 auto; }
+    :root[data-layout=shelf] .games { display: flex; flex-wrap: wrap; gap: .35rem; }
+    :root[data-layout=shelf] .games button { width: auto; padding: .35rem .8rem .35rem .6rem; border: 1px solid var(--side-line); }
+  }
+
+  /* 11. TINNED FISH THEMES (Settings > Theme): mid-century tin labels and vintage coast. The Steam look above is the default. */
+  :root:not([data-theme=steam]) .games i { border-radius: 50%; box-shadow: inset 0 0 0 3px #ffffff66, inset 0 0 0 4px #0003; }   /* the colour chips become tin lids */
+  :root:not([data-theme=steam]) .tile { border-radius: 50%; }
+  :root:not([data-theme=steam]) .card { border: 1px solid var(--line); }
+  :root:not([data-theme=steam]) .top a, :root:not([data-theme=steam]) .stat small, :root:not([data-theme=steam]) summary { letter-spacing: .08em; }
+
+  /* Sardine Tin: mustard sunburst, navy label, cream paper and tomato red */
+  :root[data-theme=sardine] {
+    --bg: #f1e6cb; --side: #1d3557; --panel: #fbf4e2; --line: #d9c9a3; --text: #2d2a26; --muted: #75694f;
+    --accent: #c8412b; --play: linear-gradient(#f6cb55, #d9a116); --play-text: #1d3557; --radius: 4px; --strong: #1d3557;
+    --font: "Futura", "Century Gothic", "Trebuchet MS", sans-serif; --display: "Rockwell", "Rockwell Nova", Georgia, serif;
+    --nav-text: #f6ecd2; --nav-hover: #f6cb55; --nav-on: #f6cb55;
+    --side-text: #f6ecd2; --side-muted: #a9b9d3; --side-line: #34527f; --input-bg: #14263f;
+    --hover: #ffffff1a; --sel-bg: #f6cb55; --sel-text: #1d3557;
+    --hero-bg: radial-gradient(ellipse at 50% 100%, transparent 35%, #1d355766),
+               repeating-conic-gradient(from 0deg at 50% 118%, #f6cb55 0 6deg, #e9b32c 6deg 12deg);
+    --hero-blend: normal; --hero-text: #f6ecd2; --bar-glass: rgba(251, 244, 226, .88);
+    --ask-bg: #c8412b1f; --ask-bg-h: #c8412b44; --ask-text: #b13420; --track: #d9c9a3; --tabs-bg: #1d35570f;
+    --tile-bg: #1d3557; --tile-text: #f6ecd2; --tile-glow: 0 2px 0 #0003;
+    --fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%23c88f12'%3E%3Cg transform='translate(4 6) scale(.5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(116 46) scale(-.5 .5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); --fish-op: .4;
+  }
+  :root[data-theme=sardine] .hero:not(.logo):not(.plotbg) h1 { padding: .3em 1.5em; background: #1d3557; border: 3px solid #f6ecd2; outline: 3px solid #1d3557; border-radius: 999px; text-shadow: none; letter-spacing: .04em; }
+  :root[data-theme=sardine] .card { border: 2px solid #1d3557; box-shadow: 4px 4px 0 #d9c9a3; }
+  :root[data-theme=sardine] .play { border: 2px solid #1d3557; border-radius: 999px; box-shadow: 0 3px 0 #1d3557; }
+  :root[data-theme=sardine] .progress div { background: #c8412b; }
+
+  /* Cannery Coast: seafoam and sea-blue stripes, sandy cream and coral, like a seaside postcard */
+  :root[data-theme=coast] {
+    --bg: #f8f2e2; --side: #cfe8df; --panel: #fffaf0; --line: #bcd8cf; --text: #23454b; --muted: #5f8284;
+    --accent: #d9503c; --play: linear-gradient(#f58a78, #e0533f); --play-text: #fff; --radius: 14px; --strong: #1b4a58;
+    --font: "Avenir Next", "Nunito", "Trebuchet MS", sans-serif; --display: Georgia, "Palatino Linotype", serif;
+    --nav-bg: #2f6f8f; --nav-text: #fdf4df; --nav-hover: #fff; --nav-on: #ffd27a;
+    --side-text: #1f4f55; --side-muted: #4f7f7b; --side-line: #a9cfc3; --input-bg: #fffaf0;
+    --hover: #ffffff99; --sel-bg: #ee6a57; --sel-text: #fff;
+    --hero-bg: repeating-linear-gradient(0deg, #bfe0d6 0 26px, #d6eee7 26px 52px);
+    --hero-blend: normal; --hero-text: #23454b; --bar-glass: rgba(255, 250, 240, .85);
+    --ask-bg: #ee6a5722; --ask-bg-h: #ee6a5755; --ask-text: #b83f2d; --track: #d6e8e0; --tabs-bg: #2f6f8f14;
+    --tile-bg: #2f6f8f; --tile-text: #fdf4df; --tile-glow: 0 2px 5px #0003;
+    --fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%2377b8aa'%3E%3Cg transform='translate(4 6) scale(.5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(116 46) scale(-.5 .5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); --fish-op: .6;
+  }
+  :root[data-theme=coast] .top { border-bottom: 4px solid #ee6a57; }
+  :root[data-theme=coast] .hero:not(.logo):not(.plotbg) h1 { padding: .25em 1.3em; font-style: italic; background: #fffaf0; border: 3px solid #ee6a57; border-radius: 999px; text-shadow: none; box-shadow: 0 4px 0 #2f6f8f; }
+  :root[data-theme=coast] .card { border-radius: 16px; box-shadow: 0 3px 10px #2f6f8f1f; }
+  :root[data-theme=coast] .play { border-radius: 999px; box-shadow: 0 3px 0 #b83f2d; }
+  :root[data-theme=coast] .tabs { border-radius: 999px; }
+  :root[data-theme=coast] .progress { border-radius: 99px; overflow: hidden; }
+  :root[data-theme=coast] .progress div { background: #2f6f8f; }
+
+  /* Smoked Mackerel: deep teal, brass and cream, a supper-club tin from the 1950s with art deco rays */
+  :root[data-theme=mackerel] {
+    --bg: #0f2a2e; --side: #0a1d20; --panel: #143a40; --line: #26565c; --text: #efe3c7; --muted: #9bb5ab;
+    --accent: #d6a93a; --play: linear-gradient(#e6bf52, #b88a1e); --play-text: #0a1d20; --radius: 2px; --strong: #fff3cf;
+    --font: "Gill Sans", "Optima", "Trebuchet MS", sans-serif; --display: "Copperplate", "Copperplate Gothic Light", Didot, Georgia, serif;
+    --nav-text: #efe3c7; --nav-hover: #fff3cf; --nav-on: #d6a93a;
+    --side-text: #efe3c7; --side-muted: #86a39a; --side-line: #26565c; --input-bg: #06161a;
+    --hover: #d6a93a1f; --sel-bg: #d6a93a; --sel-text: #0a1d20;
+    --hero-bg: radial-gradient(ellipse at 50% 112%, #d6a93a44, transparent 60%),
+               repeating-conic-gradient(from 0deg at 50% 112%, #194a50 0 5deg, #12373c 5deg 10deg);
+    --hero-blend: normal; --hero-text: #efd88a; --bar-glass: rgba(10, 29, 32, .62);
+    --ask-bg: #d6a93a22; --ask-bg-h: #d6a93a55; --ask-text: #e6c15a; --track: #06161acc; --tabs-bg: #d6a93a14;
+    --tile-bg: #06161a; --tile-text: #efd88a; --tile-glow: 0 0 0 2px #06161a, 0 0 0 3px var(--c);
+    --fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%23d6a93a'%3E%3Cg transform='translate(4 6) scale(.5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(116 46) scale(-.5 .5)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); --fish-op: .09;
+  }
+  :root[data-theme=mackerel] .top { border-bottom: 1px solid #d6a93a; }
+  :root[data-theme=mackerel] .hero:not(.logo):not(.plotbg) h1 { padding: .3em 1em; font-size: clamp(1.6rem, 4.4vw, 2.6rem); font-weight: 400; letter-spacing: .18em; text-transform: uppercase; border-top: 2px solid #d6a93a; border-bottom: 2px solid #d6a93a; text-shadow: 0 2px 10px #000a; }
+  :root[data-theme=mackerel] .card { border-color: #d6a93a55; box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px #d6a93a33; }
+  :root[data-theme=mackerel] .play { letter-spacing: .12em; border: 1px solid #fff3cf88; }
+  :root[data-theme=mackerel] .progress div { background: linear-gradient(90deg, #b88a1e, #e6bf52); }
+
+  /* Folk-art tins (Lemon Tin, Spicy Tuna): hand-lettered fish-can packaging. Thick ink outlines, a ribbon banner across a sun medallion,
+     fish-and-star wallpaper, little flowers in every card corner, and loud flat colour. Both share the rules below; only the colours differ. */
+  :root:is([data-theme=lemon], [data-theme=tuna]) {
+    --ink: #1c1b5e; --paper: #fff4d9; --sun: #ffc933;
+    --text: var(--ink); --strong: var(--ink); --panel: var(--paper); --line: var(--ink); --muted: #5b4f8f; --radius: 8px;
+    --font: "Nunito", "Trebuchet MS", sans-serif; --display: "Lilita One", "Chalkboard SE", "Marker Felt", "Arial Rounded MT Bold", sans-serif;
+    --nav-bg: var(--ink); --nav-text: var(--paper); --nav-hover: var(--sun); --nav-on: var(--sun);
+    --side: var(--sun); --side-text: var(--ink); --side-muted: #7a5a00; --side-line: var(--ink); --input-bg: var(--paper);
+    --hover: #1c1b5e1f; --sel-bg: var(--ink); --sel-text: var(--sun);
+    --hero-blend: normal; --hero-text: var(--ink); --bar-glass: rgba(255, 244, 217, .95);
+    --track: #fff; --tabs-bg: var(--paper); --tile-bg: var(--paper); --tile-text: var(--ink); --tile-glow: 3px 3px 0 var(--ink);
+    --flower: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cg fill='%23fff4d9' stroke='%231c1b5e'%3E%3Ccircle cx='8' cy='3' r='2.6'/%3E%3Ccircle cx='13' cy='8' r='2.6'/%3E%3Ccircle cx='8' cy='13' r='2.6'/%3E%3Ccircle cx='3' cy='8' r='2.6'/%3E%3C/g%3E%3Ccircle cx='8' cy='8' r='2.6' fill='%23ffc933' stroke='%231c1b5e'/%3E%3C/svg%3E");
+  }
+  :root:is([data-theme=lemon], [data-theme=tuna]) body { font-weight: 600; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .top { border-bottom: 3px solid var(--sun); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .top a { font-family: var(--display); letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .side { border-right: 3px solid var(--ink); }
+  :root[data-layout=right]:is([data-theme=lemon], [data-theme=tuna]) .side { border-right: 0; border-left: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .games button { font-weight: 700; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .games i { box-shadow: inset 0 0 0 3px #fff4d9aa, 0 0 0 2px var(--ink); }
+  /* the sun medallion with a white ribbon banner across it */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero { border-bottom: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh) { padding-bottom: 88px; }   /* centre the medallion and ribbon above the strip that overlaps the banner */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg) h1 { padding: .12em 1.1em; font: 400 clamp(1.8rem, 5vw, 3rem) var(--display); letter-spacing: .03em; text-transform: uppercase;
+          color: var(--ink); background: var(--paper); border: 3px solid var(--ink); border-radius: 4px; box-shadow: 5px 5px 0 var(--ink); text-shadow: none; transform: rotate(-3deg); }
+  /* cards: ink outline, a hard shadow, and a flower in each corner */
+  :root:is([data-theme=lemon], [data-theme=tuna]) .card { padding: 1.1rem 1.5rem; border: 3px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink);
+          background: var(--flower) left 5px top 5px / 15px no-repeat, var(--flower) right 5px top 5px / 15px no-repeat,
+                      var(--flower) left 5px bottom 5px / 15px no-repeat, var(--flower) right 5px bottom 5px / 15px no-repeat, var(--paper); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .card h2 { color: var(--ink); font-size: 1rem; letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .cols h3 { display: inline-block; padding: .15em .8em; color: var(--ink); font-size: 1rem; background: var(--paper); border: 3px solid var(--ink); border-radius: 4px; transform: rotate(-1.5deg); box-shadow: 3px 3px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero + .bar { border-bottom: 3px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play { border: 3px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); letter-spacing: .06em; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play:hover { filter: none; transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .ask button { font-weight: 700; border: 2px solid var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tabs { border: 3px solid var(--ink); border-radius: 8px; font-weight: 700; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .progress { height: 14px; border: 2px solid var(--ink); border-radius: 99px; overflow: hidden; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tile { border-width: 2px; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .tile.locked { box-shadow: 3px 3px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .post { border-bottom: 2px dashed var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .setbox { border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .setbox legend { color: var(--ink); font-family: var(--display); font-size: .9rem; }
+
+  /* Lemon Tin: blue label, sunshine yellow, carnation red (sardines with preserved lemon) */
+  :root[data-theme=lemon] {
+    --bg: #2f66d0; --accent: #d92d3a; --play: linear-gradient(#ee4a56, #d92d3a); --play-text: #fff4d9;
+    --hero-bg: radial-gradient(circle at 50% 120px, #ff8a1f 0 96px, #1c1b5e 96px 101px, #ffc933 101px 110px, #1c1b5e 110px 115px, transparent 115px),
+               repeating-conic-gradient(from 0deg at 50% 120px, #4a82e8 0 7.5deg, #2f66d0 7.5deg 15deg);
+    --ask-bg: #d92d3a1f; --ask-bg-h: #d92d3a44; --ask-text: #b3202c;
+    --wall: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%233a72dc'%3E%3Cg transform='translate(6 8) scale(.42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(114 52) scale(-.42 .42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cpath d='M92 12l2.5 6 6 .5-4.6 4 1.5 6-5.4-3.4-5.4 3.4 1.5-6-4.6-4 6-.5z'/%3E%3Cpath d='M22 62l2 5 5 .4-3.8 3.3 1.2 5-4.4-2.8-4.4 2.8 1.2-5-3.8-3.3 5-.4z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  :root[data-theme=lemon] .progress div { background: repeating-linear-gradient(45deg, #d92d3a 0 8px, #ee4a56 8px 16px); }
+
+  /* Spicy Tuna: hot pink label, orange sun, yellow border (albacore in spicy olive oil) */
+  :root[data-theme=tuna] {
+    --bg: #ee5fa7; --accent: #c01f6a; --play: linear-gradient(#ffa947, #ff7a1a); --play-text: var(--ink);
+    --hero-bg: radial-gradient(circle at 50% 120px, #ff8a1f 0 96px, #1c1b5e 96px 101px, #ffc933 101px 110px, #1c1b5e 110px 115px, transparent 115px),
+               repeating-conic-gradient(from 0deg at 50% 120px, #f67cb8 0 7.5deg, #ee5fa7 7.5deg 15deg);
+    --ask-bg: #c01f6a1f; --ask-bg-h: #c01f6a44; --ask-text: #a3185a;
+    --wall: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Cg fill='%23f574b5'%3E%3Cg transform='translate(6 8) scale(.42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cg transform='translate(114 52) scale(-.42 .42)'%3E%3Cpath d='M8 30c18-20 50-20 74 0-24 20-56 20-74 0z'/%3E%3Cpath d='M80 30l26-16v32z'/%3E%3C/g%3E%3Cpath d='M92 12l2.5 6 6 .5-4.6 4 1.5 6-5.4-3.4-5.4 3.4 1.5-6-4.6-4 6-.5z'/%3E%3Cpath d='M22 62l2 5 5 .4-3.8 3.3 1.2 5-4.4-2.8-4.4 2.8 1.2-5-3.8-3.3 5-.4z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  :root[data-theme=tuna] .progress div { background: repeating-linear-gradient(45deg, #ff7a1a 0 8px, #ffa947 8px 16px); }
+  /* Illustrated bits for the folk-art tins: a fish in the sun medallion, a carnation either side of it, and a carnation at the foot of the sidebar */
+  :root:is([data-theme=lemon], [data-theme=tuna]) { --carn-l: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='150' viewBox='0 0 120 150'%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%231c1b5e' stroke-width='9' stroke-linecap='round'/%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%232fa84f' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M60 118 C52 108 26 102 14 84 C10 108 30 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C40 112 28 100 18 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 118 C68 108 94 102 106 84 C110 108 90 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C80 112 92 100 102 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='86.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='34.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='74.3' cy='48.4' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='67.0' cy='57.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='55.6' cy='58.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='46.7' cy='51.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='45.7' cy='39.6' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='53.0' cy='30.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='64.4' cy='29.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='73.3' cy='37.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='60' cy='44' r='11' fill='%23ff6b78' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Cpath d='M60 44 L70.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L50.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M48 68 Q60 80 72 68 L68 62 Q60 66 52 62 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E"); --carn-r: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='150' viewBox='0 0 120 150'%3E%3Cg transform='translate(120 0) scale(-1 1)'%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%231c1b5e' stroke-width='9' stroke-linecap='round'/%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%232fa84f' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M60 118 C52 108 26 102 14 84 C10 108 30 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C40 112 28 100 18 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 118 C68 108 94 102 106 84 C110 108 90 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C80 112 92 100 102 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='86.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='34.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='74.3' cy='48.4' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='67.0' cy='57.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='55.6' cy='58.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='46.7' cy='51.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='45.7' cy='39.6' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='53.0' cy='30.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='64.4' cy='29.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='73.3' cy='37.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='60' cy='44' r='11' fill='%23ff6b78' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Cpath d='M60 44 L70.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L50.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M48 68 Q60 80 72 68 L68 62 Q60 66 52 62 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E"); --medal-fish: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='120' viewBox='0 0 180 120'%3E%3Cg stroke='%231c1b5e' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M142 58 L172 32 Q176 60 172 88 Z' fill='%23ffc933'/%3E%3Cpath d='M78 36 L94 12 Q108 26 116 42 Z' fill='%23ffc933'/%3E%3Cpath d='M84 88 L96 108 L112 86 Z' fill='%23ffc933'/%3E%3Cpath d='M16 62 C38 20 104 18 146 58 C104 102 38 104 16 62 Z' fill='%236fb1f0'/%3E%3Cpath d='M24 68 C60 90 112 90 143 62 C104 102 40 104 24 68 Z' fill='%23fff4d9' stroke='none'/%3E%3Cpath d='M16 62 C38 20 104 18 146 58 C104 102 38 104 16 62 Z' fill='none'/%3E%3Cg fill='none' stroke-width='2.2'%3E%3Cpath d='M70 48q9 9 0 18'/%3E%3Cpath d='M86 44q9 11 0 22'/%3E%3Cpath d='M102 46q9 10 0 20'/%3E%3Cpath d='M118 50q8 8 0 15'/%3E%3Cpath d='M54 40q-9 20 0 40'/%3E%3Cpath d='M22 66q8 6 18 2'/%3E%3C/g%3E%3Ccircle cx='38' cy='54' r='7' fill='%23fff4d9'/%3E%3Ccircle cx='36' cy='54' r='3' fill='%231c1b5e' stroke='none'/%3E%3C/g%3E%3C/svg%3E"); }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh) { height: 340px; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh)::before { opacity: 1; background: var(--carn-l) left max(4%, 14px) bottom 92px / 110px no-repeat, var(--carn-r) right max(4%, 14px) bottom 92px / 110px no-repeat; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh)::after { content: ""; position: absolute; left: 50%; top: 28px; width: 180px; height: 120px; transform: translateX(-50%) rotate(-4deg);
+          pointer-events: none; background: var(--medal-fish) center / contain no-repeat; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero h1 { z-index: 1; }
+  :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh) h1 { transform: translateY(54px) rotate(-3deg); }
+  :root:not([data-layout=shelf]):is([data-theme=lemon], [data-theme=tuna]) .side { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='150' viewBox='0 0 120 150'%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%231c1b5e' stroke-width='9' stroke-linecap='round'/%3E%3Cpath d='M60 150 C58 120 62 100 60 66' fill='none' stroke='%232fa84f' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M60 118 C52 108 26 102 14 84 C10 108 30 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C40 112 28 100 18 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 118 C68 108 94 102 106 84 C110 108 90 126 60 126 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M62 120 C80 112 92 100 102 90' fill='none' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='86.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='68.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='59.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='34.0' cy='44.0' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='39.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='52.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='68.0' cy='19.3' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='81.0' cy='28.7' r='14' fill='%23e63946' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='74.3' cy='48.4' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='67.0' cy='57.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='55.6' cy='58.3' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='46.7' cy='51.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='45.7' cy='39.6' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='53.0' cy='30.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='64.4' cy='29.7' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='73.3' cy='37.0' r='10' fill='%23c4202f' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Ccircle cx='60' cy='44' r='11' fill='%23ff6b78' stroke='%231c1b5e' stroke-width='2.5'/%3E%3Cpath d='M60 44 L70.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 52.7' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L50.0 44.0' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L55.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M60 44 L65.0 35.3' stroke='%231c1b5e' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M48 68 Q60 80 72 68 L68 62 Q60 66 52 62 Z' fill='%232fa84f' stroke='%231c1b5e' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") center bottom 8px / 130px no-repeat local, var(--side); }
+  @media (max-width: 800px) { :root:is([data-theme=lemon], [data-theme=tuna]) .hero:not(.logo):not(.plotbg):not(.slosh)::before { background-size: 70px; } }
 </style>
 </head>
 <body>
 
 <nav class="top">
   <a href="#">Store</a><a href="#" class="on">Library</a><a href="#">Community</a>
+
+  <div class="setwrap">
+    <button type="button" id="setBtn" aria-haspopup="true" aria-expanded="false" aria-controls="setBox">⚙ Settings</button>
+    <div class="setbox" id="setBox" hidden>
+      <fieldset>
+        <legend>Theme</legend>
+        <label><input type="radio" name="theme" value="steam"><span class="sw" style="--sw:linear-gradient(90deg,#171d25 34%,#1b2838 34% 67%,#1a9fff 67%)"></span>Steam</label>
+        <label><input type="radio" name="theme" value="sardine"><span class="sw" style="--sw:linear-gradient(90deg,#1d3557 34%,#f6cb55 34% 67%,#c8412b 67%)"></span>Sardine Tin</label>
+        <label><input type="radio" name="theme" value="coast"><span class="sw" style="--sw:linear-gradient(90deg,#2f6f8f 34%,#cfe8df 34% 67%,#ee6a57 67%)"></span>Cannery Coast</label>
+        <label><input type="radio" name="theme" value="mackerel"><span class="sw" style="--sw:linear-gradient(90deg,#0a1d20 34%,#143a40 34% 67%,#d6a93a 67%)"></span>Smoked Mackerel</label>
+        <label><input type="radio" name="theme" value="lemon"><span class="sw" style="--sw:linear-gradient(90deg,#2f66d0 34%,#ffc933 34% 67%,#d92d3a 67%)"></span>Lemon Tin</label>
+        <label><input type="radio" name="theme" value="tuna"><span class="sw" style="--sw:linear-gradient(90deg,#ee5fa7 34%,#ff8a1f 34% 67%,#ffc933 67%)"></span>Spicy Tuna</label>
+      </fieldset>
+      <fieldset>
+        <legend>Layout</legend>
+        <label><input type="radio" name="layout" value="side">Sidebar on the left</label>
+        <label><input type="radio" name="layout" value="right">Sidebar on the right</label>
+        <label><input type="radio" name="layout" value="shelf">Shelf across the top</label>
+      </fieldset>
+    </div>
+  </div>
 </nav>
 
 <div class="layout">
@@ -198,6 +424,22 @@
 </div>
 
 <script>
+  // ---- SETTINGS: pick a theme and a layout. The choice is saved in this browser and applied before paint (see <head>). ----
+  (() => {
+    const btn = document.getElementById("setBtn"), box = document.getElementById("setBox"), root = document.documentElement;
+    const open = on => { box.hidden = !on; btn.setAttribute("aria-expanded", on); };
+    const sync = () => { for (const name of ["theme", "layout"]) box.querySelector(`input[name=${name}][value=${root.dataset[name]}]`).checked = true; };
+    sync();
+    btn.addEventListener("click", () => open(box.hidden));
+    box.addEventListener("change", e => {
+      const name = e.target.name; root.dataset[name] = e.target.value;
+      try { localStorage.setItem(name === "theme" ? "homeTheme" : "homeLayout", e.target.value); } catch (err) {}
+      open(false);                                       // picking a look closes the menu
+    });
+    document.addEventListener("click", e => { if (!box.hidden && !e.target.closest(".setwrap")) open(false); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !box.hidden) { open(false); btn.focus(); } });
+  })();
+
   // Click a game in the sidebar: highlight it, show its name, and point the Play link at its page
   const play = document.getElementById("playBtn");
   const rnd = (a, b) => Math.floor(a + Math.random() * (b - a + 1));   // random whole number from a to b
