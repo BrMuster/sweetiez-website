@@ -190,6 +190,7 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
   button.slot.off, button.slot.off:hover:not(:disabled) { opacity: .5; border-style: dashed; background: transparent; }   /* hidden on the graph */
   .anpop { position: fixed; z-index: 50; width: 19rem; display: grid; gap: .5rem; padding: .8rem; background: #0e141b; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
   .anpop textarea { width: 100%; font: inherit; padding: .4rem .6rem; color: var(--text); background: #16202d; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+  .mpop { width: 18rem; }
   .ctxmenu { position: fixed; z-index: 60; display: grid; min-width: 15rem; max-width: 26rem; padding: .3rem; background: #0e141b; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
   .ctxmenu button { text-align: left; background: transparent; padding: .5rem .8rem; border-radius: 5px; }
   .anfont { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; } .anfont label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; } .anfont select { padding: .25rem .4rem; }
@@ -793,6 +794,13 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
     </div>
   </div>
   <div class="ctxmenu" id="ctxMenu" role="menu" hidden></div>
+  <div class="anpop mpop" id="mPop" role="dialog" aria-label="Measurement" hidden>
+    <b>Measurement</b>
+    <label><input type="checkbox" id="mPct"> Show the % difference in wavelength</label>
+    <label><input type="checkbox" id="mDy"> Show the change in <span id="mQ">%T</span></label>
+    <span class="hint">These apply to every measurement.</span>
+    <div class="bar"><button type="button" id="mDel">Delete</button><button type="button" id="mClose">Close</button></div>
+  </div>
   <div class="anpop" id="anPop" role="dialog" aria-label="Annotation" hidden>
     <textarea id="anText" rows="3" placeholder="Note text (Enter to save, Shift+Enter for a new line)"></textarea>
     <div class="anfont">
@@ -1395,18 +1403,24 @@ function pastePic(blob) {                        // a screenshot from the clipbo
   img.onerror = () => say("That picture couldn't be read."); img.src = URL.createObjectURL(blob);
 }
 let measBoxes = [];                              // where each measurement's label was drawn, so it can be grabbed and moved
-const measHit = e => { const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top; for (let i = measBoxes.length - 1; i >= 0; i--) { const b = measBoxes[i]; if (mx >= b.x0 && mx <= b.x1 && my >= b.y0 && my <= b.y1) return b; } return null; };
-function dragMeas(e, b) {                        // drag a measurement's label somewhere clearer; the numbers stay with their line
-  cv.setPointerCapture(e.pointerId); drag = true; hov = null; cv.style.cursor = "grabbing";
-  const sx = e.clientX, sy = e.clientY, ox0 = b.mx - b.ax, oy0 = b.my - b.ay;
-  const move = ev => { b.l.ox = ox0 + ev.clientX - sx; b.l.oy = oy0 + ev.clientY - sy; redraw(); };
-  const up = () => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); drag = false; cv.style.cursor = ""; redraw(true); };
+let measHov = null, measTarget = null;           // the measurement under the pointer (its red X shows), and the one whose options are open
+let measOpt = { pct: true, dy: true };             // what every measurement label shows: the % difference in wavelength, and the change in %T
+try { Object.assign(measOpt, JSON.parse(localStorage.getItem("plotMeasOpt") || "{}")); } catch (e) {}
+const measHit = e => { const rc = cv.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top; for (let i = measBoxes.length - 1; i >= 0; i--) { const b = measBoxes[i];
+  if (b.l === measHov && Math.hypot(mx - b.bx, my - b.by) <= 9) return { ...b, part: "x" };   // its red X
+  if (mx >= b.x0 && mx <= b.x1 && my >= b.y0 && my <= b.y1) return { ...b, part: "box" }; } return null; };
+function dragMeas(e, b) {                        // drag a measurement's label somewhere clearer (the numbers stay with their line); a click opens its options
+  cv.setPointerCapture(e.pointerId); drag = true; hov = null;
+  const sx = e.clientX, sy = e.clientY, ox0 = b.mx - b.ax, oy0 = b.my - b.ay; let moved = false;
+  const move = ev => { if (Math.abs(ev.clientX - sx) > 3 || Math.abs(ev.clientY - sy) > 3) moved = true; if (moved) { cv.style.cursor = "grabbing"; b.l.ox = ox0 + ev.clientX - sx; b.l.oy = oy0 + ev.clientY - sy; redraw(); } };
+  const up = ev => { cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); drag = false; cv.style.cursor = ""; redraw(true); if (!moved && ev.type === "pointerup") openMeasPop(ev, b.l); };
   cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 }
 let lines = [], ldrag = null;                    // drawn lines: { x1, y1, x2, y2, dash }; ldrag is the one being dragged out right now (screen only)
 function renderLines() {                         // one row per drawn line, under the spec rows
   const box = $("lineRows"); box.innerHTML = "";
   lines.forEach((l, k) => {
+    if (l.meas) return;                          // a measurement isn't listed here: click the X on it to remove it
     const row = document.createElement("div"); row.className = "specrow";
     const lab = document.createElement("span"); lab.className = "hint"; lab.textContent = (l.meas ? "Measurement " : "Line ") + (k + 1) + ":  " + xs(l.x1) + ", " + ys(l.y1) + "  →  " + xs(l.x2) + ", " + ys(l.y2) + (l.meas ? "   = " + measText(l) + ",  " + measYText(l) : "");
     const st = document.createElement("select"); st.setAttribute("aria-label", "Line " + (k + 1) + " style"); st.add(new Option("Solid", "solid")); st.add(new Option("Dashed", "dash"));
@@ -1599,17 +1613,24 @@ function render() {
     }
     ctx.restore(); });
   const placed = []; measBoxes = [];
-  const measLabel = (l, c) => {                                        // dots on both ends and the difference beside the middle
-    ctx.fillStyle = c; for (const [x, y] of [[l.x1, l.y1], [l.x2, l.y2]]) { ctx.beginPath(); ctx.arc(px(x), py(y), 3.5, 0, 7); ctx.fill(); }
-    const t = measText(l), t2 = measYText(l); ctx.font = "600 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-    const w = Math.max(ctx.measureText(t).width, ctx.measureText(t2).width), ax = (px(l.x1) + px(l.x2)) / 2, ay = (py(l.y1) + py(l.y2)) / 2;   // ax, ay: the middle of the line
-    let mx = Math.min(Math.max(ax, L + w / 2 + 6), L + pw - w / 2 - 6), my = Math.max(Math.min(py(l.y1), py(l.y2)) - 8, T + 40);
-    if (l.ox != null) { mx = Math.min(Math.max(ax + l.ox, L + w / 2 + 6), L + pw - w / 2 - 6); my = Math.min(Math.max(ay + l.oy, T + 40), T + ph - 2); }   // a label you moved stays where you put it, relative to its line
-    else { while (placed.some(b => Math.abs(b.x - mx) < (b.w + w) / 2 + 6 && Math.abs(b.y - my) < 40)) my += 41; }   // two measurements close together: stack their labels instead of overlapping
-    placed.push({ x: mx, y: my, w });
-    if (l.ox != null && (mx - w / 2 - 5 > ax || mx + w / 2 + 5 < ax || my - 37 > ay || my + 2 < ay)) { ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(Math.min(Math.max(ax, mx - w / 2 - 5), mx + w / 2 + 5), Math.min(Math.max(ay, my - 37), my + 2)); ctx.stroke(); ctx.setLineDash([]); }   // a dotted leader back to its line
-    if (!light && l !== ldrag) measBoxes.push({ l, x0: mx - w / 2 - 5, y0: my - 37, x1: mx + w / 2 + 5, y1: my + 2, ax, ay, mx, my });
-    ctx.globalAlpha = .9; ctx.fillStyle = P.bg; ctx.fillRect(mx - w / 2 - 5, my - 37, w + 10, 39); ctx.globalAlpha = 1; ctx.fillStyle = c; ctx.fillText(t, mx, my - 18); ctx.fillText(t2, mx, my); };   // across on top, up or down underneath
+  const measLabel = (l, c) => {                                        // dots on both ends and the difference in a small box above the middle
+    ctx.fillStyle = c; for (const [x, y] of [[l.x1, l.y1], [l.x2, l.y2]]) { ctx.beginPath(); ctx.arc(px(x), py(y), 3, 0, 7); ctx.fill(); }
+    const d = l.x2 - l.x1, tx = [sgn(d) + " nm" + (measOpt.pct ? "  (" + (l.x1 ? sgn(d / l.x1 * 100) : "–") + " %)" : ""), ...(measOpt.dy ? [measYText(l)] : [])];
+    ctx.font = "600 13px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; const lh = 17;
+    const w = Math.max(...tx.map(t => ctx.measureText(t).width)) + 16, h = tx.length * lh + 8, ax = (px(l.x1) + px(l.x2)) / 2, ay = (py(l.y1) + py(l.y2)) / 2;   // ax, ay: the middle of the line
+    const cx = v => Math.min(Math.max(v, L + w / 2 + 2), L + pw - w / 2 - 2);
+    let mx = cx(ax), my = Math.max(Math.min(py(l.y1), py(l.y2)) - 10, T + h + 2);                  // my: the box's bottom edge
+    if (l.ox != null) { mx = cx(ax + l.ox); my = Math.min(Math.max(ay + l.oy, T + h + 2), T + ph - 2); }   // a label you moved stays where you put it, relative to its line
+    else { while (placed.some(b => Math.abs(b.x - mx) < (b.w + w) / 2 + 6 && Math.abs(b.y - my) < (b.h + h) / 2 + 4)) my += h + 4; }   // two measurements close together: stack their labels
+    placed.push({ x: mx, y: my, w, h });
+    const bx0 = mx - w / 2, by0 = my - h;
+    if (l.ox != null && (bx0 > ax || bx0 + w < ax || by0 > ay || my < ay)) { ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(Math.min(Math.max(ax, bx0), bx0 + w), Math.min(Math.max(ay, by0), my)); ctx.stroke(); ctx.setLineDash([]); }   // a dotted leader back to its line
+    ctx.globalAlpha = .93; ctx.fillStyle = P.bg; ctx.fillRect(bx0, by0, w, h); ctx.globalAlpha = 1;
+    ctx.strokeStyle = l === measHov && !light ? c : P.grid; ctx.lineWidth = 1; ctx.strokeRect(bx0 + .5, by0 + .5, w - 1, h - 1);
+    ctx.fillStyle = c; tx.forEach((t, i) => ctx.fillText(t, mx, by0 + 4 + lh / 2 + i * lh));
+    const bx = bx0 + w, by = by0;                                      // the red X that removes it: only while you point at the label
+    if (!light && l !== ldrag) measBoxes.push({ l, x0: bx0, y0: by0, x1: bx0 + w, y1: my, ax, ay, mx, my, bx, by });
+    if (!light && l !== ldrag && l === measHov) { ctx.fillStyle = "#d9322b"; ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(bx - 2.6, by - 2.6); ctx.lineTo(bx + 2.6, by + 2.6); ctx.moveTo(bx + 2.6, by - 2.6); ctx.lineTo(bx - 2.6, by + 2.6); ctx.stroke(); } };   // across on top, up or down underneath
   if (!signalMode) for (const l of lines) { seg(l, P.title, l.meas ? 2 : 2.5, l.dash); if (l.meas) measLabel(l, P.title); }
   if (ldrag && !light) { seg(ldrag, "#f5a623", 2, true); if (ldrag.meas) measLabel(ldrag, "#f5a623"); }   // the line while you drag it out
   for (const { p, li } of levels()) for (const s of S) {               // edge points: faint dashed level line + a marker at each crossing
@@ -2238,6 +2259,19 @@ function renderNotes() {                        // the list on the Annotate tab
   }
 }
 $("anSave").onclick = saveNote; $("anCancel").onclick = closeNotePop;
+function openMeasPop(e, l) {                     // a click on a measurement's label: what labels show, and Delete
+  measTarget = l; const mp = $("mPop");
+  $("mPct").checked = measOpt.pct; $("mDy").checked = measOpt.dy; $("mQ").textContent = odOn() ? "O.D." : "%" + ($("kR").checked ? "R" : "T");
+  mp.hidden = false;
+  mp.style.left = Math.max(8, Math.min(e.clientX + 10, innerWidth - mp.offsetWidth - 8)) + "px";
+  mp.style.top = Math.max(8, Math.min(e.clientY + 10, innerHeight - mp.offsetHeight - 8)) + "px";
+}
+const closeMeasPop = () => { $("mPop").hidden = true; measTarget = null; };
+for (const [id, k] of [["mPct", "pct"], ["mDy", "dy"]]) $(id).addEventListener("change", () => { measOpt[k] = $(id).checked; try { localStorage.setItem("plotMeasOpt", JSON.stringify(measOpt)); } catch (e) {} redraw(true); });
+$("mDel").onclick = () => { if (measTarget) { lines = lines.filter(x => x !== measTarget); renderLines(); } closeMeasPop(); draw(); };
+$("mClose").onclick = closeMeasPop;
+addEventListener("keydown", e => { if (e.key === "Escape" && !$("mPop").hidden) closeMeasPop(); });
+addEventListener("pointerdown", e => { if (!$("mPop").hidden && !$("mPop").contains(e.target)) closeMeasPop(); }, true);
 $("anDel").onclick = () => { if (anTarget && anTarget.note) deleteNote(anTarget.note); };
 $("anClear").onclick = () => { notes = []; renderNotes(); redraw(true); };
 $("anText").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(); } });
@@ -2281,10 +2315,11 @@ const zoomTo = k => { if (!ranges[k]) return; view = { ...ranges[k] }; zoomed = 
 cv.addEventListener("pointermove", e => {
   if (drag || !view) return;
   const pc = picAt(e), ph0 = pc ? pc.i : -1; if (ph0 !== picHov) { picHov = ph0; redraw(); }
-  const nh = noteHit(e); cv.style.cursor = !nh && measHit(e) ? "move" : !nh && pc ? (pc.part === "x" ? "pointer" : pc.part === "grip" ? "nwse-resize" : "move") : nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : xBtnAt(e) >= 0 || okBtnAt(e) >= 0 ? "pointer" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
+  const mh0 = measHit(e), mv = mh0 ? mh0.l : null; if (mv !== measHov) { measHov = mv; redraw(); }   // the red X shows on the measurement you point at
+  const nh = noteHit(e); cv.style.cursor = !nh && measHit(e) ? (measHit(e).part === "x" ? "pointer" : "move") : !nh && pc ? (pc.part === "x" ? "pointer" : pc.part === "grip" ? "nwse-resize" : "move") : nh ? (nh.part === "dot" ? "grab" : nh.part === "grip" ? "nwse-resize" : "move") : xBtnAt(e) >= 0 || okBtnAt(e) >= 0 ? "pointer" : bandAt(e) >= 0 ? "zoom-in" : "crosshair";           // hint: a click here zooms
   const f = frac(e); hov = f >= 0 && f <= 1 ? view.a + f * (view.b - view.a) : null; redraw();
 });
-cv.addEventListener("pointerleave", () => { hov = null; picHov = -1; redraw(); });
+cv.addEventListener("pointerleave", () => { hov = null; picHov = -1; measHov = null; redraw(); });
 
 const yAt = e => G.hi - Math.min(1, Math.max(0, (e.clientY - cv.getBoundingClientRect().top - G.T) / G.ph)) * (G.hi - G.lo);
 const yText = v => String(+v.toPrecision(6));
@@ -2332,7 +2367,7 @@ cv.addEventListener("pointerdown", e => {
   const xb = xBtnAt(e); if (xb >= 0) { ranges[xb] = null; shown[xb] = true; return draw(); }   // the X on a range removes it
   const ok = okBtnAt(e); if (ok >= 0) return acceptRange(ok);           // the check mark keeps it
   const nh = noteHit(e); if (nh) return dragNote(e, nh);               // grab a note to move it
-  const mh = measHit(e); if (mh) return dragMeas(e, mh);               // or a measurement's label
+  const mh = measHit(e); if (mh) { if (mh.part === "x") { lines = lines.filter(x => x !== mh.l); renderLines(); return draw(); } return dragMeas(e, mh); }   // a measurement: its X removes it, its label drags
   const pc = picAt(e); if (pc) { if (pc.part === "x") { pics.splice(pc.i, 1); picHov = -1; return draw(); } return dragPic(e, pc); }   // or a pasted picture
   cv.setPointerCapture(e.pointerId); drag = true; hov = null;
   const x0 = xAt(e), sx = e.clientX, hit = bandAt(e); let moved = false;
