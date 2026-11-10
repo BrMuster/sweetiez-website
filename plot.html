@@ -756,6 +756,7 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
       <div class="bar"><b>Show</b>
         <button type="button" id="fxCards" title="The scan's points tumble off like the old Solitaire win screen">▶ Falling cards</button>
         <button type="button" id="fxEq" title="Turn the scan into bouncing equalizer bars">▶ Equalizer</button>
+        <button type="button" id="fxDefrag" title="A scattered disk map gets defragmented: the blocks stack up into the shape of the scan, like the old Windows 95 Disk Defragmenter">▶ Defrag</button>
         <button type="button" id="fxRestore" title="Put the real scan back">Restore the real scan</button></div>
       <p id="playMsg" class="hint" role="status"></p>
     </div>
@@ -2927,6 +2928,7 @@ function fxLabels() {
   $("fxBend").textContent = "Bend the scan: " + (fxBendOn ? "on" : "off");
   $("fxCards").textContent = fxOv && fxOv.kind === "cards" ? "■ Stop" : "▶ Falling cards";
   $("fxEq").textContent = fxOv && fxOv.kind === "eq" ? "■ Stop" : "▶ Equalizer";
+  $("fxDefrag").textContent = fxOv && fxOv.kind === "defrag" ? "■ Stop" : "▶ Defrag";
   if (!fxBendOn) cv.style.cursor = "";
 }
 function fxVibStop() { if (!fxVibId) return; cancelAnimationFrame(fxVibId); fxVibId = 0; fxClean(); fxLabels(); }
@@ -3059,6 +3061,64 @@ function fxEq() {
   });
 }
 $("fxCards").onclick = fxCards; $("fxEq").onclick = fxEq;
+
+// Defrag: the old Windows 95 Disk Defragmenter. The graph becomes a cluster map; the first scan sets how many blocks each column holds (a tall curve = a full column).
+// The blocks start scattered all over, then get read (red) and rewritten (green) one at a time until each column is a solid stack, so the stacks trace the scan.
+function fxDefrag() {
+  fxOvStart("defrag", (x, tt, dtf, st) => {
+    const px = G.L, py = G.T, pw = G.pw, ph = G.ph, TB = 20, SB = 28, M = 8, cs = Math.max(6, Math.min(12, Math.round(pw / 72)));
+    const cols = Math.floor((pw - 2 * M - 4) / cs), rows = Math.floor((ph - TB - SB - 2 * M - 4) / cs);
+    if (cols < 8 || rows < 5) { fxOvStop(); return playSay("The graph is too small for this one: make the window bigger."); }
+    if (st.cols !== cols || st.rows !== rows) {                                  // (re)build the disk: how full each column is comes from the scan
+      const s = active()[0], sum = new Float64Array(cols), cnt = new Uint32Array(cols), span = view.b - view.a, hgt = new Int32Array(cols);
+      for (let i = 0; i < s.n; i++) {
+        const X = s.X[i], y = s.c.v[i]; if (!(X >= view.a && X <= view.b) || !isFinite(y)) continue;
+        const b = Math.min(cols - 1, Math.floor((X - view.a) / span * cols)); sum[b] += y; cnt[b]++;
+      }
+      let prev = 0; for (let c = 0; c < cols; c++) { const v = cnt[c] ? sum[c] / cnt[c] : null; prev = v === null ? prev : Math.min(1, Math.max(0, (v - G.lo) / (G.hi - G.lo))); hgt[c] = Math.round(prev * rows); }
+      st.cols = cols; st.rows = rows; st.g = new Uint8Array(cols * rows); st.moves = []; st.k = 0; st.hot = []; st.said = false;
+      for (let c = 0; c < cols; c++) {
+        const rs = Array.from({ length: rows }, (_, r) => r);
+        for (let r = rows - 1; r > 0; r--) { const j = Math.floor(Math.random() * (r + 1)); [rs[r], rs[j]] = [rs[j], rs[r]]; }   // scatter this column's blocks anywhere
+        for (let k = 0; k < hgt[c]; k++) st.g[c * rows + rs[k]] = 1;
+        const src = [], dst = [];
+        for (let r = 0; r < rows; r++) { const full = st.g[c * rows + r]; if (r < rows - hgt[c] && full) src.push(r); if (r >= rows - hgt[c] && !full) dst.push(r); }
+        src.reverse();                                                           // the lowest stray block drops into the highest gap first
+        for (let k = 0; k < src.length; k++) st.moves.push([c * rows + src[k], c * rows + dst[k]]);
+      }
+      st.total = st.moves.length;
+    }
+    const pct = st.total ? st.k / st.total : 1, done = st.k >= st.total;
+    if (!done) {                                                                 // work through the moves at a steady pace: the whole job takes about 12 seconds at Medium
+      const upto = Math.min(st.total, Math.floor(Math.max(0, tt - 700) * st.total / 12000));
+      if (upto > st.k) { for (let j = st.k; j < upto; j++) { const m = st.moves[j]; st.g[m[0]] = 0; st.g[m[1]] = 1; } st.hot = st.moves.slice(Math.max(st.k, upto - 6), upto); st.k = upto; }
+    } else if (!st.said) { st.said = true; st.hot = []; playSay("Defragmentation complete! The blocks have stacked up into the shape of your scan. Press Stop to clear it, or press Defrag again to start over."); }
+    const F = "Arial, Helvetica, sans-serif", bev = (a, b, c, d, hi, lo) => { x.fillStyle = hi; x.fillRect(a, b, c, 1); x.fillRect(a, b, 1, d); x.fillStyle = lo; x.fillRect(a, b + d - 1, c, 1); x.fillRect(a + c - 1, b, 1, d); };
+    x.clearRect(0, 0, 1e5, 1e5);
+    x.fillStyle = "#c0c0c0"; x.fillRect(px, py, pw, ph); bev(px, py, pw, ph, "#fff", "#404040");                          // the dialog
+    const tg = x.createLinearGradient(px, 0, px + pw, 0); tg.addColorStop(0, "#000080"); tg.addColorStop(1, "#1084d0");
+    x.fillStyle = tg; x.fillRect(px + 2, py + 2, pw - 4, TB - 4);                                                           // title bar
+    for (let i = 0; i < 4; i++) { x.fillStyle = ["#ff0000", "#ffe000", "#20c020", "#2060ff"][i]; x.fillRect(px + 5 + i * 3, py + 5, 3, 10); }   // the little rainbow block icon
+    x.strokeStyle = "#fff"; x.lineWidth = 1; x.strokeRect(px + 4.5, py + 4.5, 12, 10);
+    x.fillStyle = "#fff"; x.font = "bold 12px " + F; x.textAlign = "left"; x.textBaseline = "middle"; x.fillText("Defragmenting Drive C", px + 22, py + TB / 2);
+    for (let i = 0; i < 3; i++) { const bx = px + pw - 18 * (3 - i) - 2 - (i === 2 ? 0 : 0); x.fillStyle = "#c0c0c0"; x.fillRect(bx, py + 4, 14, 12); bev(bx, py + 4, 14, 12, "#fff", "#404040"); x.fillStyle = "#000"; if (i === 0) x.fillRect(bx + 3, py + 12, 6, 2); else if (i === 1) x.strokeRect(bx + 3.5, py + 6.5, 7, 6); else { x.beginPath(); x.moveTo(bx + 4, py + 7); x.lineTo(bx + 10, py + 13); x.moveTo(bx + 10, py + 7); x.lineTo(bx + 4, py + 13); x.stroke(); } }
+    const mx = px + M, my = py + TB + M, mw = cols * cs + 4, mh = rows * cs + 4;                                             // the cluster map in a sunken frame
+    x.fillStyle = "#fff"; x.fillRect(mx, my, mw, mh); bev(mx - 1, my - 1, mw + 2, mh + 2, "#808080", "#fff");
+    const hot = new Map(); for (const m of st.hot) { hot.set(m[0], "#f00"); hot.set(m[1], "#0c0"); }
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+      const i = c * rows + r, h = hot.get(i), on = st.g[i]; if (!on && !h) continue;
+      x.fillStyle = h || "#0000a8"; x.fillRect(mx + 2 + c * cs, my + 2 + r * cs, cs - 1, cs - 1);
+    }
+    const by = py + ph - SB + 4, bw = pw - 2 * M - 4;                                                                       // % complete and the chunky progress bar
+    x.fillStyle = "#000"; x.font = "12px " + F; x.textAlign = "left"; x.fillText(Math.floor(pct * 100) + "% Complete", px + M, by + 9);
+    const bx0 = px + M + 118, bw2 = pw - 2 * M - 118; if (bw2 > 40) {
+      x.fillStyle = "#fff"; x.fillRect(bx0, by, bw2, 18); bev(bx0, by, bw2, 18, "#808080", "#fff");
+      const bl = Math.floor((bw2 - 6) / 11), fill = Math.floor(bl * pct + (done ? .5 : 0)); x.fillStyle = "#000080";
+      for (let b = 0; b < fill; b++) x.fillRect(bx0 + 3 + b * 11, by + 3, 8, 12);
+    }
+  });
+}
+$("fxDefrag").onclick = fxDefrag;
 function fxLeave() {                             // stop everything and put the real numbers back (leaving the tab, printing)
   if (!fxOn) return;
   fxVibStop(); fxOvStop(); fxBendOn = false; fxLabels();
