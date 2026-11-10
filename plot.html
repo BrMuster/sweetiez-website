@@ -760,6 +760,9 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
         <button type="button" id="fxDefrag" title="A scattered disk map gets defragmented: the blocks stack up into the shape of the scan, like the old Windows 95 Disk Defragmenter">▶ Defrag</button>
         <button type="button" id="fxDoom" title="Yes, it can run Doom, with sound and mouse. Click the picture to grab the mouse; arrow keys move, Ctrl fires, Space opens doors, Shift runs">▶ Doom</button>
         <button type="button" id="fxRestore" title="Put the real scan back">Restore the real scan</button></div>
+      <div class="bar"><b>Screensavers</b>
+        <button type="button" id="fxMyst" title="Two bouncing outlines leave colour trails over your scan">▶ Mystify</button>
+        <button type="button" id="fxStars" title="Fly through the stars, then they settle into your scan">▶ Starfield</button></div>
       <p id="playMsg" class="hint" role="status"></p>
     </div>
     <div id="sideCol" class="keep">
@@ -2932,6 +2935,8 @@ function fxLabels() {
   $("fxEq").textContent = fxOv && fxOv.kind === "eq" ? "■ Stop" : "▶ Equalizer";
   $("fxDefrag").textContent = fxOv && fxOv.kind === "defrag" ? "■ Stop" : "▶ Defrag";
   $("fxDoom").textContent = fxOv && fxOv.kind === "doom" ? "■ Stop" : "▶ Doom";
+  $("fxMyst").textContent = fxOv && fxOv.kind === "myst" ? "■ Stop" : "▶ Mystify";
+  $("fxStars").textContent = fxOv && fxOv.kind === "stars" ? "■ Stop" : "▶ Starfield";
   if (!fxBendOn) cv.style.cursor = "";
 }
 function fxVibStop() { if (!fxVibId) return; cancelAnimationFrame(fxVibId); fxVibId = 0; fxClean(); fxLabels(); }
@@ -3157,6 +3162,82 @@ function fxDoom() {
   });
 }
 $("fxDoom").onclick = fxDoom;
+// ----- screensavers -----
+// The first scan's points in screen pixels, in order, inside the view (for the shows that end up drawing the curve)
+function fxCurvePx(maxN) {
+  const s = active()[0], out = [], span = view.b - view.a;
+  for (let i = 0; i < s.n; i++) { const X = s.X[i], y = s.c.v[i]; if (X >= view.a && X <= view.b && isFinite(y))
+    out.push({ x: G.L + (X - view.a) / span * G.pw, y: G.T + G.ph - (Math.min(G.hi, Math.max(G.lo, y)) - G.lo) / (G.hi - G.lo) * G.ph }); }
+  if (!maxN || out.length <= maxN) return out;
+  return Array.from({ length: maxN }, (_, k) => out[Math.round(k / (maxN - 1) * (out.length - 1))]);
+}
+// Mystify: two outlines bounce around leaving fading colour trails, over a faint glow of your scan
+function fxMyst() {
+  fxOvStart("myst", (x, tt, dtf, st) => {
+    if (!st.polys) {
+      const v = () => (1.6 + Math.random() * 2.4) * (Math.random() < .5 ? -1 : 1);
+      st.polys = [0, 1].map(k => ({ hue: k ? 200 : 20, hist: [], n: 0,
+        pts: Array.from({ length: 4 }, () => ({ x: G.L + Math.random() * G.pw, y: G.T + Math.random() * G.ph, vx: v(), vy: v() })) }));
+      playSay("Mystify. Press Stop (or leave the Play tab) to wake the graph back up.");
+    }
+    x.clearRect(0, 0, 1e5, 1e5);
+    x.fillStyle = "#000"; x.fillRect(G.L, G.T, G.pw, G.ph);
+    x.save(); x.beginPath(); x.rect(G.L, G.T, G.pw, G.ph); x.clip();
+    const P = fxCurvePx(1500);   // your scan, glowing faintly underneath
+    x.strokeStyle = `hsla(${(tt / 40) % 360},80%,65%,.35)`; x.lineWidth = 2; x.beginPath(); P.forEach((p, k) => k ? x.lineTo(p.x, p.y) : x.moveTo(p.x, p.y)); x.stroke();
+    for (const pg of st.polys) {
+      for (const p of pg.pts) {
+        p.x += p.vx * dtf; p.y += p.vy * dtf;
+        if (p.x < G.L) { p.x = G.L; p.vx = Math.abs(p.vx); } if (p.x > G.L + G.pw) { p.x = G.L + G.pw; p.vx = -Math.abs(p.vx); }
+        if (p.y < G.T) { p.y = G.T; p.vy = Math.abs(p.vy); } if (p.y > G.T + G.ph) { p.y = G.T + G.ph; p.vy = -Math.abs(p.vy); }
+      }
+      pg.hue = (pg.hue + .4 * dtf) % 360;
+      if ((pg.n += dtf) >= 3) { pg.n = 0; pg.hist.push({ pts: pg.pts.map(p => [p.x, p.y]), hue: pg.hue }); if (pg.hist.length > 14) pg.hist.shift(); }
+      pg.hist.forEach((h, k) => {
+        x.strokeStyle = `hsla(${h.hue},90%,60%,${(k + 1) / pg.hist.length})`; x.lineWidth = 1.5; x.beginPath();
+        h.pts.forEach(([a, b], j) => j ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath(); x.stroke();
+      });
+    }
+    x.restore();
+  });
+}
+// Starfield: fly through the stars for a few seconds, then every star slows down and settles onto your scan
+function fxStars() {
+  fxOvStart("stars", (x, tt, dtf, st) => {
+    const cx = G.L + G.pw / 2, cy = G.T + G.ph / 2, k = Math.max(G.pw, G.ph) * .12, WARP = 7000, SETTLE = 2600;
+    const fresh = s => { s.x = Math.random() * 2 - 1; s.y = Math.random() * 2 - 1; s.z = .3 + Math.random() * .7; };
+    const proj = s => ({ x: cx + s.x / s.z * k, y: cy + s.y / s.z * k });
+    if (!st.s) {
+      const T = fxCurvePx(380); if (!T.length) return fxOvStop();
+      st.s = T.map(t => { const s = { tx: t.x, ty: t.y }; fresh(s); s.z = .05 + Math.random() * .95; return s; });
+      playSay("Starfield: warp speed… then watch where the stars land.");
+    }
+    x.clearRect(0, 0, 1e5, 1e5);
+    x.fillStyle = "#000"; x.fillRect(G.L, G.T, G.pw, G.ph);
+    x.save(); x.beginPath(); x.rect(G.L, G.T, G.pw, G.ph); x.clip();
+    if (tt < WARP) {
+      for (const s of st.s) {
+        const a = proj(s); s.z -= .011 * dtf; if (s.z < .03) { fresh(s); continue; }
+        const b = proj(s); if (b.x < G.L || b.x > G.L + G.pw || b.y < G.T || b.y > G.T + G.ph) { fresh(s); continue; }
+        const br = Math.min(1, (1 - s.z) * 1.4); x.strokeStyle = `rgba(255,255,255,${br})`; x.lineWidth = Math.max(1, (1 - s.z) * 3);
+        x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke(); s.sx = b.x; s.sy = b.y;
+      }
+    } else {
+      const f = Math.min(1, (tt - WARP) / SETTLE), e = f < .5 ? 4 * f * f * f : 1 - Math.pow(-2 * f + 2, 3) / 2;
+      if (f >= 1) {   // landed: a faint line joins them and they twinkle
+        x.strokeStyle = "rgba(120,190,255,.45)"; x.lineWidth = 1; x.beginPath(); st.s.forEach((s, j) => j ? x.lineTo(s.tx, s.ty) : x.moveTo(s.tx, s.ty)); x.stroke();
+      }
+      for (const s of st.s) {
+        if (s.sx === undefined) { const p = proj(s); s.sx = p.x; s.sy = p.y; }
+        const px = s.sx + (s.tx - s.sx) * e, py = s.sy + (s.ty - s.sy) * e, tw = f >= 1 ? .55 + .45 * Math.sin(tt / 180 + s.tx * .7) : 1;
+        x.fillStyle = `rgba(255,255,255,${tw})`; x.beginPath(); x.arc(px, py, 1.6, 0, 7); x.fill();
+      }
+      if (f >= 1 && !st.said) { st.said = true; playSay("The stars have landed on your scan. Press Starfield (Stop) to clear, or again for another trip."); }
+    }
+    x.restore();
+  });
+}
+$("fxMyst").onclick = fxMyst; $("fxStars").onclick = fxStars;
 function fxLeave() {                             // stop everything and put the real numbers back (leaving the tab, printing)
   if (!fxOn) return;
   fxVibStop(); fxOvStop(); fxBendOn = false; fxLabels();
