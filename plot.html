@@ -140,7 +140,8 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
   .panel { display: grid; gap: .8rem; }
   .meas { display: inline-flex; gap: .4rem 1rem; align-items: center; flex-wrap: wrap; }
   #plotwrap { position: relative; } #fxc { position: absolute; width: auto; height: auto; background: none; border: 0; border-radius: 0; pointer-events: none; }
-  @media print { #fxc, #confetti { display: none !important; } }
+  #doomBox { position: absolute; background: #000; display: grid; place-items: center; } #doomBox canvas { position: absolute; inset: 0; width: 100%; height: 100%; outline: none; cursor: crosshair; background: #000 !important; border: 0 !important; box-shadow: none !important; } #doomBox .doomMsg { position: relative; color: #e22; font: bold 20px Arial, sans-serif; text-align: center; padding: 1rem; }
+  @media print { #fxc, #confetti, #doomBox { display: none !important; } }
   .plotwrap { display: grid; grid-template-columns: 6.2rem 1fr; gap: .4rem .5rem; }
   .plotwrap input { width: 100%; min-width: 0; }
   .readout { visibility: visible; flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem 1.1rem; min-height: 1.9rem; padding: .2rem .55rem; font-size: .9rem; color: var(--text); border: 1px solid var(--line); border-radius: 4px; font-variant-numeric: tabular-nums; }   /* the hover values, outside the graph */
@@ -757,7 +758,7 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
         <button type="button" id="fxCards" title="The scan's points tumble off like the old Solitaire win screen">▶ Falling cards</button>
         <button type="button" id="fxEq" title="Turn the scan into bouncing equalizer bars">▶ Equalizer</button>
         <button type="button" id="fxDefrag" title="A scattered disk map gets defragmented: the blocks stack up into the shape of the scan, like the old Windows 95 Disk Defragmenter">▶ Defrag</button>
-        <button type="button" id="fxDoom" title="Yes, it can run Doom. Arrow keys move, Ctrl fires, Space opens doors, Shift runs">▶ Doom</button>
+        <button type="button" id="fxDoom" title="Yes, it can run Doom, with sound and mouse. Click the picture to grab the mouse; arrow keys move, Ctrl fires, Space opens doors, Shift runs">▶ Doom</button>
         <button type="button" id="fxRestore" title="Put the real scan back">Restore the real scan</button></div>
       <p id="playMsg" class="hint" role="status"></p>
     </div>
@@ -3122,41 +3123,37 @@ function fxDefrag() {
 }
 $("fxDefrag").onclick = fxDefrag;
 
-// Doom: the real thing (id Software's DOOM, shareware episode 1) as WebAssembly, drawn on the overlay. It is kept in vendor/doom and only loads the first time you press the button.
-// Stop (or leaving the tab) quits it. While it runs, the keyboard belongs to the game.
+// Doom: the real game (id Software's DOOM, shareware episode 1) with its sound, music and mouse. It is a TypeScript port, kept in vendor/doom, and loads the first time you press the button.
+// It runs in its own canvas laid over the graph. Click the picture to grab the mouse (Esc lets go). Stop, or leaving the tab, quits it.
 function fxDoom() {
-  const KEYS = { 8: 127, 13: 13, 16: 182, 17: 157, 18: 184, 27: 27, 32: 32, 37: 172, 38: 173, 39: 174, 40: 175 };   // browser key code -> Doom key code
   fxOvStart("doom", (x, tt, dtf, st) => {
-    const W = 640, H = 400;
     if (!st.init) {
-      st.init = true; st.ready = false;
-      const say = t => { st.msg = t; };
-      st.msg = "Loading DOOM…";
-      const run = async () => {
-        if (!window.DOOM_WASM_Z) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "vendor/doom/doom.js"; sc.onload = ok; sc.onerror = () => no(new Error("vendor/doom/doom.js is missing")); document.head.append(sc); });
-        const bin = Uint8Array.from(atob(window.DOOM_WASM_Z), ch => ch.charCodeAt(0));
-        const raw = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
-        const mem = new WebAssembly.Memory({ initial: 108 }), off = document.createElement("canvas"); off.width = W; off.height = H; const oc = off.getContext("2d");
-        const text = (p, n) => new TextDecoder().decode(new Uint8Array(mem.buffer, p, n)), log = (p, n) => console.log(text(p, n));
-        const { instance } = await WebAssembly.instantiate(raw, { js: { js_console_log: log, js_stdout: log, js_stderr: log, js_milliseconds_since_start: () => performance.now(),
-          js_draw_screen: ptr => { oc.putImageData(new ImageData(new Uint8ClampedArray(mem.buffer, ptr, W * H * 4), W, H), 0, 0); st.frame = off; } }, env: { memory: mem } });
-        if (!fxOv || fxOv.kind !== "doom") return;                               // stopped while it was loading
-        const key = down => e => { if (e.metaKey) return; instance.exports.add_browser_event(down ? 0 : 1, KEYS[e.keyCode] || (e.keyCode >= 65 && e.keyCode <= 90 ? e.keyCode + 32 : e.keyCode)); e.preventDefault(); e.stopImmediatePropagation(); };
-        const kd = key(true), ku = key(false);
-        addEventListener("keydown", kd, true); addEventListener("keyup", ku, true);
-        fxOv.cleanup = () => { removeEventListener("keydown", kd, true); removeEventListener("keyup", ku, true); };
-        instance.exports.main(); st.step = instance.exports.doom_loop_step; st.ready = true;
-        playSay("DOOM is running. Arrow keys move, Ctrl fires, Space opens doors, Shift runs, Enter picks a menu item, Esc is the menu. Press Stop to quit.");
-      };
-      run().catch(e => { say("Could not start DOOM: " + e.message); playSay("Could not start DOOM: " + e.message); });
+      st.init = true; fxc.hidden = true;                                           // the game draws on its own canvas, not the show canvas
+      const box = document.createElement("div"), cvs = document.createElement("canvas"), msg = document.createElement("div");
+      box.id = "doomBox"; box.append(cvs, msg); $("plotwrap").append(box); st.box = box; st.cvs = cvs;
+      msg.className = "doomMsg"; msg.textContent = "Loading DOOM…";
+      let doom = null, url = "", ac = null;
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { console.warn("No sound:", e); }   // made right at the click, which is when browsers allow sound to start
+      fxOv.cleanup = () => { try { if (document.pointerLockElement) document.exitPointerLock(); if (doom) doom.quit(); if (ac) ac.close(); } catch (e) { console.warn(e); } if (url) URL.revokeObjectURL(url); box.remove(); };
+      const load = src => new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error(src + " is missing")); document.head.append(sc); });
+      const inflate = async b64 => new Response(new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+      (async () => {
+        if (!window.DoomTS) await load("vendor/doom/engine.js");
+        if (!window.DOOM_WAD_Z) await load("vendor/doom/wad.js");
+        url = URL.createObjectURL(new Blob([await inflate(window.DOOM_WAD_Z)]));
+        if (!fxOv || fxOv.kind !== "doom") return;                                   // stopped while it was loading
+        doom = new window.DoomTS({ input: cvs, screen2d: cvs, iwad: url + "#/doom1.wad", config: "data:text/plain,use_mouse%201%0A", renderingMode: 0 });   // (the settings file is a tiny data: address so nothing has to be fetched from disk)
+        doom.onError = e => console.warn("DOOM:", e);
+        doom.input.useMouse = true; if (ac) { doom.iSound.audioCtx = ac; doom.iSound.registerSong = () => undefined; }   // (the music would download its instruments from another website, which this page's security policy blocks on purpose, so only the sound effects play)               // the game mixes its own sound effects, but the page has to hand it the browser's audio
+        cvs.addEventListener("keydown", e => e.stopPropagation()); cvs.addEventListener("keyup", e => e.stopPropagation());   // the plotter's own shortcuts stay out of the game
+        cvs.addEventListener("click", () => { cvs.focus(); if (ac && ac.state !== "running") ac.resume(); if (document.pointerLockElement !== cvs && cvs.requestPointerLock) { try { const r = cvs.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {} } });
+        await doom.init(); msg.hidden = true; cvs.focus();
+        playSay("DOOM is running. Click the picture to grab the mouse (move to turn, click to fire; Esc lets go). Arrow keys move, Ctrl fires, Space opens doors, Shift runs, Enter picks in the menu. Press Stop to quit.");
+      })().catch(e => { msg.textContent = "Could not start DOOM: " + (e && e.message || e); playSay(msg.textContent); });
     }
-    x.clearRect(0, 0, 1e5, 1e5);
-    x.fillStyle = "#000"; x.fillRect(G.L, G.T, G.pw, G.ph);
-    if (st.ready) st.step();
-    if (st.frame) {                                                              // the game's 16:10 picture, as large as fits in the graph area
-      const k = Math.min(G.pw / W, G.ph / H), w = W * k, h = H * k; x.imageSmoothingEnabled = false;
-      x.drawImage(st.frame, G.L + (G.pw - w) / 2, G.T + (G.ph - h) / 2, w, h);
-    } else { x.fillStyle = "#c00"; x.font = "bold 20px Arial, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(st.msg, G.L + G.pw / 2, G.T + G.ph / 2); }
+    const w = cv.clientWidth, h = cv.clientHeight, d = Math.min(2, devicePixelRatio || 1), W = Math.round(w * d), H = Math.round(h * d);   // keep the game's canvas on top of the graph
+    Object.assign(st.box.style, { left: cv.offsetLeft + "px", top: cv.offsetTop + "px", width: w + "px", height: h + "px" });
+    if (st.cvs.width !== W || st.cvs.height !== H) { st.cvs.width = W; st.cvs.height = H; }
   });
 }
 $("fxDoom").onclick = fxDoom;
