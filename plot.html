@@ -2993,15 +2993,16 @@ function fxCtx() {
 function fxOvStop() { if (!fxOv) return; cancelAnimationFrame(fxOv.id); if (fxOv.cleanup) fxOv.cleanup(); fxOv = null; fxc.hidden = true; fxc.getContext("2d").clearRect(0, 0, fxc.width, fxc.height); fxLabels(); }
 function fxOvStart(kind, frame) {                // one show at a time; pressing the same button again stops it
   const was = fxOv && fxOv.kind === kind; fxOvStop(); if (was) return;
-  if (!view || !active().length) return playSay("Load a scan first.");
+  const free = kind === "doom";                    // Doom is its own game: it needs no scan
+  if (!free && (!view || !active().length)) return playSay("Load a scan first.");
   fxOn = true; fxc.hidden = false; fxOv = { kind, id: 0 }; fxLabels();
   const t0 = performance.now(); let last = t0; const st = {};
   const step = now => {
     if (!fxOv || fxOv.kind !== kind) return;
-    if (!view || !active().length) return fxOvStop();
+    if (!free && (!view || !active().length)) return fxOvStop();
     const sp = (Number($("plSpeed").value) || 2) / 2, dtf = Math.min(3, (now - last) / 16.67) * sp, tt = (now - t0) * sp;
     last = now; frame(fxCtx(), tt, dtf, st);
-    fxOv.id = requestAnimationFrame(step);
+    if (fxOv && fxOv.kind === kind) fxOv.id = requestAnimationFrame(step);   // (a show can stop itself inside its frame)
   };
   fxOv.id = requestAnimationFrame(step);
 }
