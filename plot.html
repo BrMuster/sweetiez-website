@@ -57,6 +57,9 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
   .rptbg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000a; }
   .rptdlg { width: 24rem; max-width: 92vw; display: grid; gap: .6rem; padding: 1rem 1.2rem; background: #16202d; border: 1px solid var(--accent); border-radius: 8px; box-shadow: 0 10px 28px #000b; }
   .rptdlg h3 { font-weight: 500; color: #fff; } .rptdlg label { display: grid; grid-template-columns: 8.5rem 1fr; gap: .5rem; align-items: center; }
+  .rptck { display: grid; gap: .3rem; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 4px; } .rptck .hint { font-size: .78rem; }
+  #rptCkList { display: grid; grid-template-columns: 1fr 1fr; gap: .2rem .8rem; } .rptdlg #rptCkList label { display: flex; gap: .4rem; align-items: center; }   /* the Custom report's checklist */
+  .rptdlg { grid-template-columns: minmax(0, 1fr); } .rptdlg label { grid-template-columns: 8.5rem minmax(0, 1fr); } .rptdlg select { width: 100%; min-width: 0; }   /* nothing inside may push past the box's right edge (wider fonts in the Windows themes did) */
   .rptdlg input[type=text] { width: 100%; min-width: 0; } .rptdlg .bar { justify-content: flex-end; }
   #notesBox { display: grid; gap: .4rem; }
   #notes { width: 100%; font: inherit; padding: .5rem .7rem; color: var(--text); background: #0e141b; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
@@ -558,6 +561,7 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
     <div class="panel" data-tab="data" hidden>
       <div class="bar">
         <button type="button" id="openbtn">Open a CSV</button>
+        <button type="button" id="addcsv" title="Draw another CSV on the same graph">Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
         <button type="button" id="pastebtn" title="Copy cells in Excel first, then click here (or press Ctrl+V on this page)">Paste</button>
         <button type="button" id="clearbtn" title="Remove everything from the graph and start over">Clear graph</button>
         <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden>
@@ -565,7 +569,7 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
       </div>
       <p id="msg" class="hint" role="status"></p>
       <p class="hint signalonly">Signal view: drag across the graph to zoom, and double-click to zoom back out.</p>
-      <div class="bar"><div class="bar" id="files"></div><button type="button" id="addcsv" title="Draw another CSV on the same graph">Overlay another CSV</button><input type="file" id="file2" accept=".csv,.tsv,.txt,text/csv,text/plain" multiple hidden></div>
+      <div class="bar"><div class="bar" id="files"></div></div>
       <div class="bar"><button type="button" id="serAll" title="Draw every scan">Check all</button><button type="button" id="serNone" title="Hide every scan">Uncheck all</button></div>
       <div class="series" id="series"></div>
       <div class="filtsec">
@@ -791,8 +795,9 @@ let t; try { t = localStorage.getItem("plotTheme"); } catch (e) {} if (["classic
         <option value="auto">Auto</option>
         <optgroup label="Single scan"><option value="band">Bandpass</option><option value="lwp">Long-wave pass</option><option value="swp">Short-wave pass</option><option value="ar">Anti-reflection</option><option value="notch">Notch</option></optgroup>
         <optgroup label="Multi-scan"><option value="m-band">Multi Bandpass</option><option value="m-lwp">Multi Long-wave pass</option><option value="m-swp">Multi Short-wave pass</option><option value="m-ar">Multi Anti-reflection</option><option value="m-notch">Multi Notch</option></optgroup>
-        <option value="custom">Custom (graph and specs)</option>
+        <option value="custom">Custom</option>
       </select></label>
+      <div id="rptCustom" class="rptck" hidden><b>Numbers to print</b><span class="hint">Tick only what you want beside the graph. None ticked: the graph gets the whole width.</span><div id="rptCkList"></div></div>
       <div style="display:grid;gap:.15rem"><label>Title <input type="text" id="rptTitle" maxlength="80"></label><span class="hint" style="font-size:.8rem;margin-left:9rem">(leave blank if n/a)</span></div>
       <div id="rptFields" style="display:grid;gap:.5rem"></div>
       <label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" id="rptStamp"> Show the date and time printed, at the top right</label>
@@ -2610,7 +2615,11 @@ function multiTable(forced, S) {                 // the Multi reports' table: on
   const data = S.map(flat), keys = [...new Set(data.flatMap(d => Object.keys(d)))].filter(k => type !== "band" || !/^(Low|High) (80|5)%/.test(k));   // a bandpass keeps to the 50% points so the table stays readable
   return { title: "Filter Data: " + (TYPE_NAMES[type] ? TYPE_NAMES[type] + " " : "") + "(" + XUNIT + ")", heads: ["Scan", ...keys], rows: S.map((s, i) => [{ t: s.nick, color: s.color }, ...keys.map(k => data[i][k] ?? "–")]) };
 }
-function rangeVals(s, r) {                        // one scan inside one range: lowest, highest (and where) and average
+function pickCols(t, keep) {                     // the Custom report: keep only the ticked columns (null when none are ticked)
+  if (!t) return null; const idx = t.heads.map((h, i) => i === 0 || (keep || []).includes(h) ? i : -1).filter(i => i >= 0);
+  return idx.length < 2 ? null : { ...t, heads: idx.map(i => t.heads[i]), rows: t.rows.map(r => idx.map(i => r[i])) };
+}
+function rangeVals(s, r) {                       // one scan inside one range: lowest, highest (and where) and average
   let cnt = 0, sum = 0, mn = Infinity, mx = -Infinity, xa, xb;
   for (let i = 0; i < s.n; i++) { const x = s.X[i], y = s.c.v[i]; if (!(x >= r.a && x <= r.b) || !isFinite(y)) continue; cnt++; sum += y; if (y < mn) { mn = y; xa = x; } if (y > mx) { mx = y; xb = x; } }
   return cnt ? { mn, xa, mx, xb, avg: sum / cnt } : null;
@@ -2661,10 +2670,11 @@ function specReport(S) {                         // the spec check, for the repo
 function rptTable(t) {                           // build one report table; its title and headings repeat if it runs onto another page
   const tb = document.createElement("table"), head = tb.createTHead(), n = t.heads.length, long = t.newpage;
   if (long) tb.className = "newpage";
-  if (t.firstCol) { const g = document.createElement("colgroup"), c = document.createElement("col"); c.style.width = t.firstCol; g.append(c); for (let i = 1; i < n; i++) g.append(document.createElement("col")); tb.append(g); }
+  if (t.colW) { const g = document.createElement("colgroup"); for (const w of t.colW) { const c = document.createElement("col"); c.style.width = w; g.append(c); } tb.append(g); }   // every column's own width (Custom)
+  else if (t.firstCol) { const g = document.createElement("colgroup"), c = document.createElement("col"); c.style.width = t.firstCol; g.append(c); for (let i = 1; i < n; i++) g.append(document.createElement("col")); tb.append(g); }
   const band = (parent, cls) => { const tr = parent.insertRow(), c = document.createElement("th"); tr.className = cls; c.colSpan = n; tr.append(c); return c; };
   if (long) band(head, "gap");
-  band(head, "ttl").textContent = t.title;
+  if (t.title) band(head, "ttl").textContent = t.title;
   const hr = head.insertRow(); for (const h of t.heads) { const c = document.createElement("th"), o = typeof h === "object" ? h : { t: h };
     if (o.color) { const sw = document.createElement("i"); sw.className = "psw"; sw.style.background = o.color; c.append(sw); } c.append(o.t); hr.append(c); }
   const body = tb.createTBody();
@@ -2680,18 +2690,27 @@ function preparePrint() {                        // fill in the print-only parts
   fxLeave();                                                           // the Play tab's effects never reach the printed report
   const S = active(), st = rpt.style || "auto", custom = st === "custom", multi = st.startsWith("m-") || (st === "auto" && S.length > 1), wide = multi || custom;
   const forced = st === "auto" || custom ? null : st.replace("m-", "");   // the filter type the style asks for (null: work it out as the panel does)
-  const tbls = [], side = multi && S.length >= 1 && S.length <= 8;     // up to 8 scans: their numbers go in a column beside the graph, with a column of the table per scan
-  const mt = multi && S.length ? multiTable(forced, S) : null; if (mt && !side) tbls.push(mt);
+  const all = (multi || custom) && S.length ? multiTable(forced, S) : null;
+  const mt = custom ? pickCols(all, rpt.cvals) : all;                  // Custom: only the numbers ticked in the Report details box
+  const tbls = [], side = !!mt && S.length >= 1 && S.length <= 8;      // up to 8 scans: their numbers go in a column beside the graph, with a column of the table per scan
+  if (mt && !side) tbls.push(mt);
   const spt = specReport(S); if (spt) tbls.push(spt);
   const rgt = wide ? rangeTable(S) : rangeLines() > 10 ? rangeTable(S.slice(0, 1)) : null; if (rgt) tbls.push(rgt);   // Multi and Custom list the ranges in a table; a single scan gets its own box beside the graph, unless there are too many lines to fit there
-  const rw = side ? Math.min(140, Math.max(72, 30 + S.length * (S.length <= 4 ? 20 : 13.5))) : 0;   // mm: how wide that column is
+  let stab = null, rw = 0;                                             // the table beside the graph, and rw, mm: how wide that column is
+  if (side && custom) {                                                // Custom: a row per scan going down, a column per ticked number, no "Filter Data: ..." heading
+    const len = c => String(typeof c === "object" ? c.t : c).length, plain = v => /^-?[\d.]+( \/ -?[\d.]+)?$/.test(v) || v === "–";
+    const heads = mt.heads.map((h, k) => k && h !== "OD" && mt.rows.every(r => plain(r[k])) ? h + " (" + XUNIT + ")" : h);   // wavelength columns say their unit in the heading
+    heads[0] = "";
+    const colW = heads.map((h, k) => k ? Math.min(17, Math.max(len(h), ...mt.rows.map(r => len(r[k]))) * 1.6 + 3) : Math.max(...mt.rows.map(r => len(r[0]))) * 1.6 + 7);   // the scan column also holds its colour swatch; a pair like 1611.59 / 3447.28 wraps
+    stab = { title: "", heads, rows: mt.rows, colW: colW.map(w => w.toFixed(1) + "mm") }; rw = Math.min(150, Math.ceil(colW.reduce((a, b) => a + b, 0)));
+  } else if (side) { stab = sideTable(mt); rw = Math.min(140, Math.max(72, 30 + S.length * (S.length <= 4 ? 20 : 13.5))); }
   const keyText = shortNames(S).map((f, i) => S[i].nick === f ? f : S[i].nick + ": " + f);   // the key under the graph says which scan is which file
   let keyRows = 0, keyLeft = 0; for (const k of keyText) { const w = 8 + k.length * 1.75; if (w > keyLeft) { keyRows++; keyLeft = wide ? 267 : 211; } keyLeft -= w; }   // how many lines it wraps to
   const L = S.length > 1 ? keyRows * 5.5 + .5 : 0, room = (wide ? 148 : 165) - L, minG = 64;   // mm: the key, the space for the graph and its tables, and the smallest graph worth printing
   let used = 0, later = false;                                         // each table stays under the graph if a good-sized graph still fits; only then do they go on the next page
   for (const t of tbls) { const h = t.rows.length * 4.3 + 12; if (!later && room - used - h - 3 >= minG) used += h; else later = t.newpage = true; }
   const gh = used ? room - used - 3 : wide ? room - 3 : 168.8 - L;     // the 3 mm keeps a wide report with no table under its graph from spilling a blank second page
-  if (side) { $("app").dataset.side = "1"; $("app").style.setProperty("--rw", rw + "mm"); $("printData").replaceChildren(rptTable(sideTable(mt))); } else { delete $("app").dataset.side; $("printData").replaceChildren(); }
+  if (side) { $("app").dataset.side = "1"; $("app").style.setProperty("--rw", rw + "mm"); $("printData").replaceChildren(rptTable(stab)); } else { delete $("app").dataset.side; $("printData").replaceChildren(); }
   $("app").dataset.rpt = wide ? "wide" : "single"; if (later && !wide) $("app").dataset.long = "1"; else delete $("app").dataset.long;
   document.documentElement.classList.toggle("rpttables", tbls.length > 0);
   $("printTables").replaceChildren(...tbls.map(rptTable));
@@ -2734,17 +2753,27 @@ function preparePrint() {                        // fill in the print-only parts
 }
 const RPT = [["inst", "Test Instrument"], ["op", "Test Technician"], ["cust", "Customer Name"], ["am", "Job Number"], ["pn", "Part Number"], ["sn", "Serial Number"], ["lot", "Lot Number"]];
 const rpt = { stamp: true, style: "auto" }; try { rpt.stamp = localStorage.getItem("plotStamp") !== "0"; rpt.style = localStorage.getItem("plotRptStyle") || "auto"; } catch (e) {}
+try { rpt.cvals = JSON.parse(localStorage.getItem("plotCustomVals") || "null"); } catch (e) {} if (!Array.isArray(rpt.cvals)) rpt.cvals = null;   // the Custom report's ticked numbers (null: never chosen yet)
+function customList() {                          // the Custom checklist: every number the scans on the graph have, ticked as you last left it
+  const t = active().length ? multiTable(null, active()) : null, keys = t ? t.heads.slice(1) : [], on = rpt.cvals || keys.slice(0, 3);   // first time: the first three are ticked
+  $("rptCkList").replaceChildren(...keys.map(k => { const l = document.createElement("label"), c = document.createElement("input"); c.type = "checkbox"; c.value = k; c.checked = on.includes(k); l.append(c, k); return l; }));
+  if (!keys.length) $("rptCkList").textContent = "No numbers for this scan.";
+  $("rptCustom").hidden = $("rptStyle").value !== "custom";
+}
+$("rptStyle").onchange = customList;
 try { rpt.op = localStorage.getItem("plotOperator") || ""; rpt.inst = localStorage.getItem("plotInstrument") || ""; } catch (e) {}   // only the technician and the instrument are remembered; job numbers start blank so an old one never lands on a new report
 const RI = RPT.map(([k, label]) => { const l = document.createElement("label"), i = document.createElement("input"); i.type = "text"; i.maxLength = 60;
   i.onkeydown = e => { if (e.key === "Enter") $("rptGo").click(); }; l.append(label, i); $("rptFields").append(l); return i; });
 const closeRpt = () => { $("rptDlg").hidden = true; };
 $("rptTitle").onkeydown = RI[0].onkeydown;
-$("printbtn").onclick = () => { $("rptTitle").value = rpt.title || ""; RI.forEach((i, n) => i.value = rpt[RPT[n][0]] || ""); $("rptStamp").checked = rpt.stamp; $("rptStyle").value = rpt.style; if (!$("rptStyle").value) $("rptStyle").value = "auto"; $("rptDlg").hidden = false; $("rptTitle").focus(); };
+$("printbtn").onclick = () => { $("rptTitle").value = rpt.title || ""; RI.forEach((i, n) => i.value = rpt[RPT[n][0]] || ""); $("rptStamp").checked = rpt.stamp; $("rptStyle").value = rpt.style; if (!$("rptStyle").value) $("rptStyle").value = "auto"; customList(); $("rptDlg").hidden = false; $("rptTitle").focus(); };
 $("rptCancel").onclick = closeRpt;
 $("rptDlg").addEventListener("pointerdown", e => { if (e.target === $("rptDlg")) closeRpt(); });
 $("rptDlg").addEventListener("keydown", e => { if (e.key === "Escape") closeRpt(); });
 $("rptGo").onclick = () => {
-  rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); rpt.stamp = $("rptStamp").checked; rpt.style = $("rptStyle").value; try { localStorage.setItem("plotRptStyle", rpt.style); localStorage.setItem("plotOperator", rpt.op); localStorage.setItem("plotInstrument", rpt.inst); localStorage.setItem("plotStamp", rpt.stamp ? "1" : "0"); } catch (e) {}
+  rpt.title = $("rptTitle").value.trim(); RI.forEach((i, n) => rpt[RPT[n][0]] = i.value.trim()); rpt.stamp = $("rptStamp").checked; rpt.style = $("rptStyle").value;
+  const cks = [...$("rptCkList").querySelectorAll("input")]; if (rpt.style === "custom" && cks.length) rpt.cvals = [...(rpt.cvals || []).filter(k => !cks.some(c => c.value === k)), ...cks.filter(c => c.checked).map(c => c.value)];   // numbers this scan doesn't have stay as you left them
+  try { if (rpt.cvals) localStorage.setItem("plotCustomVals", JSON.stringify(rpt.cvals)); localStorage.setItem("plotRptStyle", rpt.style); localStorage.setItem("plotOperator", rpt.op); localStorage.setItem("plotInstrument", rpt.inst); localStorage.setItem("plotStamp", rpt.stamp ? "1" : "0"); } catch (e) {}
   closeRpt(); preparePrint(); $("printImg").decode().catch(() => {}).then(() => window.print());
 };
 for (const id of ["tempC", "aoi", "pol"]) for (const ev of ["input", "change"]) $(id).addEventListener(ev, () => {   // outline a changed condition on screen right away
